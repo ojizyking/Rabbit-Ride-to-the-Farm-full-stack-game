@@ -35,7 +35,20 @@ export const Shop: React.FC = () => {
         setBicycles(bikesRes.data.bicycles);
       }
     } catch (err) {
-      console.error('Error fetching shop items:', err);
+      console.warn('Shop API unreachable, loading fallback items:', err);
+      setRabbits([
+        { _id: 'rab_001', name: 'Starter White Rabbit', priceNaira: 0, speed: 10, jump: 10, stamina: 10, grip: 10, drift: 10, imageUrl: '/assets/rabbits/starter_rabbit.svg', description: 'A nimble white bunny ready to ride and explore.' },
+        { _id: 'rab_002', name: 'Farmer Hat Bunny', priceNaira: 500, speed: 20, jump: 15, stamina: 25, grip: 15, drift: 10, imageUrl: '/assets/rabbits/farmer_hat.svg', description: 'Equipped with a sturdy straw hat.' },
+        { _id: 'rab_003', name: 'Red Hoodie Rabbit', priceNaira: 1500, speed: 35, jump: 30, stamina: 30, grip: 25, drift: 20, imageUrl: '/assets/rabbits/red_hoodie.svg', description: 'Street-smart bunny with turbo energy.' },
+        { _id: 'rab_004', name: 'Blue Aviator Rabbit', priceNaira: 3000, speed: 45, jump: 40, stamina: 40, grip: 35, drift: 35, imageUrl: '/assets/rabbits/blue_aviator.svg', description: 'Fly high over the farm hills.' },
+        { _id: 'rab_005', name: 'Ninja Shadow Rabbit', priceNaira: 5000, speed: 60, jump: 50, stamina: 50, grip: 45, drift: 40, imageUrl: '/assets/rabbits/ninja_rabbit.svg', description: 'Stealthy, lightning quick farm sprinter.' }
+      ]);
+      setBicycles([
+        { _id: 'bike_001', name: 'Classic Yellow Bike', priceNaira: 0, speed: 10, stability: 10, boost: 10, imageUrl: '/assets/bikes/starter_bike.svg', description: 'Reliable yellow farm bicycle with sturdy wheels.' },
+        { _id: 'bike_002', name: 'Green Bloom Cruiser', priceNaira: 500, speed: 20, stability: 25, boost: 15, imageUrl: '/assets/bikes/green_bloom.svg', description: 'Eco-styled cruiser with smooth leaf shock absorbers.' },
+        { _id: 'bike_003', name: 'Blue Basket Commuter', priceNaira: 1500, speed: 35, stability: 30, boost: 25, imageUrl: '/assets/bikes/blue_basket.svg', description: 'Front carrier basket holds bonus farm treasures.' },
+        { _id: 'bike_004', name: 'Turbo Gold Sprinter', priceNaira: 4000, speed: 60, stability: 50, boost: 45, imageUrl: '/assets/bikes/turbo_gold.svg', description: 'High performance farm cruiser with ultra nitro speed.' }
+      ]);
     } finally {
       setLoading(false);
     }

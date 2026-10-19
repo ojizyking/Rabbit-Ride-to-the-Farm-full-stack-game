@@ -55,6 +55,45 @@ interface AuthContextType {
   closeAuthModal: () => void;
 }
 
+const DEFAULT_STARTER_RABBIT: RabbitItem = {
+  _id: 'rab_001',
+  name: 'Starter White Rabbit',
+  priceNaira: 0,
+  speed: 10,
+  jump: 10,
+  stamina: 10,
+  grip: 10,
+  drift: 10,
+  imageUrl: '/assets/rabbits/starter_rabbit.svg',
+  description: 'A nimble white bunny ready to ride and explore.'
+};
+
+const DEFAULT_STARTER_BIKE: BicycleItem = {
+  _id: 'bike_001',
+  name: 'Classic Yellow Bike',
+  priceNaira: 0,
+  speed: 10,
+  stability: 10,
+  boost: 10,
+  imageUrl: '/assets/bikes/starter_bike.svg',
+  description: 'Reliable yellow farm bicycle with sturdy wheels.'
+};
+
+function createLocalUser(email: string): UserProfile {
+  return {
+    id: 'user_' + Date.now().toString(36),
+    email: email.toLowerCase().trim(),
+    balanceNaira: 50,
+    totalRides: 0,
+    subscriptionTier: 'free',
+    subscriptionExpiresAt: null,
+    currentRabbit: DEFAULT_STARTER_RABBIT,
+    currentBike: DEFAULT_STARTER_BIKE,
+    ownedRabbits: [DEFAULT_STARTER_RABBIT],
+    ownedBikes: [DEFAULT_STARTER_BIKE]
+  };
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -65,43 +104,109 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
   const fetchProfile = async () => {
+    const currentToken = localStorage.getItem('rabbit_token');
+    if (!currentToken) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Handle offline session
+    if (currentToken.startsWith('offline_')) {
+      const saved = localStorage.getItem('rabbit_offline_user');
+      if (saved) {
+        try {
+          setUser(JSON.parse(saved));
+        } catch {
+          setUser(createLocalUser('farmer@rabbitride.com'));
+        }
+      }
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await api.get('/auth/me');
       if (res.data.success) {
         setUser(res.data.user);
       }
-    } catch {
-      // invalid token
-      logout();
+    } catch (err: unknown) {
+      const errorResponse = err as { response?: { status?: number } };
+      if (errorResponse.response?.status === 401) {
+        logout();
+      } else {
+        // Fall back to saved local user if server temporarily offline
+        const saved = localStorage.getItem('rabbit_offline_user');
+        if (saved) {
+          try {
+            setUser(JSON.parse(saved));
+          } catch {
+            // ignore
+          }
+        }
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (token) {
-      fetchProfile();
-    } else {
-      setIsLoading(false);
-    }
+    fetchProfile();
   }, [token]);
 
   const login = async (email: string, password: string) => {
-    const res = await api.post('/auth/login', { email, password });
-    if (res.data.success) {
-      localStorage.setItem('rabbit_token', res.data.token);
-      setToken(res.data.token);
-      setUser(res.data.user);
+    try {
+      const res = await api.post('/auth/login', { email, password });
+      if (res.data.success) {
+        localStorage.setItem('rabbit_token', res.data.token);
+        localStorage.removeItem('rabbit_offline_user');
+        setToken(res.data.token);
+        setUser(res.data.user);
+        setAuthModalOpen(false);
+        return;
+      }
+    } catch (err: unknown) {
+      const errorResponse = err as { response?: { data?: { message?: string } } };
+      // If server responded with a real auth error (e.g. wrong password), throw it!
+      if (errorResponse.response?.data?.message) {
+        throw err;
+      }
+      // If server is unreachable (e.g. Vercel deployment before backend is live), enable resilient session
+      console.warn('Backend server unreachable; initializing resilient local session for:', email);
+      const localUser = createLocalUser(email);
+      const mockToken = 'offline_' + btoa(JSON.stringify({ email, time: Date.now() }));
+      localStorage.setItem('rabbit_token', mockToken);
+      localStorage.setItem('rabbit_offline_user', JSON.stringify(localUser));
+      setToken(mockToken);
+      setUser(localUser);
       setAuthModalOpen(false);
     }
   };
 
   const register = async (email: string, password: string) => {
-    const res = await api.post('/auth/register', { email, password });
-    if (res.data.success) {
-      localStorage.setItem('rabbit_token', res.data.token);
-      setToken(res.data.token);
-      setUser(res.data.user);
+    try {
+      const res = await api.post('/auth/register', { email, password });
+      if (res.data.success) {
+        localStorage.setItem('rabbit_token', res.data.token);
+        localStorage.removeItem('rabbit_offline_user');
+        setToken(res.data.token);
+        setUser(res.data.user);
+        setAuthModalOpen(false);
+        return;
+      }
+    } catch (err: unknown) {
+      const errorResponse = err as { response?: { data?: { message?: string } } };
+      // If server responded with a real validation error (e.g. email exists), throw it!
+      if (errorResponse.response?.data?.message) {
+        throw err;
+      }
+      // If server is unreachable, enable resilient local session so user can register & play immediately!
+      console.warn('Backend server unreachable; registering in resilient local session for:', email);
+      const localUser = createLocalUser(email);
+      const mockToken = 'offline_' + btoa(JSON.stringify({ email, time: Date.now() }));
+      localStorage.setItem('rabbit_token', mockToken);
+      localStorage.setItem('rabbit_offline_user', JSON.stringify(localUser));
+      setToken(mockToken);
+      setUser(localUser);
       setAuthModalOpen(false);
     }
   };
@@ -112,25 +217,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await login(demoEmail, demoPass);
     } catch {
-      // If demo account doesn't exist yet, register it
       await register(demoEmail, demoPass);
     }
   };
 
   const logout = () => {
     localStorage.removeItem('rabbit_token');
+    localStorage.removeItem('rabbit_offline_user');
     setToken(null);
     setUser(null);
   };
 
   const refreshUser = async () => {
-    if (token) {
-      await fetchProfile();
-    }
+    await fetchProfile();
   };
 
   const updateBalance = (newBalance: number) => {
-    setUser((prev) => (prev ? { ...prev, balanceNaira: newBalance } : null));
+    setUser((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, balanceNaira: newBalance };
+      const saved = localStorage.getItem('rabbit_offline_user');
+      if (saved) {
+        try {
+          localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+      }
+      return updated;
+    });
   };
 
   const openAuthModal = (mode: 'login' | 'register' = 'login') => {

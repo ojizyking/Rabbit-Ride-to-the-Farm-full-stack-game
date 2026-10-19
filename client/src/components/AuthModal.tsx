@@ -23,8 +23,13 @@ export const AuthModal: React.FC = () => {
         await register(email, password);
       }
     } catch (err: unknown) {
-      const errorResponse = err as { response?: { data?: { message?: string } } };
-      setError(errorResponse.response?.data?.message || 'Authentication failed. Please check your credentials.');
+      const errorResponse = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(
+        errorResponse.response?.data?.message ||
+        (authMode === 'login'
+          ? 'Invalid email or password. Please try again.'
+          : 'Registration could not be completed. Please try again.')
+      );
     } finally {
       setLoading(false);
     }
