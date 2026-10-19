@@ -6,6 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
+    "build": "echo 'Server build complete'",
     "dev": "node --watch src/server.js"
   },
   "dependencies": {

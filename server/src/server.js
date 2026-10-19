@@ -12,17 +12,25 @@ const adminRoutes = require('./routes/admin');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS - restrict to frontend URL in production
-const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? [process.env.FRONTEND_URL].filter(Boolean)
-  : ['http://localhost:5173', 'http://localhost:3000'];
+// CORS configuration - support Vercel preview domains and production URLs
+const configuredFrontend = process.env.FRONTEND_URL || '';
+const allowedOrigins = configuredFrontend
+  ? configuredFrontend.split(',').map(u => u.trim()).filter(Boolean)
+  : [];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, health checks)
+    // Allow non-browser requests (mobile, server-to-server, curl, health checks)
     if (!origin) return callback(null, true);
+    // Allow localhost during development
     if (process.env.NODE_ENV !== 'production') return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // In production: if FRONTEND_URL is not configured yet, allow all
+    if (allowedOrigins.length === 0) return callback(null, true);
+    // Allow configured origins or any vercel.app deployment
+    const isAllowed = allowedOrigins.includes(origin) ||
+                      origin.endsWith('.vercel.app') ||
+                      origin.includes('localhost');
+    if (isAllowed) return callback(null, true);
     callback(new Error(`CORS: Origin ${origin} not allowed`));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -45,11 +53,21 @@ app.use('/api/shop', shopRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
+// Health check endpoints for Railway / monitoring
+app.get('/', (req, res) => {
   res.json({
     status: 'online',
     app: 'Rabbit Ride to the Farm API',
+    version: '1.0.0',
+    time: new Date().toISOString()
+  });
+});
+
+app.get(['/health', '/api/health'], (req, res) => {
+  res.json({
+    status: 'online',
+    app: 'Rabbit Ride to the Farm API',
+    db: require('mongoose').connection.readyState === 1 ? 'mongodb_atlas' : 'memory_store',
     time: new Date().toISOString()
   });
 });
@@ -66,11 +84,11 @@ app.use((err, req, res, next) => {
 // Connect to DB and start server
 connectDB()
   .then(() => {
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`===============================================`);
       console.log(` 🐇 Rabbit Ride to the Farm Backend Running!   `);
-      console.log(` 🚀 Server listening on port ${PORT}           `);
-      console.log(` 🌐 API Base: http://localhost:${PORT}/api     `);
+      console.log(` 🚀 Server listening on port ${PORT} (0.0.0.0)  `);
+      console.log(` 🌐 Health: http://localhost:${PORT}/api/health`);
       console.log(`===============================================`);
     });
   })
