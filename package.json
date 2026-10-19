@@ -1,0 +1,20 @@
+{
+  "name": "rabbit-ride-to-the-farm",
+  "version": "1.0.0",
+  "description": "Rabbit Ride to the Farm - Fullstack Play-to-Earn Web Game (React 19 + Node.js + Phaser 3)",
+  "scripts": {
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "dev": "npm run server"
+  },
+  "keywords": [
+    "play-to-earn",
+    "phaser3",
+    "react19",
+    "nodejs",
+    "express",
+    "paystack"
+  ],
+  "author": "Antigravity Team",
+  "license": "MIT"
+}

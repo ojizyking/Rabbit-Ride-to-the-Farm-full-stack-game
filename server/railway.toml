@@ -1,0 +1,21 @@
+﻿[build]
+  command = "npm run build"
+  watchPatterns = ["src/**"]
+
+[deploy]
+  startCommand = "npm start"
+  healthcheckPath = "/api/health"
+  healthcheckTimeout = 300
+  restartPolicyType = "on-failure"
+  restartPolicyMaxRetries = 10
+
+[[services]]
+  name = "rabbit-farm-api"
+  source = "."
+  env = "node"
+  plan = "starter"
+  numInstances = 1
+  maxMemoryMB = 512
+
+[services.tcp]
+  ports = [{ target = 5000, published = 5000 }]

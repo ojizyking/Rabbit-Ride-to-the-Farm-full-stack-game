@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120">
+  <defs>
+    <radialGradient id="goldFrame" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FFF176" />
+      <stop offset="60%" stop-color="#FFD54F" />
+      <stop offset="100%" stop-color="#FFA000" />
+    </radialGradient>
+  </defs>
+
+  <!-- Rear Wheel with Golden rim and nitro glow -->
+  <circle cx="35" cy="80" r="28" fill="none" stroke="#212121" stroke-width="6" />
+  <circle cx="35" cy="80" r="23" fill="none" stroke="#FFD700" stroke-width="3" />
+  <circle cx="35" cy="80" r="6" fill="#FFA000" />
+  <line x1="35" y1="55" x2="35" y2="105" stroke="#FFE082" stroke-width="1.5" />
+  <line x1="10" y1="80" x2="60" y2="80" stroke="#FFE082" stroke-width="1.5" />
+  <line x1="17" y1="62" x2="53" y2="98" stroke="#FFE082" stroke-width="1.5" />
+  <line x1="17" y1="98" x2="53" y2="62" stroke="#FFE082" stroke-width="1.5" />
+
+  <!-- Front Wheel -->
+  <circle cx="125" cy="80" r="28" fill="none" stroke="#212121" stroke-width="6" />
+  <circle cx="125" cy="80" r="23" fill="none" stroke="#FFD700" stroke-width="3" />
+  <circle cx="125" cy="80" r="6" fill="#FFA000" />
+  <line x1="125" y1="55" x2="125" y2="105" stroke="#FFE082" stroke-width="1.5" />
+  <line x1="100" y1="80" x2="150" y2="80" stroke="#FFE082" stroke-width="1.5" />
+  <line x1="107" y1="62" x2="143" y2="98" stroke="#FFE082" stroke-width="1.5" />
+  <line x1="107" y1="98" x2="143" y2="62" stroke="#FFE082" stroke-width="1.5" />
+
+  <!-- Turbo Nitro Canister on frame -->
+  <rect x="74" y="62" width="16" height="8" rx="3" fill="#00E5FF" stroke="#00B0FF" stroke-width="1" />
+  <line x1="90" y1="66" x2="96" y2="66" stroke="#40C4FF" stroke-width="2" />
+
+  <!-- Frame - Gleaming Gold Aerodynamic -->
+  <path d="M 35 80 L 68 76 L 102 46 L 58 46 Z" fill="none" stroke="url(#goldFrame)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+  <line x1="68" y1="76" x2="125" y2="80" stroke="url(#goldFrame)" stroke-width="5" stroke-linecap="round" />
+  <line x1="102" y1="46" x2="125" y2="80" stroke="url(#goldFrame)" stroke-width="6" stroke-linecap="round" />
+
+  <!-- Pedals -->
+  <circle cx="68" cy="76" r="10" fill="#FFB300" stroke="#FFF" stroke-width="1.5" />
+  <line x1="60" y1="70" x2="76" y2="82" stroke="#FFF8E1" stroke-width="3.5" stroke-linecap="round" />
+
+  <!-- Seat -->
+  <line x1="58" y1="46" x2="58" y2="34" stroke="#455A64" stroke-width="4" stroke-linecap="round" />
+  <path d="M 46 34 Q 60 29 74 34 Q 68 38 52 38 Z" fill="#212121" stroke="#FFD700" stroke-width="1.5" />
+
+  <!-- Handlebars -->
+  <line x1="102" y1="46" x2="106" y2="26" stroke="url(#goldFrame)" stroke-width="5" stroke-linecap="round" />
+  <path d="M 96 26 L 110 24 L 106 19" fill="none" stroke="#212121" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Nitro flame icon -->
+  <polygon points="112,24 118,22 115,26 122,25 114,31 116,27" fill="#FF5722" />
+</svg>

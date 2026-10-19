@@ -1,0 +1,30 @@
+﻿# ── Node ──────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ── Environment secrets (NEVER commit these) ──────────────────
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ── Build outputs ─────────────────────────────────────────────
+client/dist/
+client/.vite/
+*.tsbuildinfo
+
+# ── Dev database / runtime data ───────────────────────────────
+server/dev_data.json
+
+# ── OS / Editor ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ── Logs ──────────────────────────────────────────────────────
+logs/
+*.log
