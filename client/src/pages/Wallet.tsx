@@ -176,7 +176,7 @@ export const Wallet: React.FC = () => {
         }}
       >
         <div>
-          <span style={{ fontSize: '0.95rem', opacity: 0.85, fontWeight: 600 }}>AVAILABLE BALANCE</span>
+          <span style={{ fontSize: '0.95rem', opacity: 0.85, fontWeight: 600 }}>ELIGIBLE REWARDS BALANCE</span>
           <div style={{ fontSize: '2.75rem', fontWeight: 700, margin: '0.25rem 0', color: '#FFC93C', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>₦{(user?.balanceNaira || 0).toLocaleString()}</span>
           </div>
@@ -189,19 +189,19 @@ export const Wallet: React.FC = () => {
         </div>
 
         <div>
-          <span style={{ fontSize: '0.95rem', opacity: 0.85, fontWeight: 600 }}>ACTIVE SUBSCRIPTION</span>
+          <span style={{ fontSize: '0.95rem', opacity: 0.85, fontWeight: 600 }}>ACTIVE GAMEPLAY PACK</span>
           <div style={{ margin: '0.5rem 0' }}>
             <span className={`badge-tier ${user?.subscriptionTier || 'free'}`} style={{ fontSize: '1rem', padding: '0.35rem 1rem' }}>
               {(user?.subscriptionTier || 'free').toUpperCase()} PACK
             </span>
           </div>
           <span style={{ fontSize: '0.85rem', opacity: 0.85 }}>
-            Boost: {user?.subscriptionTier === 'elite' ? '+50%' : user?.subscriptionTier === 'pro' ? '+25%' : user?.subscriptionTier === 'growth' ? '+10%' : user?.subscriptionTier === 'basic' ? '+5%' : '+0%'}
+            Session Boost: {user?.subscriptionTier === 'elite' ? '+50%' : user?.subscriptionTier === 'pro' ? '+25%' : user?.subscriptionTier === 'growth' ? '+10%' : user?.subscriptionTier === 'basic' ? '+5%' : '+0%'}
           </span>
         </div>
 
         <div>
-          <span style={{ fontSize: '0.95rem', opacity: 0.85, fontWeight: 600 }}>LIFETIME RIDES</span>
+          <span style={{ fontSize: '0.95rem', opacity: 0.85, fontWeight: 600 }}>TOTAL FARM RIDES</span>
           <div style={{ fontSize: '2.25rem', fontWeight: 700, margin: '0.25rem 0', color: '#FFFFFF' }}>
             {user?.totalRides || 0}
           </div>
@@ -217,8 +217,8 @@ export const Wallet: React.FC = () => {
               <ArrowDownCircle size={26} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.35rem', color: '#174D2A', fontWeight: 700 }}>Withdraw Earnings</h3>
-              <p style={{ fontSize: '0.85rem', color: '#78909C' }}>Direct bank transfer via Paystack (Min: ₦1,000)</p>
+              <h3 style={{ fontSize: '1.35rem', color: '#174D2A', fontWeight: 700 }}>Withdraw Eligible Rewards</h3>
+              <p style={{ fontSize: '0.85rem', color: '#78909C' }}>Direct bank transfer via Paystack (Minimum: ₦1,000)</p>
             </div>
           </div>
 
@@ -288,29 +288,29 @@ export const Wallet: React.FC = () => {
               className="btn-primary"
               style={{ justifyContent: 'center', padding: '0.85rem', marginTop: '0.5rem' }}
             >
-              {withdrawLoading ? 'Processing Paystack Transfer...' : 'Instant Bank Cashout'}
+              {withdrawLoading ? 'Processing Paystack Transfer...' : 'Request Bank Transfer'}
             </button>
           </form>
         </div>
 
-        {/* SUBSCRIBE / UPGRADE TIERS */}
+        {/* GAMEPLAY PACKS */}
         <div style={{ background: '#FFFFFF', borderRadius: '16px', padding: '1.75rem', border: '2px solid #C8E6C9', boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
             <div style={{ background: '#E8F5E9', padding: '0.6rem', borderRadius: '12px', color: '#2E7D32' }}>
               <CreditCard size={26} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.35rem', color: '#174D2A', fontWeight: 700 }}>Upgrade Subscription</h3>
-              <p style={{ fontSize: '0.85rem', color: '#78909C' }}>Boost ride rewards + unlimited access via Paystack</p>
+              <h3 style={{ fontSize: '1.35rem', color: '#174D2A', fontWeight: 700 }}>Optional Gameplay Packs</h3>
+              <p style={{ fontSize: '0.85rem', color: '#78909C' }}>Session boosts, extra carrot tokens &amp; unlimited daily rides</p>
             </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {[
-              { amount: 1000, name: 'Basic Starter', boost: '+5% Boost', color: '#FFE082' },
+              { amount: 1000, name: 'Basic Starter Pack', boost: '+5% Session Boost', color: '#FFE082' },
               { amount: 2000, name: 'Growth Pack (Popular)', boost: '+10% Boost + Weekly Crate', color: '#C8E6C9' },
-              { amount: 5000, name: 'Pro Pack', boost: '+25% Boost + NFTs', color: '#BBDEFB' },
-              { amount: 10000, name: 'Elite Pack', boost: '+50% Boost + VIP Airdrops', color: '#E1BEE7' }
+              { amount: 5000, name: 'Pro Pack', boost: '+25% Boost + Premium Cosmetics', color: '#BBDEFB' },
+              { amount: 10000, name: 'Elite Pack', boost: '+50% Boost + VIP Tracks', color: '#E1BEE7' }
             ].map((plan) => (
               <div
                 key={plan.amount}
@@ -343,7 +343,7 @@ export const Wallet: React.FC = () => {
               className="btn-green"
               style={{ justifyContent: 'center', padding: '0.85rem', marginTop: '0.75rem' }}
             >
-              {subscribeLoading ? 'Connecting to Paystack...' : `Subscribe for ₦${selectedTier.toLocaleString()} via Paystack`}
+              {subscribeLoading ? 'Connecting to Paystack...' : `Get Pack for ₦${selectedTier.toLocaleString()} via Paystack`}
             </button>
           </div>
         </div>
@@ -393,6 +393,20 @@ export const Wallet: React.FC = () => {
         </div>
       )}
 
+      {/* REWARDS & WITHDRAWALS POLICY CARD */}
+      <div style={{ background: '#F9FBE7', borderRadius: '16px', padding: '1.5rem', border: '2px solid #DCE775', color: '#33691E' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontWeight: 700, fontSize: '1.1rem' }}>
+          <AlertTriangle size={20} color="#689F38" />
+          <span>Reward Rules &amp; Important Disclaimer</span>
+        </div>
+        <p style={{ fontSize: '0.9rem', color: '#37474F', lineHeight: 1.6, margin: 0 }}>
+          Rabbit Ride to the Farm is a game featuring optional in-game purchases and eligible reward or withdrawal features.
+          In-game purchases provide the items or gameplay access described at checkout and do not guarantee cash rewards, profits, or financial returns.
+          Reward eligibility and withdrawals are governed by applicable game rules (Minimum withdrawal: ₦1,000; Rate: 1,000 Coins = ₦100).
+          Please review the terms and conditions before making a purchase or participating in reward activities. Play responsibly and only spend what you can afford.
+        </p>
+      </div>
+
       {/* TRANSACTIONS LIST */}
       <div style={{ background: '#FFFFFF', borderRadius: '16px', padding: '1.75rem', border: '2px solid #C8E6C9', boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
@@ -405,7 +419,7 @@ export const Wallet: React.FC = () => {
         {loadingTx ? (
           <p style={{ textAlign: 'center', color: '#90A4AE', padding: '2rem 0' }}>Loading transaction records...</p>
         ) : transactions.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#90A4AE', padding: '2rem 0' }}>No transactions recorded yet. Go ride and earn!</p>
+          <p style={{ textAlign: 'center', color: '#90A4AE', padding: '2rem 0' }}>No transactions recorded yet. Explore the farm and start riding!</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {transactions.map((tx) => (

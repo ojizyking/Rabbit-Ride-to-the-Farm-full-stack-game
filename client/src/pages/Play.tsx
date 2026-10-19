@@ -408,7 +408,7 @@ export const Play: React.FC = () => {
           <div className="gameover-modal-card">
             <div style={{ fontSize: '3rem', marginBottom: '0.25rem' }}>🏁</div>
             <h2 className="gameover-title">Ride Complete!</h2>
-            <p className="gameover-subtitle">Great ride! Your farm earnings have been credited.</p>
+            <p className="gameover-subtitle">Great ride! Your collected tokens and ride rewards have been credited.</p>
 
             <div className="gameover-stats-grid">
               <div className="gameover-stat-box">
@@ -423,7 +423,7 @@ export const Play: React.FC = () => {
                 <span className="gameover-stat-val earnings">
                   +₦{(gameOverData.nairaEarned !== undefined ? gameOverData.nairaEarned : (gameOverData.coins / 10)).toLocaleString()}
                 </span>
-                <span className="gameover-stat-label">Naira Earned (1,000 Coins = ₦100)</span>
+                <span className="gameover-stat-label">Reward Value (1,000 Coins = ₦100)</span>
               </div>
               <div className="gameover-stat-box">
                 <span className="gameover-stat-val" style={{ color: '#2E7D32' }}>
@@ -445,7 +445,7 @@ export const Play: React.FC = () => {
                   style={{ justifyContent: 'center' }}
                 >
                   <ShoppingCart size={18} />
-                  <span>Upgrade Shop</span>
+                  <span>Farm Shop</span>
                 </button>
                 <button
                   onClick={() => navigate('/wallet')}
@@ -453,7 +453,7 @@ export const Play: React.FC = () => {
                   style={{ justifyContent: 'center' }}
                 >
                   <Wallet size={18} />
-                  <span>Cash Out</span>
+                  <span>Wallet &amp; Rewards</span>
                 </button>
               </div>
             </div>
@@ -523,13 +523,13 @@ export const Play: React.FC = () => {
                 <div className="billboard-reward-pitch">
                   <div className="billboard-reward-tag">
                     <Coins size={18} color="#FF7A00" />
-                    <span>GUARANTEED SPONSOR REWARD</span>
+                    <span>SPONSOR BONUS</span>
                   </div>
                   <h3 className="billboard-reward-amount">+100 Coins (₦10.00)</h3>
                   <p className="billboard-reward-sub">
                     {isBillboardComplete
-                      ? '🎉 30s View Completed! +100 Coins added to your earnings!'
-                      : 'Watch this 30s sponsor spot to automatically earn ₦10 Naira.'}
+                      ? '🎉 30s View Completed! +100 Coins credited to your session!'
+                      : 'Watch this 30s sponsor spotlight to collect 100 game coins.'}
                   </p>
                 </div>
               </div>
@@ -631,17 +631,17 @@ export const Play: React.FC = () => {
             <div style={{ color: '#FF7A00', marginBottom: '0.5rem' }}>
               <AlertCircle size={48} style={{ margin: '0 auto' }} />
             </div>
-            <h2 className="gameover-title">Daily Limit Reached!</h2>
+            <h2 className="gameover-title">Daily Free Rides Completed!</h2>
             <p className="gameover-subtitle">
-              You have completed your 10 free rides for today. Upgrade your subscription to unlock unlimited rides
-              and bonus token multipliers!
+              You have completed your 10 free rides for today. Explore optional gameplay packs to access unlimited daily rides
+              and session boosts, or visit the farm shop for more items!
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <button onClick={() => navigate('/wallet')} className="btn-primary" style={{ justifyContent: 'center' }}>
-                <span>Upgrade to Unlimited Tier</span>
+                <span>View Gameplay Packs</span>
               </button>
               <button onClick={() => navigate('/shop')} className="btn-outline" style={{ justifyContent: 'center' }}>
-                <span>Visit Upgrade Shop</span>
+                <span>Visit Farm Shop</span>
               </button>
             </div>
           </div>

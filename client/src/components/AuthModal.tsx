@@ -55,12 +55,12 @@ export const AuthModal: React.FC = () => {
             <img src="/assets/logo.svg" alt="Logo" style={{ width: '100%', height: '100%' }} />
           </div>
           <h2 style={{ fontSize: '1.75rem', color: 'var(--green-dark)', fontWeight: 700 }}>
-            {authMode === 'login' ? 'Welcome Back!' : 'Start Riding & Earning'}
+            {authMode === 'login' ? 'Welcome Back!' : 'Join the Farm Adventure'}
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
             {authMode === 'login'
-              ? 'Enter your credentials to hop back on your bike'
-              : 'Create your account and claim your ₦50 welcome bonus!'}
+              ? 'Enter your credentials to hop back on your bike and continue your adventure'
+              : 'Create an account to save your progress, track your farm rides, and manage rewards.'}
           </p>
         </div>
 

@@ -114,6 +114,20 @@ export const Shop: React.FC = () => {
         </div>
       </div>
 
+      {/* SHOP NOTICE BANNER */}
+      <div style={{ maxWidth: '1200px', margin: '1rem auto 0 auto', padding: '0 1.25rem' }}>
+        <div style={{ background: '#F1F8E9', border: '1px solid #C5E1A5', borderRadius: '14px', padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', color: '#174D2A', fontWeight: 700, fontSize: '1.05rem' }}>
+            <span>🥕 Need More Energy? Visit the Farm Shop!</span>
+            <span style={{ fontSize: '0.85rem', color: '#E65100', fontWeight: 600 }}>— Every good farmer knows when it's time to restock!</span>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#546E7A', lineHeight: 1.5 }}>
+            The Rabbit Ride to the Farm shop offers available gameplay items, including energy, tickets, and extra chances to participate in selected activities.
+            Purchases provide the in-game benefits displayed at checkout. Shop when it suits you. Play at your own pace.
+          </p>
+        </div>
+      </div>
+
       {/* CATEGORY TABS */}
       <div className="shop-tabs-bar">
         <div className="shop-tabs-container">
@@ -268,10 +282,10 @@ export const Shop: React.FC = () => {
             })}
       </div>
 
-      {/* BOTTOM BANNER (matches Image 2 bottom banner) */}
+      {/* BOTTOM BANNER */}
       <div className="shop-bottom-banner">
         <span>🥕</span>
-        <span>Select an item to ride &amp; race to the farm!</span>
+        <span>Shop when it suits you. Play at your own pace. Enjoy your farm ride!</span>
         <span>⭐</span>
       </div>
     </div>

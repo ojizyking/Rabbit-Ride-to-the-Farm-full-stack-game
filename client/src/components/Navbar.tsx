@@ -25,18 +25,18 @@ export const Navbar: React.FC = () => {
         <nav>
           <ul className="nav-links">
             <li><Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>Home</Link></li>
-            <li><Link to="/play" className={`nav-link ${isActive('/play') ? 'active' : ''}`}>Game</Link></li>
-            <li><a href="/#how-it-works" className="nav-link">How It Works</a></li>
-            <li><a href="/#tiers" className="nav-link">Tiers</a></li>
-            <li><Link to="/shop" className={`nav-link ${isActive('/shop') ? 'active' : ''}`}>Shop</Link></li>
-            <li><Link to="/wallet" className={`nav-link ${isActive('/wallet') ? 'active' : ''}`}>Wallet</Link></li>
+            <li><Link to="/play" className={`nav-link ${isActive('/play') ? 'active' : ''}`}>Play Game</Link></li>
+            <li><a href="/#game-features" className="nav-link">Features</a></li>
+            <li><a href="/#tiers" className="nav-link">Gameplay Packs</a></li>
+            <li><Link to="/shop" className={`nav-link ${isActive('/shop') ? 'active' : ''}`}>Farm Shop</Link></li>
+            <li><Link to="/wallet" className={`nav-link ${isActive('/wallet') ? 'active' : ''}`}>Wallet &amp; Rewards</Link></li>
           </ul>
         </nav>
 
         <div className="nav-actions">
           {user ? (
             <>
-              <Link to="/wallet" className="nav-wallet-chip" title="View Wallet" onClick={closeMenu}>
+              <Link to="/wallet" className="nav-wallet-chip" title="View Wallet & Rewards" onClick={closeMenu}>
                 <span style={{ fontSize: '1.1rem' }}>🥕</span>
                 <span>₦{user.balanceNaira.toLocaleString()}</span>
               </Link>
@@ -48,7 +48,7 @@ export const Navbar: React.FC = () => {
           ) : (
             <button onClick={() => { openAuthModal('login'); closeMenu(); }} className="btn-primary">
               <Wallet size={18} />
-              <span>Connect Wallet</span>
+              <span>Sign In / Join</span>
             </button>
           )}
 
@@ -74,18 +74,18 @@ export const Navbar: React.FC = () => {
         <Link to="/play" className={`mobile-nav-link ${isActive('/play') ? 'active' : ''}`} onClick={closeMenu}>
           <Gamepad2 size={20} /> Play Game
         </Link>
-        <Link to="/shop" className={`mobile-nav-link ${isActive('/shop') ? 'active' : ''}`} onClick={closeMenu}>
-          <ShoppingBag size={20} /> Shop
-        </Link>
-        <Link to="/wallet" className={`mobile-nav-link ${isActive('/wallet') ? 'active' : ''}`} onClick={closeMenu}>
-          <Wallet size={20} /> Wallet
-        </Link>
-        <a href="/#how-it-works" className="mobile-nav-link" onClick={closeMenu}>
-          <HelpCircle size={20} /> How It Works
+        <a href="/#game-features" className="mobile-nav-link" onClick={closeMenu}>
+          <HelpCircle size={20} /> Game Features
         </a>
         <a href="/#tiers" className="mobile-nav-link" onClick={closeMenu}>
-          <Award size={20} /> Subscription Tiers
+          <Award size={20} /> Gameplay Packs
         </a>
+        <Link to="/shop" className={`mobile-nav-link ${isActive('/shop') ? 'active' : ''}`} onClick={closeMenu}>
+          <ShoppingBag size={20} /> Farm Shop
+        </Link>
+        <Link to="/wallet" className={`mobile-nav-link ${isActive('/wallet') ? 'active' : ''}`} onClick={closeMenu}>
+          <Wallet size={20} /> Wallet &amp; Rewards
+        </Link>
 
         <div className="mobile-nav-divider" />
 
@@ -108,7 +108,7 @@ export const Navbar: React.FC = () => {
             className="btn-primary"
             style={{ justifyContent: 'center', marginTop: '0.5rem' }}
           >
-            <Wallet size={18} /> Connect Wallet
+            <Wallet size={18} /> Sign In / Join
           </button>
         )}
       </div>
