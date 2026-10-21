@@ -2,20 +2,32 @@
   position: relative;
   width: 100%;
   height: calc(100vh - 60px);
+  height: calc(100dvh - 60px);
   overflow: hidden;
   background: #A8E6CF;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
 }
 
 .game-canvas {
   width: 100%;
-  height: calc(100vh - 60px);
+  height: 100%;
   display: block;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .game-canvas canvas {
   width: 100% !important;
   height: 100% !important;
   display: block;
+  touch-action: none;
+  -webkit-touch-callout: none;
 }
 
 /* Floating HUD on top of Phaser Canvas */
@@ -322,167 +334,247 @@
   }
 }
 
-/* ── Mobile HUD (≤520px) ─────────────────────────────────── */
-@media (max-width: 520px) {
+/* ── Mobile HUD (≤640px) ─────────────────────────────────── */
+@media (max-width: 640px) {
   .game-hud-overlay {
-    padding: 0.5rem 0.6rem;
-    /* Two rows: stats top, actions bottom */
-    flex-direction: column;
-    align-items: stretch;
+    padding: calc(0.4rem + env(safe-area-inset-top, 0px)) calc(0.5rem + env(safe-area-inset-right, 0px)) 0.4rem calc(0.5rem + env(safe-area-inset-left, 0px));
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
     gap: 0.35rem;
+  }
+  /* Hide heavy desktop-only control buttons in top bar on mobile */
+  .hud-btn-boost,
+  .hud-btn-flip,
+  .hud-boost-container,
+  .game-controls-hint {
+    display: none !important;
   }
   .game-hud-left {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    align-items: center;
     gap: 0.35rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .game-hud-left::-webkit-scrollbar {
+    display: none;
   }
   .game-hud-right {
     display: flex;
-    flex-wrap: wrap;
+    align-items: center;
     gap: 0.35rem;
-    justify-content: flex-end;
+    flex-shrink: 0;
   }
   .hud-stat-pill {
     font-size: 0.8rem;
-    padding: 0.28rem 0.6rem;
-    gap: 0.3rem;
+    padding: 0.28rem 0.55rem;
+    gap: 0.25rem;
+    white-space: nowrap;
+    border-width: 1.5px;
   }
-  /* Hide km distance on tiny screens to save space */
-  .hud-stat-pill.distance span { display: none; }
-  .hud-stat-pill.distance::after { content: attr(data-val); }
-  .hud-btn-boost,
-  .hud-btn-flip,
+  /* Hide km suffix label on tiny screens */
+  .hud-stat-pill.distance span {
+    font-size: 0.8rem;
+  }
   .hud-btn-ad {
     font-size: 0.78rem;
-    padding: 0.42rem 0.7rem;
-    gap: 0.3rem;
+    padding: 0.38rem 0.7rem;
+    gap: 0.25rem;
+    border-width: 1.5px;
   }
-  .hud-boost-container {
-    padding: 0.35rem 0.65rem;
-  }
-  .hud-boost-bar-bg {
-    width: 70px;
-  }
-  .hud-boost-label {
-    font-size: 0.68rem;
+  .hud-btn-ad span {
+    font-size: 0.78rem;
   }
   .hud-icon-btn {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
   }
   /* Billboard modal: fill screen on mobile */
   .billboard-modal-frame {
     max-width: 100%;
-    width: calc(100vw - 1.5rem);
+    width: calc(100vw - 1.25rem);
     border-radius: 16px;
     border-width: 3px;
   }
   .billboard-screen-casing {
-    margin: 0.75rem;
-    padding: 0.85rem;
+    margin: 0.6rem;
+    padding: 0.75rem;
     border-radius: 12px;
   }
   .timer-radial-wrap {
-    width: 72px;
-    height: 72px;
+    width: 68px;
+    height: 68px;
   }
   .timer-val {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
   }
   .billboard-reward-amount {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
   }
   .billboard-countdown-row {
-    gap: 0.75rem;
+    gap: 0.65rem;
   }
   .sponsor-icon-animated {
-    font-size: 2.2rem;
+    font-size: 2rem;
   }
   .sponsor-title {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
   }
   .sponsor-desc {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
   }
   .cheer-btn span {
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
   .billboard-claim-btn {
-    font-size: 0.95rem;
-    padding: 0.7rem 1.4rem;
+    font-size: 0.92rem;
+    padding: 0.65rem 1.2rem;
   }
   /* Game over modal */
   .gameover-modal-card {
-    padding: 1.5rem 1.1rem;
+    padding: 1.25rem 1rem;
     border-radius: 18px;
   }
   .gameover-title {
-    font-size: 1.75rem;
+    font-size: 1.6rem;
   }
   .gameover-stat-val {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
   }
 }
 
-/* ── Mobile Touch Controls (shown only on touch devices) ─── */
+/* ── Mobile Touch Controls (shown on touch/mobile devices) ── */
 .touch-controls {
   display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px), (pointer: coarse) {
   .touch-controls {
     display: flex;
     position: absolute;
-    bottom: 1.5rem;
+    bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
     left: 0;
     right: 0;
-    padding: 0 1rem;
+    padding: 0 calc(1.25rem + env(safe-area-inset-right, 0px)) 0 calc(1.25rem + env(safe-area-inset-left, 0px));
     justify-content: space-between;
     align-items: flex-end;
     pointer-events: none;
-    z-index: 15;
+    z-index: 25;
   }
-  .touch-controls-left,
+  .touch-controls-left {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 0.75rem;
+    pointer-events: auto;
+  }
   .touch-controls-right {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    align-items: flex-end;
     pointer-events: auto;
   }
   .touch-btn {
-    width: 64px;
-    height: 64px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(8px);
-    border: 2px solid rgba(255, 255, 255, 0.4);
-    color: #FFFFFF;
-    font-size: 1.6rem;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-    transition: transform 0.1s, background 0.1s;
+    border: none;
+    cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-touch-callout: none;
     touch-action: manipulation;
+    transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   }
   .touch-btn:active {
     transform: scale(0.9);
-    background: rgba(255, 255, 255, 0.45);
   }
+
+  /* Super Jump Button - Big, Tactile, High-Contrast */
+  .touch-btn.jump-btn {
+    width: 78px;
+    height: 78px;
+    background: linear-gradient(135deg, #2E7D32 0%, #43A047 100%);
+    border: 3.5px solid #A5D6A7;
+    color: #FFFFFF;
+    box-shadow: 0 8px 24px rgba(46, 125, 50, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    gap: 1px;
+    animation: jumpBtnGlow 2.5s infinite;
+  }
+  .touch-jump-text {
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Nitro Boost Button */
   .touch-btn.boost-btn {
-    background: rgba(255, 122, 0, 0.45);
-    border-color: rgba(255, 193, 60, 0.6);
-    animation: pulseGlow 2s infinite;
+    width: 62px;
+    height: 62px;
+    background: linear-gradient(135deg, #E65100 0%, #FF8F00 100%);
+    border: 2.5px solid #FFE082;
+    color: #FFFFFF;
+    box-shadow: 0 6px 18px rgba(230, 81, 0, 0.5);
+    gap: 1px;
   }
-  .touch-btn.flip-btn {
-    background: rgba(255, 193, 7, 0.35);
-    border-color: rgba(255, 232, 80, 0.55);
+  .touch-btn.boost-btn.ready {
+    animation: touchBoostPulse 1.6s infinite;
   }
-  .touch-btn.boost-btn:active {
-    background: rgba(255, 122, 0, 0.7);
+  .touch-btn.boost-btn.boosting {
+    background: linear-gradient(135deg, #FF1744 0%, #FF5252 100%);
+    border-color: #FF8A80;
+    box-shadow: 0 0 24px rgba(255, 23, 68, 0.85);
+  }
+  .touch-btn.boost-btn:disabled {
+    opacity: 0.45;
+    filter: grayscale(0.7);
     animation: none;
+    box-shadow: none;
+  }
+
+  /* 360 Stunt Flip Button */
+  .touch-btn.flip-btn {
+    width: 54px;
+    height: 54px;
+    background: linear-gradient(135deg, #F57F17 0%, #FBC02D 100%);
+    border: 2.5px solid #FFF59D;
+    color: #FFFFFF;
+    box-shadow: 0 4px 14px rgba(245, 127, 23, 0.45);
+    gap: 1px;
+  }
+  .touch-btn-label {
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    letter-spacing: 0.4px;
+  }
+}
+
+@keyframes jumpBtnGlow {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(46, 125, 50, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 8px 30px rgba(67, 160, 71, 0.85), inset 0 2px 6px rgba(255, 255, 255, 0.6);
+  }
+}
+
+@keyframes touchBoostPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 6px 18px rgba(230, 81, 0, 0.5);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 8px 26px rgba(255, 143, 0, 0.8);
   }
 }
 

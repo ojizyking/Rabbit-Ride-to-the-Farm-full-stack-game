@@ -192,18 +192,49 @@ export default class FarmRide extends Phaser.Scene {
       this.keyRight = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
     }
 
-    // Touch / Click to Jump or Trigger Flip
+    // Mobile Touch & Swipe Gesture Handling on Canvas
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.x > width * 0.75 && pointer.y > height * 0.75) {
-        // Boost button region
-        this.triggerBoost();
-      } else if (!this.isGrounded) {
-        // In air: tap to perform 360 stunt flip!
-        this.trigger360Flip();
-      } else {
+      touchStartX = pointer.x;
+      touchStartY = pointer.y;
+      touchStartTime = this.time.now;
+    });
+
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      const dx = pointer.x - touchStartX;
+      const dy = pointer.y - touchStartY;
+      const dt = this.time.now - touchStartTime;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Fast swipe gesture (distance > 28px within 350ms)
+      if (dist > 28 && dt < 350) {
+        if (dy < -25 && Math.abs(dy) > Math.abs(dx)) {
+          // Swipe UP -> Jump / Double Jump!
+          this.handleJump();
+          return;
+        } else if (dx > 25 && Math.abs(dx) > Math.abs(dy)) {
+          // Swipe RIGHT -> Nitro Boost!
+          this.triggerBoost();
+          return;
+        }
+      }
+
+      // Quick tap anywhere on screen:
+      // If grounded or has jump count remaining -> JUMP!
+      // If already mid-air at max jumps -> 360° Stunt Flip!
+      if (this.isGrounded || this.jumpCount < this.maxJumps) {
         this.handleJump();
+      } else {
+        this.trigger360Flip();
       }
     });
+
+    // Listen to React UI Jump button trigger (essential for mobile touch control!)
+    const onExternalJump = () => this.handleJump();
+    window.addEventListener('game:jump', onExternalJump);
 
     // Listen to React UI Boost button trigger
     const onExternalBoost = () => this.triggerBoost();
@@ -224,11 +255,37 @@ export default class FarmRide extends Phaser.Scene {
     };
     window.addEventListener('game:resume_ride', onResumeRide);
 
+    // Dynamic Responsive Resize for mobile orientation changes
+    const handleResize = (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      this.groundY = h - 120;
+      if (this.sky) this.sky.setSize(w, h);
+      if (this.hills) {
+        this.hills.setSize(w, 300);
+        this.hills.y = h - 380;
+      }
+      if (this.fence) {
+        this.fence.setSize(w, 200);
+        this.fence.y = h - 260;
+      }
+      if (this.ground) {
+        this.ground.setSize(w, 140);
+        this.ground.y = this.groundY;
+      }
+      if (this.isGrounded && this.riderContainer) {
+        this.riderContainer.y = this.groundY - 35;
+      }
+    };
+    this.scale.on('resize', handleResize);
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      window.removeEventListener('game:jump', onExternalJump);
       window.removeEventListener('game:trigger_boost', onExternalBoost);
       window.removeEventListener('game:trigger_flip_360', onExternalFlip);
       window.removeEventListener('game:trigger_ad_view', onExternalAd);
       window.removeEventListener('game:resume_ride', onResumeRide);
+      this.scale.off('resize', handleResize);
     });
 
     // Notify React that ride has started
@@ -242,6 +299,11 @@ export default class FarmRide extends Phaser.Scene {
       this.isGrounded = false;
       this.jumpCount++;
       sounds.playJump();
+
+      // Mobile haptic feedback
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(12); } catch { /* ignore */ }
+      }
 
       // Fun little bunny bike tilt
       this.tweens.add({
@@ -260,6 +322,11 @@ export default class FarmRide extends Phaser.Scene {
     this.boostTimer = 3.5;
     sounds.playBoost();
 
+    // Mobile haptic feedback
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate([15, 30, 20]); } catch { /* ignore */ }
+    }
+
     if (this.boostParticles) {
       this.boostParticles.start();
     }
@@ -273,6 +340,11 @@ export default class FarmRide extends Phaser.Scene {
     this.isStuntFlipping = true;
     this.stuntFlipDirection = direction;
     sounds.playJump();
+
+    // Mobile haptic feedback
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(18); } catch { /* ignore */ }
+    }
   }
 
   update(time: number, delta: number) {

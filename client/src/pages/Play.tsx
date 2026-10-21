@@ -4,7 +4,7 @@ import { PhaserGame } from '../components/game/PhaserGame';
 import { useAuth } from '../context/AuthContext';
 import { sounds } from '../game/audio';
 import api from '../lib/api';
-import { Zap, Trophy, Coins, Volume2, VolumeX, ArrowLeft, RotateCcw, RotateCw, ShoppingCart, Wallet, AlertCircle, Tv, CheckCircle2, Sparkles, PlayCircle, Heart, X } from 'lucide-react';
+import { Zap, Trophy, Coins, Volume2, VolumeX, ArrowLeft, ArrowUp, RotateCcw, RotateCw, ShoppingCart, Wallet, AlertCircle, Tv, CheckCircle2, Sparkles, PlayCircle, Heart, X } from 'lucide-react';
 import '../styles/game.css';
 
 interface SponsorInfo {
@@ -319,6 +319,10 @@ export const Play: React.FC = () => {
     window.dispatchEvent(new CustomEvent('game:trigger_flip_360'));
   };
 
+  const handleTriggerJump = () => {
+    window.dispatchEvent(new CustomEvent('game:jump'));
+  };
+
   const toggleSound = () => {
     sounds.enabled = !sounds.enabled;
     setIsMuted(!sounds.enabled);
@@ -515,35 +519,43 @@ export const Play: React.FC = () => {
       {/* MOBILE ON-SCREEN TOUCH CONTROLS */}
       <div className="touch-controls" aria-hidden="true">
         <div className="touch-controls-left">
+          {/* Nitro Boost Button with Glow & Ready State */}
           <button
-            className="touch-btn flip-btn"
-            onTouchStart={(e) => { e.preventDefault(); handleTriggerFlip(); }}
-            onClick={handleTriggerFlip}
-            title="360° Flip"
-          >
-            🔄
-          </button>
-        </div>
-        <div className="touch-controls-right">
-          <button
-            className="touch-btn boost-btn"
+            className={`touch-btn boost-btn ${stats.boostMeter >= 25 && !stats.isBoosting ? 'ready' : ''} ${stats.isBoosting ? 'boosting' : ''}`}
             onTouchStart={(e) => { e.preventDefault(); handleTriggerBoost(); }}
             onClick={handleTriggerBoost}
             disabled={stats.boostMeter < 25 || stats.isBoosting}
             title="Nitro Boost"
           >
-            ⚡
+            <Zap size={22} fill="#FFF" />
+            <span className="touch-btn-label">{stats.isBoosting ? 'TURBO' : 'BOOST'}</span>
           </button>
+
+          {/* 360 Stunt Flip Button */}
           <button
-            className="touch-btn"
+            className="touch-btn flip-btn"
+            onTouchStart={(e) => { e.preventDefault(); handleTriggerFlip(); }}
+            onClick={handleTriggerFlip}
+            title="360° Flip Stunt"
+          >
+            <RotateCw size={20} />
+            <span className="touch-btn-label">FLIP</span>
+          </button>
+        </div>
+
+        <div className="touch-controls-right">
+          {/* Big Tactile Jump Button */}
+          <button
+            className="touch-btn jump-btn"
             onTouchStart={(e) => {
               e.preventDefault();
-              window.dispatchEvent(new CustomEvent('game:jump'));
+              handleTriggerJump();
             }}
-            title="Jump"
-            style={{ background: 'rgba(45,138,78,0.4)', borderColor: 'rgba(100,200,100,0.5)' }}
+            onClick={handleTriggerJump}
+            title="Tap to Jump / Double Jump"
           >
-            ☝️
+            <ArrowUp size={30} strokeWidth={3.5} />
+            <span className="touch-jump-text">JUMP</span>
           </button>
         </div>
       </div>
