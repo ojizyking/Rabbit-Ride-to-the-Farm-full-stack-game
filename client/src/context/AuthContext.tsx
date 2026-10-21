@@ -224,12 +224,22 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const customizeReferralCode = async (code: string) => {
     try {
-      const res = await api.put('/auth/customize-referral-code', { customCode: code });
-      if (res.data.success) {
+      let res;
+      try {
+        res = await api.post('/auth/customize-referral-code', { customCode: code });
+      } catch (postErr: unknown) {
+        const pe = postErr as { response?: { status?: number } };
+        if (pe.response?.status === 405 || pe.response?.status === 404) {
+          res = await api.put('/auth/customize-referral-code', { customCode: code });
+        } else {
+          throw postErr;
+        }
+      }
+      if (res && res.data.success) {
         setUser((prev) => prev ? { ...prev, referralCode: res.data.referralCode } : null);
         return { success: true, message: res.data.message, referralCode: res.data.referralCode };
       }
-      return { success: false, message: res.data.message || 'Failed to update code' };
+      return { success: false, message: res?.data?.message || 'Failed to update code' };
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
       const msg = e.response?.data?.message || e.message || 'Error updating referral code';

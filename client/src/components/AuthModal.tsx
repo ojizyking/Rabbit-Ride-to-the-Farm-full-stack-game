@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { X, Sparkles, Mail, Lock, LogIn, UserPlus } from 'lucide-react';
 
-const CLERK_KEY = (import.meta.env.CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) as string | undefined;
-
 export const AuthModal: React.FC = () => {
   const { authModalOpen, authMode, closeAuthModal, openAuthModal, login, register, quickDemoLogin } = useAuth();
   const [email, setEmail] = useState('');
@@ -13,7 +11,6 @@ export const AuthModal: React.FC = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showLegacyForm, setShowLegacyForm] = useState(!CLERK_KEY); // show form immediately if no Clerk
 
   if (!authModalOpen) return null;
 
@@ -22,8 +19,11 @@ export const AuthModal: React.FC = () => {
     setError(null);
     setLoading(true);
     try {
-      if (authMode === 'login') await login(email, password);
-      else await register(email, password, referralCode || undefined);
+      if (authMode === 'login') {
+        await login(email, password);
+      } else {
+        await register(email, password, referralCode || undefined);
+      }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
       setError(
@@ -38,54 +38,15 @@ export const AuthModal: React.FC = () => {
   const handleDemo = async () => {
     setError(null);
     setLoading(true);
-    try { await quickDemoLogin(); }
-    catch (err: unknown) {
+    try {
+      await quickDemoLogin();
+    } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
       setError(e.response?.data?.message || 'Demo login failed.');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const clerkBtnBase: React.CSSProperties = {
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.6rem',
-    padding: '0.82rem 1rem',
-    borderRadius: '14px',
-    fontSize: '1rem',
-    fontWeight: 700,
-    cursor: 'pointer',
-    border: 'none',
-    transition: 'transform 0.15s, box-shadow 0.15s',
-  };
-
-  // Lazy Clerk button wrapper — only rendered when Clerk key is present
-  const ClerkButtons = CLERK_KEY ? React.lazy(() =>
-    import('@clerk/clerk-react').then((m) => ({
-      default: () => authMode === 'login' ? (
-        <m.SignInButton mode="modal" fallbackRedirectUrl="/">
-          <button
-            style={{ ...clerkBtnBase, background: 'linear-gradient(135deg,#4285F4,#34A853)', color: '#fff', boxShadow: '0 4px 16px rgba(66,133,244,.35)' }}
-            onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-            onMouseOut={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
-          >
-            <GoogleIcon /> Continue with Google
-          </button>
-        </m.SignInButton>
-      ) : (
-        <m.SignUpButton mode="modal" fallbackRedirectUrl="/">
-          <button
-            style={{ ...clerkBtnBase, background: 'linear-gradient(135deg,#4285F4,#34A853)', color: '#fff', boxShadow: '0 4px 16px rgba(66,133,244,.35)' }}
-            onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-            onMouseOut={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
-          >
-            <GoogleIcon /> Sign Up with Google
-          </button>
-        </m.SignUpButton>
-      )
-    }))
-  ) : null;
 
   return (
     <div className="modal-overlay" onClick={closeAuthModal}>
@@ -102,8 +63,8 @@ export const AuthModal: React.FC = () => {
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', marginTop: '0.4rem' }}>
             {authMode === 'login'
-              ? 'Sign in to save your coins, rides, and rewards.'
-              : 'Create a free account and start earning today.'}
+              ? 'Sign in to access your dashboard, coins, rides, and rewards.'
+              : 'Create a free rider account and start earning today.'}
           </p>
         </div>
 
@@ -113,108 +74,120 @@ export const AuthModal: React.FC = () => {
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* Clerk Google button — only when key exists */}
-          {CLERK_KEY && ClerkButtons && (
-            <React.Suspense fallback={
-              <div style={{ ...clerkBtnBase, background: '#f1f3f4', color: '#888', cursor: 'wait' }}>
-                Loading Google Sign-In…
+        {/* Direct Email/Password Form */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>Email Address</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Mail size={18} style={{ position: 'absolute', left: '12px', color: '#90A4AE' }} />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="rider@rabbitride.com"
+                style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '12px', border: '2px solid #CFD8DC', fontSize: '1rem' }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>Password</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Lock size={18} style={{ position: 'absolute', left: '12px', color: '#90A4AE' }} />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '12px', border: '2px solid #CFD8DC', fontSize: '1rem' }}
+              />
+            </div>
+          </div>
+
+          {authMode === 'register' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#37474F' }}>Referral Code (Optional)</label>
+                <span style={{ fontSize: '0.78rem', color: '#2E7D32', fontWeight: 700 }}>🎁 +₦50 Starting Bonus</span>
               </div>
-            }>
-              <ClerkButtons />
-            </React.Suspense>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Sparkles size={18} style={{ position: 'absolute', left: '12px', color: '#FF7A00' }} />
+                <input
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  placeholder="e.g. RABBIT-7X9A"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem 0.75rem 2.5rem',
+                    borderRadius: '12px',
+                    border: '2px solid #CFD8DC',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.5px'
+                  }}
+                />
+              </div>
+            </div>
           )}
 
-          {/* Quick Demo */}
-          <button type="button" onClick={handleDemo} disabled={loading} className="btn-yellow"
-            style={{ width: '100%', justifyContent: 'center', padding: '0.82rem' }}>
-            <Sparkles size={18} />
-            <span>⚡ Quick Demo — Play Instantly</span>
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary"
+            style={{ width: '100%', justifyContent: 'center', marginTop: '0.25rem', padding: '0.82rem' }}
+          >
+            {authMode === 'login' ? <LogIn size={18} /> : <UserPlus size={18} />}
+            <span>{loading ? 'Please wait…' : authMode === 'login' ? 'Sign In to Ride' : 'Create Rider Account'}</span>
           </button>
-        </div>
+        </form>
 
         {/* Divider */}
-        <div style={{ margin: '1.2rem 0', textAlign: 'center', position: 'relative' }}>
+        <div style={{ margin: '1.25rem 0', textAlign: 'center', position: 'relative' }}>
           <hr style={{ border: 'none', borderTop: '1px solid #ECEFF1' }} />
           <span style={{
             position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)',
             background: '#FFF', padding: '0 0.75rem', fontSize: '0.78rem', color: '#90A4AE', fontWeight: 600
           }}>
-            OR USE EMAIL
+            OR PLAY INSTANTLY
           </span>
         </div>
 
-        {/* Email/password toggle */}
-        {!showLegacyForm ? (
-          <button type="button" onClick={() => setShowLegacyForm(true)}
-            style={{ width: '100%', padding: '0.7rem', borderRadius: '12px', border: '2px dashed #CFD8DC', background: 'transparent', color: '#546E7A', fontSize: '0.92rem', fontWeight: 600, cursor: 'pointer' }}>
-            <Mail size={16} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
-            Sign {authMode === 'login' ? 'in' : 'up'} with Email &amp; Password
-          </button>
-        ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>Email Address</label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Mail size={18} style={{ position: 'absolute', left: '12px', color: '#90A4AE' }} />
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="rider@rabbitride.com"
-                  style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '12px', border: '2px solid #CFD8DC', fontSize: '1rem' }} />
-              </div>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>Password</label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Lock size={18} style={{ position: 'absolute', left: '12px', color: '#90A4AE' }} />
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '12px', border: '2px solid #CFD8DC', fontSize: '1rem' }} />
-              </div>
-            </div>
-            {authMode === 'register' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#37474F' }}>Referral Code (Optional)</label>
-                  <span style={{ fontSize: '0.78rem', color: '#2E7D32', fontWeight: 700 }}>🎁 +₦50 Starting Bonus</span>
-                </div>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <Sparkles size={18} style={{ position: 'absolute', left: '12px', color: '#FF7A00' }} />
-                  <input
-                    type="text"
-                    value={referralCode}
-                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                    placeholder="e.g. RABBIT-7X9A"
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 1rem 0.75rem 2.5rem',
-                      borderRadius: '12px',
-                      border: '2px solid #CFD8DC',
-                      fontSize: '0.95rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.5px'
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-            <button type="submit" disabled={loading} className="btn-primary"
-              style={{ width: '100%', justifyContent: 'center', marginTop: '0.25rem', padding: '0.8rem' }}>
-              {authMode === 'login' ? <LogIn size={18} /> : <UserPlus size={18} />}
-              <span>{loading ? 'Please wait…' : authMode === 'login' ? 'Sign In to Ride' : 'Create Rider Account'}</span>
-            </button>
-          </form>
-        )}
+        {/* Quick Demo */}
+        <button
+          type="button"
+          onClick={handleDemo}
+          disabled={loading}
+          className="btn-yellow"
+          style={{ width: '100%', justifyContent: 'center', padding: '0.82rem' }}
+        >
+          <Sparkles size={18} />
+          <span>⚡ Quick Demo — Play Without Account</span>
+        </button>
 
+        {/* Mode Switcher */}
         <div style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.9rem', color: '#546E7A' }}>
           {authMode === 'login' ? (
             <span>Don't have an account?{' '}
-              <button type="button" onClick={() => { openAuthModal('register'); setShowLegacyForm(!CLERK_KEY); }}
-                style={{ background: 'none', color: 'var(--green)', fontWeight: 700, padding: 0 }}>Sign Up Now</button>
+              <button
+                type="button"
+                onClick={() => { openAuthModal('register'); }}
+                style={{ background: 'none', color: 'var(--green)', fontWeight: 700, padding: 0 }}
+              >
+                Sign Up Now
+              </button>
             </span>
           ) : (
             <span>Already have an account?{' '}
-              <button type="button" onClick={() => { openAuthModal('login'); setShowLegacyForm(!CLERK_KEY); }}
-                style={{ background: 'none', color: 'var(--green)', fontWeight: 700, padding: 0 }}>Sign In</button>
+              <button
+                type="button"
+                onClick={() => { openAuthModal('login'); }}
+                style={{ background: 'none', color: 'var(--green)', fontWeight: 700, padding: 0 }}
+              >
+                Sign In
+              </button>
             </span>
           )}
         </div>
@@ -222,11 +195,5 @@ export const AuthModal: React.FC = () => {
     </div>
   );
 };
-
-const GoogleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
-    <path fill="#FFF" d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/>
-  </svg>
-);
 
 export default AuthModal;

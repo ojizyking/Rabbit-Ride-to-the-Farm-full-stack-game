@@ -31,7 +31,7 @@ export const Navbar: React.FC = () => {
         {/* Desktop nav links */}
         <nav>
           <ul className="nav-links">
-            <li><Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>Home</Link></li>
+            <li><Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>{user ? 'Dashboard' : 'Home'}</Link></li>
             <li><Link to="/play" className={`nav-link ${isActive('/play') ? 'active' : ''}`}>Play Game</Link></li>
             <li><a href="/#game-features" className="nav-link">Features</a></li>
             <li><a href="/#tiers" className="nav-link">Gameplay Packs</a></li>
@@ -86,7 +86,7 @@ export const Navbar: React.FC = () => {
       {/* Mobile slide-down panel */}
       <div className={`mobile-nav-panel ${menuOpen ? 'open' : ''}`} role="navigation">
         <Link to="/" className={`mobile-nav-link ${isActive('/') ? 'active' : ''}`} onClick={closeMenu}>
-          <Home size={20} /> Home
+          <Home size={20} /> {user ? 'Dashboard' : 'Home'}
         </Link>
         <Link to="/play" className={`mobile-nav-link ${isActive('/play') ? 'active' : ''}`} onClick={closeMenu}>
           <Gamepad2 size={20} /> Play Game
