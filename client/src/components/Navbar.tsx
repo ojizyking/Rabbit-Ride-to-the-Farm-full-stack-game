@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { UserButton } from '@clerk/clerk-react';
 import { useAuth } from '../context/AuthContext';
-import { Wallet, LogOut, Home, Gamepad2, HelpCircle, Award, ShoppingBag, Menu, X } from 'lucide-react';
+import { Wallet, LogOut, Home, Gamepad2, HelpCircle, Award, ShoppingBag } from 'lucide-react';
+
+const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+
+// Only import UserButton when Clerk is available
+const ClerkUserButton = CLERK_KEY
+  ? lazy(() => import('@clerk/clerk-react').then((m) => ({ default: m.UserButton })))
+  : null;
 
 export const Navbar: React.FC = () => {
   const { user, isClerkUser, openAuthModal, logout } = useAuth();
@@ -43,23 +49,15 @@ export const Navbar: React.FC = () => {
               </Link>
               <span className={`badge-tier ${user.subscriptionTier}`}>{user.subscriptionTier}</span>
 
-              {/* Clerk avatar button or legacy logout */}
-              {isClerkUser ? (
-                <UserButton
-                  afterSignOutUrl="/"
-                  appearance={{
-                    elements: {
-                      avatarBox: { width: '36px', height: '36px', borderRadius: '50%' }
-                    }
-                  }}
-                />
+              {isClerkUser && ClerkUserButton ? (
+                <Suspense fallback={<div style={{ width: 36, height: 36, borderRadius: '50%', background: '#e0e0e0' }} />}>
+                  <ClerkUserButton
+                    afterSignOutUrl="/"
+                    appearance={{ elements: { avatarBox: { width: '36px', height: '36px', borderRadius: '50%' } } }}
+                  />
+                </Suspense>
               ) : (
-                <button
-                  onClick={logout}
-                  className="hud-icon-btn"
-                  style={{ width: '36px', height: '36px' }}
-                  title="Sign Out"
-                >
+                <button onClick={logout} className="hud-icon-btn" style={{ width: '36px', height: '36px' }} title="Sign Out">
                   <LogOut size={16} />
                 </button>
               )}
@@ -117,15 +115,15 @@ export const Navbar: React.FC = () => {
                 {user.subscriptionTier}
               </span>
             </div>
-            {isClerkUser ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <UserButton afterSignOutUrl="/" />
-                <span style={{ fontSize: '0.85rem', color: '#546E7A' }}>Manage Account</span>
-              </div>
+            {isClerkUser && ClerkUserButton ? (
+              <Suspense fallback={null}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <ClerkUserButton afterSignOutUrl="/" />
+                  <span style={{ fontSize: '0.85rem', color: '#546E7A' }}>Manage Account</span>
+                </div>
+              </Suspense>
             ) : (
-              <button onClick={() => { logout(); closeMenu(); }} className="mobile-logout-btn">
-                Sign Out
-              </button>
+              <button onClick={() => { logout(); closeMenu(); }} className="mobile-logout-btn">Sign Out</button>
             )}
           </div>
         ) : (
@@ -139,7 +137,6 @@ export const Navbar: React.FC = () => {
         )}
       </div>
 
-      {/* Overlay to close menu when tapping outside */}
       {menuOpen && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 98, background: 'rgba(0,0,0,0.2)' }}
