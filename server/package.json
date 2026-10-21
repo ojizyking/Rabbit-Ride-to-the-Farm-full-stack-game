@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/server.js",
     "build": "echo 'Server build complete'",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "make-admin": "node src/scripts/makeAdmin.js"
   },
   "dependencies": {
     "@clerk/backend": "^3.26.0",
