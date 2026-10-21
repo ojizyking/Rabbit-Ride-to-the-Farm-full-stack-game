@@ -119,7 +119,8 @@ class MemoryStore {
       rides: [],
       transactions: [],
       subscriptions: [],
-      withdrawals: []
+      withdrawals: [],
+      systemConfigs: []
     };
     this.load();
   }

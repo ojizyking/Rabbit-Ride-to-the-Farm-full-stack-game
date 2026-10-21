@@ -28,6 +28,7 @@ export interface BicycleItem {
 export interface UserProfile {
   id: string;
   email: string;
+  role?: 'user' | 'admin';
   balanceNaira: number;
   totalRides: number;
   subscriptionTier: 'free' | 'basic' | 'growth' | 'pro' | 'elite';
@@ -93,6 +94,7 @@ function createLocalUser(email: string): UserProfile {
   return {
     id: 'user_' + Date.now().toString(36),
     email: email.toLowerCase().trim(),
+    role: (email.toLowerCase().includes('admin') ? 'admin' : 'user') as 'user' | 'admin',
     balanceNaira: 50 + guestBalance,
     totalRides: 0,
     subscriptionTier: 'free',

@@ -6,10 +6,21 @@ const Bicycle = require('../models/Bicycle');
 const Transaction = require('../models/Transaction');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'rabbit_super_secret_jwt_key_2026_farm_ride';
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@rabbitride.farm,admin@farm.com')
+  .toLowerCase()
+  .split(',')
+  .map(e => e.trim())
+  .filter(Boolean);
+
+function resolveUserRole(email, existingRole) {
+  if (existingRole === 'admin') return 'admin';
+  if (email && ADMIN_EMAILS.includes(email.toLowerCase().trim())) return 'admin';
+  return 'user';
+}
 
 function generateToken(user) {
   return jwt.sign(
-    { id: user._id, email: user.email },
+    { id: user._id, email: user.email, role: user.role || 'user' },
     JWT_SECRET,
     { expiresIn: '30d' }
   );
@@ -102,7 +113,8 @@ exports.register = async (req, res) => {
       subscriptionTier: 'free',
       referralCode: userReferralCode,
       referralsCount: 0,
-      referralEarnings: 0
+      referralEarnings: 0,
+      role: resolveUserRole(cleanEmail, 'user')
     });
 
     // Check & credit referral bonus if invite code provided
@@ -131,6 +143,7 @@ exports.register = async (req, res) => {
       user: {
         id: populatedUser._id,
         email: populatedUser.email,
+        role: populatedUser.role || 'user',
         balanceNaira: populatedUser.balanceNaira,
         totalRides: populatedUser.totalRides,
         subscriptionTier: populatedUser.subscriptionTier,
@@ -167,11 +180,28 @@ exports.login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
 
+    if (user.isBanned) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been suspended. Please contact platform administration.'
+      });
+    }
+
+    // Auto-elevate admin role if matching ADMIN_EMAILS
+    const calculatedRole = resolveUserRole(user.email, user.role);
+    if (calculatedRole !== user.role) {
+      user.role = calculatedRole;
+      await user.save();
+    }
+
     // Auto-generate referral code if user doesn't have one
     if (!user.referralCode) {
       user.referralCode = await getUniqueReferralCode();
       await user.save();
     }
+
+    user.lastSeenAt = new Date();
+    await user.save();
 
     const populatedUser = await User.findById(user._id)
       .populate('currentRabbitId')
@@ -188,6 +218,7 @@ exports.login = async (req, res) => {
       user: {
         id: populatedUser._id,
         email: populatedUser.email,
+        role: populatedUser.role || 'user',
         balanceNaira: populatedUser.balanceNaira,
         totalRides: populatedUser.totalRides,
         subscriptionTier: populatedUser.subscriptionTier,
@@ -230,6 +261,7 @@ exports.getMe = async (req, res) => {
       user: {
         id: user._id,
         email: user.email,
+        role: user.role || 'user',
         firstName: user.firstName || '',
         avatarUrl: user.avatarUrl || '',
         balanceNaira: user.balanceNaira,
@@ -330,6 +362,7 @@ exports.clerkSync = async (req, res) => {
       user: {
         id: populatedUser._id,
         email: populatedUser.email,
+        role: populatedUser.role || 'user',
         firstName: populatedUser.firstName,
         avatarUrl: populatedUser.avatarUrl,
         balanceNaira: populatedUser.balanceNaira,

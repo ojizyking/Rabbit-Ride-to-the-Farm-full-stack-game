@@ -40,10 +40,35 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging for debug
+// Import telemetry service
+const telemetry = require('./services/telemetry');
+
+// Telemetry & hit tracking middleware
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    telemetry.recordHit(req, res, duration);
+  });
   next();
+});
+
+// Telemetry heartbeat endpoint for active online presence
+app.post(['/api/telemetry/heartbeat', '/api/telemetry/ping'], (req, res) => {
+  const { userId, email, role, activity } = req.body || {};
+  const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip || '127.0.0.1';
+  telemetry.recordHeartbeat({ userId, email, role, activity, ip });
+  res.json({ success: true, online: telemetry.getOnlineStats().totalOnline });
+});
+
+app.get('/api/telemetry/public-stats', (req, res) => {
+  const stats = telemetry.getOnlineStats();
+  res.json({
+    success: true,
+    onlineUsers: stats.totalOnline,
+    ridersInGame: stats.inGameCount,
+    totalHitsToday: telemetry.hitsToday
+  });
 });
 
 // API Routes

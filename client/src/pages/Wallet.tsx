@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
-import { Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, CheckCircle2, AlertTriangle, ShieldCheck, CreditCard, RefreshCw, Copy, Share2, Users, Gift, Edit3, Check, X } from 'lucide-react';
+import { Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, CheckCircle2, AlertTriangle, ShieldCheck, CreditCard, RefreshCw, Copy, Share2, Users, Gift, Edit3, Check, X, PlusCircle, ExternalLink } from 'lucide-react';
 import '../styles/wallet.css';
-
 
 const NIGERIAN_BANKS = [
   { code: '058', name: 'Guaranty Trust Bank (GTBank)' },
@@ -21,7 +20,7 @@ const NIGERIAN_BANKS = [
 
 interface Transaction {
   _id: string;
-  type: 'earn' | 'shop' | 'subscription' | 'withdrawal' | 'referral';
+  type: 'earn' | 'shop' | 'subscription' | 'withdrawal' | 'referral' | 'deposit' | 'coin_purchase';
   amount: number;
   description: string;
   reference?: string;
@@ -32,6 +31,21 @@ interface Transaction {
 export const Wallet: React.FC = () => {
   const { user, token, openAuthModal, refreshUser, updateBalance, customizeReferralCode } = useAuth();
   const [searchParams] = useSearchParams();
+
+  // Dynamic banks and verification
+  const [bankList, setBankList] = useState(NIGERIAN_BANKS);
+  const [verifiedAccountName, setVerifiedAccountName] = useState<string | null>(null);
+  const [verifyingAccount, setVerifyingAccount] = useState(false);
+
+  // Direct Deposit state
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('2000');
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [depositPaystackData, setDepositPaystackData] = useState<{
+    reference: string;
+    authorization_url: string;
+    amount: number;
+  } | null>(null);
 
   // Withdraw form state
   const [withdrawAmount, setWithdrawAmount] = useState('1000');
@@ -120,6 +134,83 @@ export const Wallet: React.FC = () => {
       loadOfflineTransactions();
     }
   }, [token]);
+
+  // Load live Nigerian bank list from Paystack
+  useEffect(() => {
+    api.get('/wallet/banks')
+      .then(res => {
+        if (res.data.success && Array.isArray(res.data.banks) && res.data.banks.length > 0) {
+          setBankList(res.data.banks);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Real-time bank account name verification
+  useEffect(() => {
+    if (accountNumber && accountNumber.length === 10 && bankCode) {
+      setVerifyingAccount(true);
+      setVerifiedAccountName(null);
+      api.post('/wallet/resolve-account', { accountNumber, bankCode })
+        .then(res => {
+          if (res.data.success && res.data.accountName) {
+            setVerifiedAccountName(res.data.accountName);
+          }
+        })
+        .catch(() => {
+          setVerifiedAccountName(null);
+        })
+        .finally(() => {
+          setVerifyingAccount(false);
+        });
+    } else {
+      setVerifiedAccountName(null);
+    }
+  }, [accountNumber, bankCode]);
+
+  // Direct Wallet Deposit Handlers
+  const handleInitializeDeposit = async (amt: number) => {
+    if (!token) {
+      openAuthModal('login');
+      return;
+    }
+    setDepositLoading(true);
+    try {
+      const res = await api.post('/wallet/deposit', { amount: amt });
+      if (res.data.success) {
+        setDepositPaystackData({
+          reference: res.data.reference,
+          authorization_url: res.data.authorization_url,
+          amount: res.data.amount
+        });
+      }
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      alert(e.response?.data?.message || 'Could not initialize deposit.');
+    } finally {
+      setDepositLoading(false);
+    }
+  };
+
+  const handleVerifyDeposit = async () => {
+    if (!depositPaystackData) return;
+    setDepositLoading(true);
+    try {
+      const res = await api.post('/wallet/verify-deposit', { reference: depositPaystackData.reference });
+      if (res.data.success) {
+        alert(res.data.message);
+        setDepositPaystackData(null);
+        setShowDepositModal(false);
+        await refreshUser();
+        await fetchTransactions();
+      }
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      alert(e.response?.data?.message || 'Deposit verification failed.');
+    } finally {
+      setDepositLoading(false);
+    }
+  };
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -285,6 +376,28 @@ export const Wallet: React.FC = () => {
           <span style={{ fontSize: '0.85rem', opacity: 0.9 }}>
             Equipped: {user?.currentRabbit?.name || 'Starter White Rabbit'} + {user?.currentBike?.name || 'Classic Bike'}
           </span>
+          <div style={{ marginTop: '0.85rem' }}>
+            <button
+              onClick={() => setShowDepositModal(true)}
+              className="btn-primary"
+              style={{
+                background: '#FFFFFF',
+                color: '#174D2A',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                padding: '0.45rem 1.15rem',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                cursor: 'pointer',
+                border: 'none'
+              }}
+            >
+              <PlusCircle size={18} /> Top Up Wallet (Deposit)
+            </button>
+          </div>
         </div>
 
         <div>
@@ -358,7 +471,7 @@ export const Wallet: React.FC = () => {
                 onChange={(e) => setBankCode(e.target.value)}
                 style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '2px solid #CFD8DC', fontSize: '0.95rem' }}
               >
-                {NIGERIAN_BANKS.map((bank) => (
+                {bankList.map((bank) => (
                   <option key={bank.code} value={bank.code}>
                     {bank.name}
                   </option>
@@ -379,6 +492,16 @@ export const Wallet: React.FC = () => {
                 placeholder="0123456789"
                 style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '2px solid #CFD8DC', fontSize: '1.05rem', letterSpacing: '1px' }}
               />
+              {verifyingAccount && (
+                <div style={{ fontSize: '0.8rem', color: '#0288D1', marginTop: '0.35rem', fontWeight: 600 }}>
+                  Verifying account name via Paystack NUBAN...
+                </div>
+              )}
+              {verifiedAccountName && (
+                <div style={{ fontSize: '0.85rem', color: '#2E7D32', background: '#E8F5E9', padding: '0.4rem 0.75rem', borderRadius: '8px', marginTop: '0.45rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <CheckCircle2 size={15} /> Verified Recipient: {verifiedAccountName}
+                </div>
+              )}
             </div>
 
             <button
@@ -694,6 +817,101 @@ export const Wallet: React.FC = () => {
                 <span>Cancel</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DIRECT DEPOSIT MODAL */}
+      {showDepositModal && (
+        <div className="modal-overlay" onClick={() => setShowDepositModal(false)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', background: '#E8F5E9', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto', color: '#2E7D32' }}>
+              <PlusCircle size={32} />
+            </div>
+            <h3 style={{ fontSize: '1.5rem', color: '#174D2A', fontWeight: 700, margin: '0 0 0.5rem 0' }}>Top Up Naira Wallet</h3>
+            <p style={{ color: '#546E7A', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+              Add funds directly to your wallet via Paystack (Cards, USSD, Bank Transfer, Apple Pay, OPay)
+            </p>
+
+            {/* Quick preset amount chips */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '1.25rem' }}>
+              {['1000', '2000', '5000', '10000'].map(amt => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => setDepositAmount(amt)}
+                  style={{
+                    padding: '0.6rem 0.25rem',
+                    borderRadius: '10px',
+                    border: depositAmount === amt ? '2px solid #2E7D32' : '1px solid #CFD8DC',
+                    background: depositAmount === amt ? '#E8F5E9' : '#FFFFFF',
+                    color: depositAmount === amt ? '#174D2A' : '#37474F',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ₦{Number(amt).toLocaleString()}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>
+                Custom Deposit Amount (₦)
+              </label>
+              <input
+                type="number"
+                min="200"
+                step="100"
+                value={depositAmount}
+                onChange={e => setDepositAmount(e.target.value)}
+                placeholder="2000"
+                style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '2px solid #CFD8DC', fontSize: '1.15rem', fontWeight: 700, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {depositPaystackData ? (
+              <div style={{ background: '#F1F8E9', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.25rem', border: '1px solid #C8E6C9' }}>
+                <p style={{ fontSize: '0.9rem', color: '#2E7D32', fontWeight: 700, margin: '0 0 0.75rem 0' }}>
+                  Paystack Checkout Ready (₦{depositPaystackData.amount.toLocaleString()})
+                </p>
+                <a
+                  href={depositPaystackData.authorization_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary"
+                  style={{ display: 'inline-flex', justifyContent: 'center', width: '100%', marginBottom: '0.75rem', padding: '0.85rem' }}
+                >
+                  <ExternalLink size={16} /> Open Paystack Checkout
+                </a>
+                <button
+                  onClick={handleVerifyDeposit}
+                  disabled={depositLoading}
+                  className="btn-green"
+                  style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }}
+                >
+                  {depositLoading ? 'Verifying...' : '✓ I Have Completed Payment'}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => handleInitializeDeposit(Number(depositAmount))}
+                disabled={depositLoading || Number(depositAmount) < 200}
+                className="btn-primary"
+                style={{ width: '100%', justifyContent: 'center', padding: '0.85rem', marginBottom: '0.5rem' }}
+              >
+                {depositLoading ? 'Connecting to Paystack...' : `Proceed with ₦${Number(depositAmount || 0).toLocaleString()}`}
+              </button>
+            )}
+
+            <button
+              onClick={() => { setShowDepositModal(false); setDepositPaystackData(null); }}
+              className="btn-outline"
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

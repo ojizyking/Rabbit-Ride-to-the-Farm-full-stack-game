@@ -1,7 +1,7 @@
 import React, { useState, Suspense, lazy } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Wallet, LogOut, Home, Gamepad2, HelpCircle, Award, ShoppingBag } from 'lucide-react';
+import { Wallet, LogOut, Home, Gamepad2, HelpCircle, Award, ShoppingBag, ShieldCheck } from 'lucide-react';
 
 const CLERK_KEY = (import.meta.env.CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) as string | undefined;
 
@@ -37,6 +37,27 @@ export const Navbar: React.FC = () => {
             <li><a href="/#tiers" className="nav-link">Gameplay Packs</a></li>
             <li><Link to="/shop" className={`nav-link ${isActive('/shop') ? 'active' : ''}`}>Farm Shop</Link></li>
             <li><Link to="/wallet" className={`nav-link ${isActive('/wallet') ? 'active' : ''}`}>Wallet &amp; Rewards</Link></li>
+            {user?.role === 'admin' && (
+              <li>
+                <Link
+                  to="/admin"
+                  className={`nav-link ${isActive('/admin') ? 'active' : ''}`}
+                  style={{
+                    background: 'linear-gradient(135deg, #FF6F00, #E65100)',
+                    color: '#fff',
+                    borderRadius: '20px',
+                    padding: '0.35rem 0.85rem',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    boxShadow: '0 2px 8px rgba(230, 81, 0, 0.35)'
+                  }}
+                >
+                  <ShieldCheck size={16} /> Admin
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
 
@@ -103,6 +124,11 @@ export const Navbar: React.FC = () => {
         <Link to="/wallet" className={`mobile-nav-link ${isActive('/wallet') ? 'active' : ''}`} onClick={closeMenu}>
           <Wallet size={20} /> Wallet &amp; Rewards
         </Link>
+        {user?.role === 'admin' && (
+          <Link to="/admin" className={`mobile-nav-link ${isActive('/admin') ? 'active' : ''}`} onClick={closeMenu} style={{ color: '#FF6F00', fontWeight: 700 }}>
+            <ShieldCheck size={20} /> Admin Mission Control
+          </Link>
+        )}
 
         <div className="mobile-nav-divider" />
 

@@ -16,7 +16,8 @@ import {
   Award,
   Zap,
   X,
-  Compass
+  Compass,
+  ShieldCheck
 } from 'lucide-react';
 import '../styles/dashboard.css';
 
@@ -120,11 +121,36 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <button onClick={() => navigate('/play')} className="hero-play-btn">
-          <Gamepad2 size={24} />
-          <span>Hop On &amp; Ride Now</span>
-          <ArrowRight size={20} />
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {user.role === 'admin' && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="btn-primary"
+              style={{
+                background: 'linear-gradient(135deg, #FF6F00, #E65100)',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                padding: '0.75rem 1.35rem',
+                borderRadius: '16px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                border: 'none',
+                boxShadow: '0 4px 14px rgba(230, 81, 0, 0.35)'
+              }}
+            >
+              <ShieldCheck size={22} />
+              <span>Admin Mission Control</span>
+            </button>
+          )}
+
+          <button onClick={() => navigate('/play')} className="hero-play-btn">
+            <Gamepad2 size={24} />
+            <span>Hop On &amp; Ride Now</span>
+            <ArrowRight size={20} />
+          </button>
+        </div>
       </section>
 
       {/* ─────────────────────────────────────────────────────────── */}
