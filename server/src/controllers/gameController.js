@@ -72,12 +72,27 @@ exports.collect = async (req, res) => {
 
     const boostedValue = Math.round(baseValue * multiplier);
 
+    // If ad reward, credit 10 Naira directly to user balance
+    if (type === 'ad') {
+      const adRewardNaira = 10;
+      user.balanceNaira = Math.round((user.balanceNaira + adRewardNaira) * 100) / 100;
+      await user.save();
+      await Transaction.create({
+        userId: user._id,
+        type: 'earn',
+        amount: adRewardNaira,
+        description: 'Sponsor Billboard Ad View (30s)',
+        status: 'completed'
+      });
+    }
+
     return res.json({
       success: true,
       type,
       baseValue,
       boostedValue,
-      multiplier
+      multiplier,
+      newBalance: user.balanceNaira
     });
   } catch (err) {
     console.error('collect error:', err);

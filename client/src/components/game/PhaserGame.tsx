@@ -123,17 +123,42 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
               newBalance: res.data.newBalance
             });
           }
+          return;
         }
       } catch (err) {
-        console.error('Error recording ride end:', err);
-        if (onRideEnd) {
-          const fallbackNaira = Math.round((details.coins / 10) * 100) / 100;
-          onRideEnd({
-            ...details,
-            nairaEarned: fallbackNaira,
-            newBalance: (user?.balanceNaira || 0) + fallbackNaira
-          });
-        }
+        console.warn('Backend ride sync offline, computing local reward:', err);
+      }
+
+      // Offline / fallback calculation: 1,000 Coins = ₦100 (10 Coins = ₦1)
+      const fallbackNaira = Math.round((details.coins / 10) * 100) / 100;
+      const currentBal = user?.balanceNaira !== undefined ? user.balanceNaira : Number(localStorage.getItem('rabbit_guest_balance') || 0);
+      const newBal = Math.round((currentBal + fallbackNaira) * 100) / 100;
+
+      // Always credit the wallet!
+      updateBalance(newBal);
+
+      // Persist local transaction
+      try {
+        const existingTx = JSON.parse(localStorage.getItem('rabbit_offline_transactions') || '[]');
+        existingTx.unshift({
+          _id: 'tx_' + Date.now(),
+          type: 'earn',
+          amount: fallbackNaira,
+          description: `Ride reward (${(details.distance / 1000).toFixed(2)} km, ${details.coins} coins)`,
+          status: 'completed',
+          createdAt: new Date().toISOString()
+        });
+        localStorage.setItem('rabbit_offline_transactions', JSON.stringify(existingTx.slice(0, 50)));
+      } catch {
+        // ignore
+      }
+
+      if (onRideEnd) {
+        onRideEnd({
+          ...details,
+          nairaEarned: fallbackNaira,
+          newBalance: newBal
+        });
       }
     };
 

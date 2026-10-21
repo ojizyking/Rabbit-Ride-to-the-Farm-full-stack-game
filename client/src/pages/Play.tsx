@@ -86,7 +86,7 @@ interface EndRideData {
 }
 
 export const Play: React.FC = () => {
-  const { user, token, openAuthModal, refreshUser } = useAuth();
+  const { user, token, openAuthModal, refreshUser, updateBalance } = useAuth();
   const navigate = useNavigate();
 
   const [stats, setStats] = useState<StatUpdateEvent>({
@@ -189,12 +189,57 @@ export const Play: React.FC = () => {
       setToastMessage('🎉 30s Billboard Watched! +100 Coins (₦10) Credited!');
       setTimeout(() => setToastMessage(null), 3000);
 
-      // Persist ad view & credit 100 coins directly to backend
+      // Directly credit ₦10 to the wallet!
+      const currentBal = user?.balanceNaira !== undefined ? user.balanceNaira : Number(localStorage.getItem('rabbit_guest_balance') || 0);
+      const newBal = Math.round((currentBal + 10) * 100) / 100;
+      updateBalance(newBal);
+
+      // Record local transaction
+      try {
+        const existingTx = JSON.parse(localStorage.getItem('rabbit_offline_transactions') || '[]');
+        existingTx.unshift({
+          _id: 'tx_ad_' + Date.now(),
+          type: 'earn',
+          amount: 10,
+          description: 'Sponsor Billboard Ad View (30s) - +100 Coins',
+          status: 'completed',
+          createdAt: new Date().toISOString()
+        });
+        localStorage.setItem('rabbit_offline_transactions', JSON.stringify(existingTx.slice(0, 50)));
+      } catch {
+        // ignore
+      }
+
+      // Persist ad view & credit 100 coins directly to backend if online
       api.post('/game/collect', { type: 'ad', value: 100 })
-        .then(() => refreshUser())
+        .then((res) => {
+          if (res.data?.newBalance !== undefined) {
+            updateBalance(res.data.newBalance);
+          }
+        })
         .catch((err) => console.warn('Ad collect sync:', err));
     }
-  }, [isBillboardOpen, billboardCountdown, isBillboardComplete]);
+  }, [isBillboardOpen, billboardCountdown, isBillboardComplete, user]);
+
+  const handleBankAndEndRide = () => {
+    if (stats.coins > 0 || stats.distance > 0) {
+      sounds.playAdFanfare();
+      window.dispatchEvent(
+        new CustomEvent('game:ride_end', {
+          detail: {
+            coins: stats.coins,
+            distance: stats.distance,
+            stars: stats.stars,
+            carrots: stats.carrots,
+            boxes: stats.crates,
+            adViews: stats.adViews
+          }
+        })
+      );
+    } else {
+      navigate('/wallet');
+    }
+  };
 
   const handleSendReaction = (emoji: string) => {
     sounds.playCollect('carrot');
@@ -264,15 +309,56 @@ export const Play: React.FC = () => {
       {/* HUD OVERLAY */}
       <div className="game-hud-overlay">
         <div className="game-hud-left">
-          <button onClick={() => navigate('/shop')} className="hud-icon-btn" title="Back to Shop">
+          <button
+            onClick={() => {
+              if (stats.coins > 0) {
+                handleBankAndEndRide();
+              } else {
+                navigate('/shop');
+              }
+            }}
+            className="hud-icon-btn"
+            title="Back / Bank Coins"
+          >
             <ArrowLeft size={20} />
           </button>
 
           {/* Coins Earned this ride */}
-          <div className="hud-stat-pill coins" title="Conversion: 1,000 Coins = ₦100 (10 Coins = ₦1)">
+          <div
+            className="hud-stat-pill coins"
+            onClick={handleBankAndEndRide}
+            style={{ cursor: 'pointer' }}
+            title="Click to Bank Coins to Wallet! (Conversion: 1,000 Coins = ₦100)"
+          >
             <Coins size={20} color="#FF7A00" />
             <span>{stats.coins} Coins (₦{(stats.coins / 10).toFixed(1)})</span>
           </div>
+
+          {/* BANK COINS ACTION BUTTON */}
+          {stats.coins > 0 && (
+            <button
+              onClick={handleBankAndEndRide}
+              className="hud-btn-bank"
+              title="Finish ride and bank your collected coins into your wallet"
+              style={{
+                background: 'linear-gradient(135deg, #FF7A00 0%, #FF9E00 100%)',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                padding: '0.35rem 0.75rem',
+                borderRadius: '20px',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 10px rgba(255, 122, 0, 0.35)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem'
+              }}
+            >
+              <Wallet size={15} />
+              <span>BANK (+₦{(stats.coins / 10).toFixed(1)})</span>
+            </button>
+          )}
 
           {/* Distance */}
           <div className="hud-stat-pill distance">

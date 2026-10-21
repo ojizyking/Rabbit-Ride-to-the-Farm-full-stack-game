@@ -80,10 +80,11 @@ const DEFAULT_STARTER_BIKE: BicycleItem = {
 };
 
 function createLocalUser(email: string): UserProfile {
+  const guestBalance = Number(localStorage.getItem('rabbit_guest_balance') || 0);
   return {
     id: 'user_' + Date.now().toString(36),
     email: email.toLowerCase().trim(),
-    balanceNaira: 50,
+    balanceNaira: 50 + guestBalance,
     totalRides: 0,
     subscriptionTier: 'free',
     subscriptionExpiresAt: null,
@@ -234,16 +235,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateBalance = (newBalance: number) => {
     setUser((prev) => {
-      if (!prev) return null;
-      const updated = { ...prev, balanceNaira: newBalance };
-      const saved = localStorage.getItem('rabbit_offline_user');
-      if (saved) {
-        try {
-          localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
-        } catch {
-          // ignore
-        }
+      if (!prev) {
+        localStorage.setItem('rabbit_guest_balance', String(newBalance));
+        return null;
       }
+      const updated = { ...prev, balanceNaira: newBalance };
+      localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
       return updated;
     });
   };
