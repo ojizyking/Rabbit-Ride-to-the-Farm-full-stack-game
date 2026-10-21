@@ -49,6 +49,17 @@ export default class FarmRide extends Phaser.Scene {
   private flipsCompleted: number = 0;
   private loopsCompleted: number = 0;
 
+  // Lives & Grace Mechanics
+  private lives: number = 3;
+  private invincibleTimer: number = 0;
+
+  // Power-Ups & Combos
+  private hasShield: boolean = false;
+  private shieldBubbleSprite: Phaser.GameObjects.Sprite | null = null;
+  private magnetTimer: number = 0;
+  private comboStreak: number = 0;
+  private comboTimer: number = 0;
+
   // Groups
   private collectibles!: Phaser.GameObjects.Group;
   private obstacles!: Phaser.GameObjects.Group;
@@ -105,6 +116,14 @@ export default class FarmRide extends Phaser.Scene {
     this.airRotationTotal = 0;
     this.currentAirAngle = 0;
 
+    // Reset powerups, combos & lives
+    this.lives = 3;
+    this.invincibleTimer = 0;
+    this.hasShield = false;
+    this.magnetTimer = 0;
+    this.comboStreak = 0;
+    this.comboTimer = 0;
+
     const width = this.scale.width;
     const height = this.scale.height;
     this.groundY = height - 120;
@@ -133,6 +152,14 @@ export default class FarmRide extends Phaser.Scene {
 
     this.rabbitSprite = this.add.sprite(2, -26, this.textures.exists(rabbitTexture) ? rabbitTexture : 'rabbit-starter');
     this.rabbitSprite.setScale(0.72);
+
+    // Aura bubble shield sprite
+    if (this.textures.exists('shield-bubble')) {
+      this.shieldBubbleSprite = this.add.sprite(0, -10, 'shield-bubble');
+      this.shieldBubbleSprite.setScale(0.95);
+      this.shieldBubbleSprite.setVisible(false);
+      this.riderContainer.add(this.shieldBubbleSprite);
+    }
 
     this.riderContainer.add([this.bikeSprite, this.rabbitSprite]);
     this.riderContainer.setSize(100, 90);
@@ -372,10 +399,16 @@ export default class FarmRide extends Phaser.Scene {
       this.spawnCollectible();
     }
 
-    this.spawnObstacleTimer += dt;
-    if (this.spawnObstacleTimer >= 3.8) {
-      this.spawnObstacleTimer = 0;
-      this.spawnObstacle();
+    // Dynamic obstacle pacing:
+    // 0 to 300m: pure runway with 0 obstacles!
+    // 300m+: starts at 8.5s spacing, gradually tuning down to 6.2s at 1500m+
+    if (this.distanceMeters > 300) {
+      this.spawnObstacleTimer += dt;
+      const targetInterval = Math.max(6.2, 8.5 - (this.distanceMeters / 1500) * 1.5);
+      if (this.spawnObstacleTimer >= targetInterval) {
+        this.spawnObstacleTimer = 0;
+        this.spawnObstacle();
+      }
     }
 
     // Spawn 360 Stunt Loop every 18 seconds
@@ -405,6 +438,46 @@ export default class FarmRide extends Phaser.Scene {
       70,
       80
     );
+
+    // Magnet Power-up Logic: smoothly pull nearby collectibles to rider
+    if (this.magnetTimer > 0) {
+      this.magnetTimer -= dt;
+      const rx = this.riderContainer.x;
+      const ry = this.riderContainer.y;
+      const collectiblesArr = this.collectibles.getChildren() as Phaser.GameObjects.Sprite[];
+      for (const item of collectiblesArr) {
+        const dist = Phaser.Math.Distance.Between(rx, ry, item.x, item.y);
+        if (dist < 380) {
+          item.x += (rx - item.x) * 10 * dt;
+          item.y += (ry - item.y) * 10 * dt;
+        }
+      }
+    }
+
+    // Combo streak decay timer
+    if (this.comboTimer > 0) {
+      this.comboTimer -= dt;
+      if (this.comboTimer <= 0) {
+        this.comboStreak = 0;
+      }
+    }
+
+    // Invulnerability blink effect
+    if (this.invincibleTimer > 0) {
+      this.invincibleTimer -= dt;
+      this.riderContainer.alpha = Math.floor(time / 100) % 2 === 0 ? 0.35 : 0.95;
+      if (this.invincibleTimer <= 0) {
+        this.riderContainer.alpha = 1.0;
+      }
+    }
+
+    // Shield bubble wobble animation
+    if (this.shieldBubbleSprite && this.hasShield) {
+      this.shieldBubbleSprite.setVisible(true);
+      this.shieldBubbleSprite.setScale(0.95 + Math.sin(time * 0.008) * 0.06);
+    } else if (this.shieldBubbleSprite) {
+      this.shieldBubbleSprite.setVisible(false);
+    }
 
     // Move Stunt Tracks & Check 360 Loop Entrance
     const stuntArr = this.stuntTracks.getChildren() as Phaser.GameObjects.Sprite[];
@@ -479,20 +552,84 @@ export default class FarmRide extends Phaser.Scene {
       }
     }
 
-    // Move Obstacles & Check Collision
+    // Move Obstacles & Check Collision (with Forgiving Hitbox, Stomp Bounce & Grace Life)
     const obstaclesArr = this.obstacles.getChildren() as Phaser.GameObjects.Sprite[];
     for (let i = obstaclesArr.length - 1; i >= 0; i--) {
       const obs = obstaclesArr[i];
       obs.x -= this.currentSpeed * dt;
 
-      if (Phaser.Geom.Intersects.RectangleToRectangle(riderBounds, obs.getBounds())) {
+      // Road warning sign: passes harmlessly
+      if (obs.getData('isWarning')) {
+        if (obs.x < -100) obs.destroy();
+        continue;
+      }
+
+      // Forgiving inner hitboxes (shrink ~40% so grazing empty edges does not crash)
+      const obsHitbox = new Phaser.Geom.Rectangle(
+        obs.x - 18,
+        obs.y - 12,
+        36,
+        34
+      );
+
+      const riderHitbox = new Phaser.Geom.Rectangle(
+        this.riderContainer.x - 20,
+        this.riderContainer.y - 25,
+        40,
+        50
+      );
+
+      if (Phaser.Geom.Intersects.RectangleToRectangle(riderHitbox, obsHitbox)) {
+        // 1. If boosting or looping -> Smash!
         if (this.isBoosting || this.isLooping360) {
-          // Smash obstacle during boost or loop!
           this.createSmashExplosion(obs.x, obs.y);
           sounds.playCollect('crate');
           obs.destroy();
+          continue;
+        }
+
+        // 2. If shield active -> Pop shield and save the player!
+        if (this.hasShield) {
+          this.hasShield = false;
+          if (this.shieldBubbleSprite) this.shieldBubbleSprite.setVisible(false);
+          this.createSmashExplosion(obs.x, obs.y);
+          sounds.playShieldBreak();
+          this.showStuntText('🛡️ SHIELD BROKE! (SAFE) 🛡️');
+          obs.destroy();
+          continue;
+        }
+
+        // 3. Mario-style Springboard Bounce if landing on top!
+        const riderFeetY = this.riderContainer.y + 20;
+        if (this.velocityY > 10 && riderFeetY < obs.y + 10) {
+          this.velocityY = -620; // High springboard bounce!
+          this.isGrounded = false;
+          this.coins += 25;
+          sounds.playJump();
+          sounds.playCollect('crate');
+          this.showStuntText('🥕 STOMP BOUNCE! +25 Coins 🥕');
+          this.createSmashExplosion(obs.x, obs.y);
+          obs.destroy();
+          continue;
+        }
+
+        // 4. Hit obstacle check with lives / invincibility grace
+        if (this.invincibleTimer > 0) {
+          // Currently in recovery grace period -> ignore
+          continue;
+        }
+
+        if (this.lives > 1) {
+          this.lives--;
+          this.invincibleTimer = 2.2;
+          this.cameras.main.shake(220, 0.012);
+          sounds.playCrash();
+          this.createSmashExplosion(obs.x, obs.y);
+          this.showStuntText(`⚠️ OOF! ${this.lives} HEARTS LEFT! ⚠️`);
+          obs.destroy();
         } else {
-          // Hit obstacle -> game over
+          // 0 lives left -> trigger game over
+          this.lives = 0;
           this.triggerGameOver();
           return;
         }
@@ -517,7 +654,11 @@ export default class FarmRide extends Phaser.Scene {
             flipsCompleted: this.flipsCompleted,
             loopsCompleted: this.loopsCompleted,
             boostMeter: Math.round(this.boostMeter),
-            isBoosting: this.isBoosting
+            isBoosting: this.isBoosting,
+            lives: this.lives,
+            combo: this.comboStreak,
+            hasShield: this.hasShield,
+            magnetActive: this.magnetTimer > 0
           }
         })
       );
@@ -637,21 +778,39 @@ export default class FarmRide extends Phaser.Scene {
     let value = 10;
     let spawnY = this.groundY - 50;
 
-    if (rand < 0.45) {
+    if (rand < 0.38) {
       texture = 'item-star';
       type = 'star';
       value = 5;
       spawnY = this.groundY - (Math.random() > 0.5 ? 90 : 50);
-    } else if (rand < 0.85) {
+    } else if (rand < 0.72) {
       texture = 'item-carrot';
       type = 'carrot';
       value = 10;
       spawnY = this.groundY - 50;
-    } else {
+    } else if (rand < 0.84) {
       texture = 'item-crate';
       type = 'crate';
       value = 50 + Math.floor(Math.random() * 150);
       spawnY = this.groundY - 45;
+    } else if (rand < 0.90) {
+      // 🧲 Magnet Power-up
+      texture = 'item-magnet';
+      type = 'magnet';
+      value = 25;
+      spawnY = this.groundY - 60;
+    } else if (rand < 0.96) {
+      // 🛡️ Shield Power-up
+      texture = 'item-shield';
+      type = 'shield';
+      value = 25;
+      spawnY = this.groundY - 60;
+    } else {
+      // ⚡ Super Nitro Rocket
+      texture = 'item-nitro';
+      type = 'nitro';
+      value = 50;
+      spawnY = this.groundY - 60;
     }
 
     const sprite = this.add.sprite(width + 50, spawnY, texture);
@@ -662,7 +821,15 @@ export default class FarmRide extends Phaser.Scene {
 
   private spawnObstacle() {
     const width = this.scale.width;
-    const sprite = this.add.sprite(width + 60, this.groundY - 26, 'obstacle-hay');
+
+    // Spawn road warning sign 220px in front of the hay bale so player can anticipate jump!
+    const warnSign = this.add.sprite(width + 40, this.groundY - 26, 'obstacle-warning');
+    warnSign.setScale(0.85);
+    warnSign.setData('isWarning', true);
+    this.obstacles.add(warnSign);
+
+    // Spawn hay bale
+    const sprite = this.add.sprite(width + 260, this.groundY - 26, 'obstacle-hay');
     sprite.setScale(0.9);
     this.obstacles.add(sprite);
   }
@@ -742,9 +909,49 @@ export default class FarmRide extends Phaser.Scene {
     const type = item.getData('type') || 'carrot';
     const value = item.getData('value') || 10;
 
-    sounds.playCollect(type);
+    // Power-up specific activations
+    if (type === 'magnet') {
+      sounds.playPowerup();
+      this.magnetTimer = 8.0;
+      this.showStuntText('🧲 CARROT MAGNET (8s)! 🧲');
+    } else if (type === 'shield') {
+      sounds.playPowerup();
+      this.hasShield = true;
+      if (this.shieldBubbleSprite) this.shieldBubbleSprite.setVisible(true);
+      this.showStuntText('🛡️ SHIELD EQUIPPED! (1 HIT ABSORB) 🛡️');
+    } else if (type === 'nitro') {
+      sounds.playPowerup();
+      sounds.playBoost();
+      this.isBoosting = true;
+      this.boostTimer = 4.5;
+      this.boostMeter = 100;
+      this.showStuntText('🚀 SUPER NITRO ROCKET (5s)! 🚀');
+    } else {
+      // Carrot, star, or crate: advance combo streak and pitch
+      this.comboStreak++;
+      this.comboTimer = 2.8;
+      sounds.playCollect(type, this.comboStreak);
+    }
 
-    this.coins += value;
+    let multiplier = 1.0;
+    if (this.comboStreak >= 20) {
+      multiplier = 2.0;
+      if (this.comboStreak % 5 === 0) {
+        this.showStuntText(`🔥 ULTRA COMBO x${this.comboStreak}! (2.0x COINS) 🔥`);
+      }
+    } else if (this.comboStreak >= 10) {
+      multiplier = 1.5;
+      if (this.comboStreak === 10) {
+        this.showStuntText('⚡ SUPER COMBO x10! (1.5x COINS) ⚡');
+      }
+    } else if (this.comboStreak === 5) {
+      multiplier = 1.2;
+      this.showStuntText('🥕 COMBO x5! (1.2x COINS) 🥕');
+    }
+
+    const earned = Math.round(value * multiplier);
+    this.coins += earned;
+
     if (type === 'star') this.starsCollected++;
     else if (type === 'carrot') this.carrotsCollected++;
     else if (type === 'crate') this.cratesCollected++;
@@ -754,7 +961,7 @@ export default class FarmRide extends Phaser.Scene {
 
     window.dispatchEvent(
       new CustomEvent('game:collect', {
-        detail: { type, value }
+        detail: { type, value: earned }
       })
     );
 

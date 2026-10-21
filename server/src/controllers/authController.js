@@ -159,3 +159,83 @@ exports.getMe = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error fetching user profile.' });
   }
 };
+
+exports.clerkSync = async (req, res) => {
+  try {
+    const { clerkId, email, firstName, avatarUrl, guestBalance } = req.body;
+    if (!clerkId || !email) {
+      return res.status(400).json({ success: false, message: 'clerkId and email are required.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    let user = await User.findOne({
+      $or: [{ clerkId }, { email: cleanEmail }]
+    });
+
+    const defaultRabbit = await Rabbit.findOne({ priceNaira: 0 });
+    const defaultBike = await Bicycle.findOne({ priceNaira: 0 });
+
+    const guestBonus = Math.max(0, Number(guestBalance) || 0);
+
+    if (!user) {
+      // Create new user linked to Clerk
+      user = new User({
+        clerkId,
+        email: cleanEmail,
+        firstName: firstName || '',
+        avatarUrl: avatarUrl || '',
+        balanceNaira: 50 + guestBonus, // Welcome bonus + guest balance!
+        totalRides: 0,
+        currentRabbitId: defaultRabbit ? defaultRabbit._id : null,
+        currentBikeId: defaultBike ? defaultBike._id : null,
+        ownedRabbits: defaultRabbit ? [defaultRabbit._id] : [],
+        ownedBikes: defaultBike ? [defaultBike._id] : [],
+        subscriptionTier: 'free'
+      });
+      await user.save();
+    } else {
+      // Update existing user with Clerk ID and avatar
+      user.clerkId = clerkId;
+      if (firstName && !user.firstName) user.firstName = firstName;
+      if (avatarUrl && !user.avatarUrl) user.avatarUrl = avatarUrl;
+      if (guestBonus > 0) {
+        user.balanceNaira = Math.round((user.balanceNaira + guestBonus) * 100) / 100;
+      }
+      if (!user.currentRabbitId && defaultRabbit) user.currentRabbitId = defaultRabbit._id;
+      if (!user.currentBikeId && defaultBike) user.currentBikeId = defaultBike._id;
+      await user.save();
+    }
+
+    const populatedUser = await User.findById(user._id)
+      .populate('currentRabbitId')
+      .populate('currentBikeId')
+      .populate('ownedRabbits')
+      .populate('ownedBikes');
+
+    const token = generateToken(user);
+
+    return res.json({
+      success: true,
+      message: 'User synced with Clerk successfully',
+      token,
+      user: {
+        id: populatedUser._id,
+        email: populatedUser.email,
+        firstName: populatedUser.firstName,
+        avatarUrl: populatedUser.avatarUrl,
+        balanceNaira: populatedUser.balanceNaira,
+        totalRides: populatedUser.totalRides,
+        subscriptionTier: populatedUser.subscriptionTier,
+        subscriptionExpiresAt: populatedUser.subscriptionExpiresAt,
+        dailyRidesToday: populatedUser.dailyRidesToday,
+        currentRabbit: populatedUser.currentRabbitId,
+        currentBike: populatedUser.currentBikeId,
+        ownedRabbits: populatedUser.ownedRabbits,
+        ownedBikes: populatedUser.ownedBikes
+      }
+    });
+  } catch (err) {
+    console.error('clerkSync error:', err);
+    return res.status(500).json({ success: false, message: 'Server error syncing Clerk user.' });
+  }
+};

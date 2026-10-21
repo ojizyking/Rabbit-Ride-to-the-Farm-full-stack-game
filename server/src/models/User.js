@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 const { createModelWrapper } = require('./modelAdapter');
 
 const userSchema = new mongoose.Schema({
+  clerkId: {
+    type: String,
+    sparse: true,
+    index: true
+  },
   email: {
     type: String,
     required: true,
@@ -11,7 +16,15 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true
+    required: false
+  },
+  firstName: {
+    type: String,
+    default: ''
+  },
+  avatarUrl: {
+    type: String,
+    default: ''
   },
   balanceNaira: {
     type: Number,

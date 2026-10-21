@@ -366,6 +366,133 @@ export default class Preload extends Phaser.Scene {
       flameP.refresh();
     }
 
+    // 8B. Power-up Collectible Textures: Magnet, Shield, Nitro, Warning Sign & Bubble
+    // A. Magnet (48 x 48)
+    const magnetCanvas = this.textures.createCanvas('item-magnet', 48, 48);
+    if (magnetCanvas) {
+      const ctx = magnetCanvas.getContext();
+      // Horseshoe magnet body
+      ctx.strokeStyle = '#E53935';
+      ctx.lineWidth = 10;
+      ctx.lineCap = 'butt';
+      ctx.beginPath();
+      ctx.arc(24, 22, 14, 0, Math.PI, true);
+      ctx.stroke();
+
+      // Silver pole tips
+      ctx.fillStyle = '#B0BEC5';
+      ctx.fillRect(5, 20, 10, 8);
+      ctx.fillRect(33, 20, 10, 8);
+
+      // Yellow spark
+      ctx.fillStyle = '#FFD54F';
+      ctx.beginPath();
+      ctx.arc(24, 20, 4, 0, Math.PI * 2);
+      ctx.fill();
+      magnetCanvas.refresh();
+    }
+
+    // B. Shield (48 x 48)
+    const shieldCanvas = this.textures.createCanvas('item-shield', 48, 48);
+    if (shieldCanvas) {
+      const ctx = shieldCanvas.getContext();
+      // Glowing cyan shield
+      ctx.fillStyle = '#00E5FF';
+      ctx.beginPath();
+      ctx.moveTo(24, 6);
+      ctx.lineTo(42, 14);
+      ctx.lineTo(36, 36);
+      ctx.lineTo(24, 44);
+      ctx.lineTo(12, 36);
+      ctx.lineTo(6, 14);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Star emblem
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(24, 24, 6, 0, Math.PI * 2);
+      ctx.fill();
+      shieldCanvas.refresh();
+    }
+
+    // C. Super Nitro Rocket Drink (48 x 48)
+    const nitroCanvas = this.textures.createCanvas('item-nitro', 48, 48);
+    if (nitroCanvas) {
+      const ctx = nitroCanvas.getContext();
+      // Nitro cylinder bottle
+      ctx.fillStyle = '#FF7A00';
+      ctx.beginPath();
+      ctx.roundRect(14, 8, 20, 32, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#FFE082';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Lightning bolt icon
+      ctx.fillStyle = '#FFF59D';
+      ctx.beginPath();
+      ctx.moveTo(26, 12);
+      ctx.lineTo(18, 26);
+      ctx.lineTo(25, 26);
+      ctx.lineTo(22, 36);
+      ctx.lineTo(32, 22);
+      ctx.lineTo(25, 22);
+      ctx.closePath();
+      ctx.fill();
+      nitroCanvas.refresh();
+    }
+
+    // D. Rider Shield Aura Bubble (120 x 120)
+    const bubbleCanvas = this.textures.createCanvas('shield-bubble', 120, 120);
+    if (bubbleCanvas) {
+      const ctx = bubbleCanvas.getContext();
+      const bGrad = ctx.createRadialGradient(60, 60, 20, 60, 60, 56);
+      bGrad.addColorStop(0, 'rgba(0, 229, 255, 0.15)');
+      bGrad.addColorStop(0.8, 'rgba(0, 229, 255, 0.45)');
+      bGrad.addColorStop(1, 'rgba(255, 255, 255, 0.9)');
+      ctx.fillStyle = bGrad;
+      ctx.beginPath();
+      ctx.arc(60, 60, 54, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#80D8FF';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      bubbleCanvas.refresh();
+    }
+
+    // E. Road Warning Flag / Hazard Sign (60 x 60)
+    const warnCanvas = this.textures.createCanvas('obstacle-warning', 60, 60);
+    if (warnCanvas) {
+      const ctx = warnCanvas.getContext();
+      // Wooden post
+      ctx.fillStyle = '#795548';
+      ctx.fillRect(27, 28, 6, 30);
+
+      // Yellow warning triangle
+      ctx.fillStyle = '#FFC107';
+      ctx.beginPath();
+      ctx.moveTo(30, 4);
+      ctx.lineTo(54, 38);
+      ctx.lineTo(6, 38);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#D84315';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Exclamation mark
+      ctx.fillStyle = '#212121';
+      ctx.fillRect(28, 14, 4, 12);
+      ctx.beginPath();
+      ctx.arc(30, 31, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      warnCanvas.refresh();
+    }
+
     // 9. Procedural Animated Billboard Textures (240 x 180)
     const drawBillboard = (key: string, isLit: boolean) => {
       const bCanvas = this.textures.createCanvas(key, 240, 180);

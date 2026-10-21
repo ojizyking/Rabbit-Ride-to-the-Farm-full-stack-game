@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { UserButton } from '@clerk/clerk-react';
 import { useAuth } from '../context/AuthContext';
 import { Wallet, LogOut, Home, Gamepad2, HelpCircle, Award, ShoppingBag, Menu, X } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { user, openAuthModal, logout } = useAuth();
+  const { user, isClerkUser, openAuthModal, logout } = useAuth();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -41,9 +42,27 @@ export const Navbar: React.FC = () => {
                 <span>₦{user.balanceNaira.toLocaleString()}</span>
               </Link>
               <span className={`badge-tier ${user.subscriptionTier}`}>{user.subscriptionTier}</span>
-              <button onClick={logout} className="hud-icon-btn" style={{ width: '36px', height: '36px' }} title="Sign Out">
-                <LogOut size={16} />
-              </button>
+
+              {/* Clerk avatar button or legacy logout */}
+              {isClerkUser ? (
+                <UserButton
+                  afterSignOutUrl="/"
+                  appearance={{
+                    elements: {
+                      avatarBox: { width: '36px', height: '36px', borderRadius: '50%' }
+                    }
+                  }}
+                />
+              ) : (
+                <button
+                  onClick={logout}
+                  className="hud-icon-btn"
+                  style={{ width: '36px', height: '36px' }}
+                  title="Sign Out"
+                >
+                  <LogOut size={16} />
+                </button>
+              )}
             </>
           ) : (
             <button onClick={() => { openAuthModal('login'); closeMenu(); }} className="btn-primary">
@@ -98,9 +117,16 @@ export const Navbar: React.FC = () => {
                 {user.subscriptionTier}
               </span>
             </div>
-            <button onClick={() => { logout(); closeMenu(); }} className="mobile-logout-btn">
-              Sign Out
-            </button>
+            {isClerkUser ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <UserButton afterSignOutUrl="/" />
+                <span style={{ fontSize: '0.85rem', color: '#546E7A' }}>Manage Account</span>
+              </div>
+            ) : (
+              <button onClick={() => { logout(); closeMenu(); }} className="mobile-logout-btn">
+                Sign Out
+              </button>
+            )}
           </div>
         ) : (
           <button
@@ -126,5 +152,3 @@ export const Navbar: React.FC = () => {
 };
 
 export default Navbar;
-
-

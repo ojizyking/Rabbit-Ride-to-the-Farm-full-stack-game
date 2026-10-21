@@ -72,6 +72,10 @@ interface StatUpdateEvent {
   loopsCompleted?: number;
   boostMeter: number;
   isBoosting: boolean;
+  lives?: number;
+  combo?: number;
+  hasShield?: boolean;
+  magnetActive?: boolean;
 }
 
 interface EndRideData {
@@ -97,7 +101,11 @@ export const Play: React.FC = () => {
     crates: 0,
     adViews: 0,
     boostMeter: 100,
-    isBoosting: false
+    isBoosting: false,
+    lives: 3,
+    combo: 0,
+    hasShield: false,
+    magnetActive: false
   });
 
   const [isMuted, setIsMuted] = useState(false);
@@ -360,6 +368,47 @@ export const Play: React.FC = () => {
             </button>
           )}
 
+          {/* 3 Hearts Remaining */}
+          <div className="hud-stat-pill" title={`${stats.lives ?? 3} Hearts Left`} style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+            {[1, 2, 3].map((h) => (
+              <Heart
+                key={h}
+                size={16}
+                fill={h <= (stats.lives ?? 3) ? '#FF1744' : 'none'}
+                color={h <= (stats.lives ?? 3) ? '#FF1744' : '#90A4AE'}
+              />
+            ))}
+          </div>
+
+          {/* Active Combo Multiplier */}
+          {stats.combo !== undefined && stats.combo > 1 && (
+            <div
+              className="hud-stat-pill combo"
+              style={{
+                background: 'linear-gradient(135deg, #FF6D00 0%, #FFAB00 100%)',
+                color: '#FFFFFF',
+                fontWeight: 800
+              }}
+            >
+              <Sparkles size={15} />
+              <span>x{stats.combo} ({stats.combo >= 20 ? '2.0x' : stats.combo >= 10 ? '1.5x' : stats.combo >= 5 ? '1.2x' : '1.0x'})</span>
+            </div>
+          )}
+
+          {/* Active Shield Power-up */}
+          {stats.hasShield && (
+            <div className="hud-stat-pill" style={{ background: '#00E5FF', color: '#004D40', fontWeight: 800 }}>
+              <span>🛡️ SHIELD</span>
+            </div>
+          )}
+
+          {/* Active Magnet Power-up */}
+          {stats.magnetActive && (
+            <div className="hud-stat-pill" style={{ background: '#FF1744', color: '#FFFFFF', fontWeight: 800 }}>
+              <span>🧲 MAGNET</span>
+            </div>
+          )}
+
           {/* Distance */}
           <div className="hud-stat-pill distance">
             <Trophy size={18} color="#2D8A4E" />
@@ -495,6 +544,25 @@ export const Play: React.FC = () => {
             <div style={{ fontSize: '3rem', marginBottom: '0.25rem' }}>🏁</div>
             <h2 className="gameover-title">Ride Complete!</h2>
             <p className="gameover-subtitle">Great ride! Your collected tokens and ride rewards have been credited.</p>
+
+            {/* Near-Miss Dopamine Milestone Banner */}
+            <div style={{
+              background: 'linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%)',
+              border: '2px dashed #FFA000',
+              borderRadius: '12px',
+              padding: '0.65rem 1rem',
+              margin: '0.75rem 0 1rem 0',
+              fontSize: '0.92rem',
+              color: '#E65100',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}>
+              <Sparkles size={18} color="#FF6D00" />
+              <span>Near-Miss: Just {1000 - (gameOverData.distance % 1000)}m away from next Gold Barn Milestone!</span>
+            </div>
 
             <div className="gameover-stats-grid">
               <div className="gameover-stat-box">
