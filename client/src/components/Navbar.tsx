@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Wallet, LogOut, Home, Gamepad2, HelpCircle, Award, ShoppingBag } from 'lucide-react';
 
-const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+const CLERK_KEY = (import.meta.env.CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) as string | undefined;
 
 // Only import UserButton when Clerk is available
 const ClerkUserButton = CLERK_KEY

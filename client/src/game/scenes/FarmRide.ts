@@ -74,7 +74,8 @@ export default class FarmRide extends Phaser.Scene {
   private spawnObstacleTimer: number = 0;
   private spawnLoopTimer: number = 0;
   private spawnRampTimer: number = 0;
-  private billboardTimer: number = 18; // First billboard appears in 4s!
+  private billboardTimer: number = 0;
+  private adCooldownTimer: number = 0;
   private statSyncTimer: number = 0;
 
   // Ground Y coordinate
@@ -425,9 +426,14 @@ export default class FarmRide extends Phaser.Scene {
       this.spawnStuntRamp();
     }
 
-    // Roadside Animated Billboard Ad every 22 seconds
+    // Decrement ad cooldown timer
+    if (this.adCooldownTimer > 0) {
+      this.adCooldownTimer -= dt;
+    }
+
+    // Roadside Animated Billboard Ad bonus opportunity (spawn at most once every 150s when not on cooldown)
     this.billboardTimer += dt;
-    if (this.billboardTimer >= 22) {
+    if (this.billboardTimer >= 150 && this.adCooldownTimer <= 0) {
       this.billboardTimer = 0;
       this.spawnBillboard();
     }
@@ -529,9 +535,11 @@ export default class FarmRide extends Phaser.Scene {
       }
 
       // Check collision/encounter with rider
-      if (!this.isAdWatching && Math.abs(this.riderContainer.x - bContainer.x) < 65 && this.isGrounded) {
+      const isUsed = bContainer.getData('used');
+      if (!isUsed && !this.isAdWatching && this.adCooldownTimer <= 0 && Math.abs(this.riderContainer.x - bContainer.x) < 65 && this.isGrounded) {
+        bContainer.setData('used', true);
         this.openBillboardAd(bContainer);
-      } else if (bContainer.x < -350) {
+      } else if (bContainer.x < -350 || (isUsed && bContainer.x < this.riderContainer.x - 80)) {
         bContainer.destroy();
       }
     }
@@ -853,8 +861,11 @@ export default class FarmRide extends Phaser.Scene {
   }
 
   private openBillboardAd(billboardContainer?: Phaser.GameObjects.Container) {
-    if (this.isAdWatching || this.isGameOver) return;
+    if (this.isAdWatching || this.isGameOver || this.adCooldownTimer > 0) return;
     this.isAdWatching = true;
+    if (billboardContainer) {
+      billboardContainer.setData('used', true);
+    }
     this.activeBillboard = billboardContainer || null;
     this.currentSpeed = 0;
     this.velocityY = 0;
@@ -881,6 +892,7 @@ export default class FarmRide extends Phaser.Scene {
 
   private handleResumeRide(detail?: { earned?: boolean; value?: number }) {
     this.isAdWatching = false;
+    this.adCooldownTimer = 90; // 90-second cooldown so ad never repeats
     this.currentSpeed = this.baseSpeed * 1.4;
     this.isBoosting = true;
     this.boostTimer = 2.5;
@@ -893,12 +905,8 @@ export default class FarmRide extends Phaser.Scene {
     }
 
     if (this.activeBillboard) {
-      // Fade out billboard gently so rider breezes forward
-      this.tweens.add({
-        targets: this.activeBillboard,
-        alpha: 0.3,
-        duration: 400
-      });
+      // Immediately destroy billboard container so it cannot ever re-trigger
+      this.activeBillboard.destroy();
       this.activeBillboard = null;
     }
 

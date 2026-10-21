@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { X, Sparkles, Mail, Lock, LogIn, UserPlus } from 'lucide-react';
 
-const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+const CLERK_KEY = (import.meta.env.CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) as string | undefined;
 
 export const AuthModal: React.FC = () => {
   const { authModalOpen, authMode, closeAuthModal, openAuthModal, login, register, quickDemoLogin } = useAuth();

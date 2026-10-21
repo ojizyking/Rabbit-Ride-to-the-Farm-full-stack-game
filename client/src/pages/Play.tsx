@@ -4,7 +4,7 @@ import { PhaserGame } from '../components/game/PhaserGame';
 import { useAuth } from '../context/AuthContext';
 import { sounds } from '../game/audio';
 import api from '../lib/api';
-import { Zap, Trophy, Coins, Volume2, VolumeX, ArrowLeft, RotateCcw, RotateCw, ShoppingCart, Wallet, AlertCircle, Tv, CheckCircle2, Sparkles, PlayCircle, Heart } from 'lucide-react';
+import { Zap, Trophy, Coins, Volume2, VolumeX, ArrowLeft, RotateCcw, RotateCw, ShoppingCart, Wallet, AlertCircle, Tv, CheckCircle2, Sparkles, PlayCircle, Heart, X } from 'lucide-react';
 import '../styles/game.css';
 
 interface SponsorInfo {
@@ -226,6 +226,18 @@ export const Play: React.FC = () => {
           }
         })
         .catch((err) => console.warn('Ad collect sync:', err));
+
+      // Automatically remove ad modal after countdown and resume ride
+      const autoCloseTimer = setTimeout(() => {
+        setIsBillboardOpen(false);
+        window.dispatchEvent(
+          new CustomEvent('game:resume_ride', {
+            detail: { earned: true, value: 100 }
+          })
+        );
+      }, 1200);
+
+      return () => clearTimeout(autoCloseTimer);
     }
   }, [isBillboardOpen, billboardCountdown, isBillboardComplete, user]);
 
@@ -631,6 +643,30 @@ export const Play: React.FC = () => {
                 <span>SPONSOR BILLBOARD • 30s COUNTDOWN</span>
                 <Sparkles size={18} color="#FFD54F" />
               </div>
+              <button
+                type="button"
+                className="billboard-header-close-btn"
+                onClick={handleResumeAfterAd}
+                title="Close and Resume"
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '8px',
+                  background: 'rgba(0, 0, 0, 0.45)',
+                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                  borderRadius: '50%',
+                  width: '30px',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#fff',
+                  zIndex: 20
+                }}
+              >
+                <X size={16} />
+              </button>
             </div>
 
             {/* Inner Billboard Screen */}

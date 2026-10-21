@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/index.css';
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+const PUBLISHABLE_KEY = (import.meta.env.CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) as string | undefined;
 
 async function bootstrap() {
   const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
@@ -20,7 +20,7 @@ async function bootstrap() {
     );
   } else {
     // No Clerk key — render without Clerk (legacy email/password auth still works)
-    console.warn('[RabbitRide] VITE_CLERK_PUBLISHABLE_KEY not set — running without Clerk.');
+    console.warn('[RabbitRide] CLERK_PUBLISHABLE_KEY not set — running without Clerk.');
     root.render(
       <React.StrictMode>
         <App />

@@ -238,7 +238,7 @@ const LazyClerkProvider = React.lazy(() =>
 );
 
 // ─── Public AuthProvider: auto-selects Clerk or Legacy ───────────────────────
-const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+const CLERK_KEY = (import.meta.env.CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) as string | undefined;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (CLERK_KEY) {
