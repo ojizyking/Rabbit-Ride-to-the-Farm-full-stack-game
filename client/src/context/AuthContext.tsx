@@ -165,6 +165,11 @@ function useLegacyAuth(setUser: React.Dispatch<React.SetStateAction<UserProfile 
     }
   };
 
+  const quickDemoLogin = async () => {
+    try { await login('rider@rabbitride.com', 'Ride2Farm!'); }
+    catch { await register('rider@rabbitride.com', 'Ride2Farm!'); }
+  };
+
   return { login, register, quickDemoLogin };
 }
 
@@ -238,6 +243,15 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
       return { success: true, message: 'Referral code updated (offline mode)!', referralCode: clean };
     }
+  };
+
+  const updateBalance = (newBalance: number) => {
+    setUser((prev) => {
+      if (!prev) { localStorage.setItem('rabbit_guest_balance', String(newBalance)); return null; }
+      const updated = { ...prev, balanceNaira: newBalance };
+      localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   return (
