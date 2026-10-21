@@ -65,6 +65,23 @@ export default class FarmRide extends Phaser.Scene {
   private obstacles!: Phaser.GameObjects.Group;
   private stuntTracks!: Phaser.GameObjects.Group;
   private billboards!: Phaser.GameObjects.Group;
+  private sceneryProps!: Phaser.GameObjects.Group;
+
+  // Pause State
+  private isPaused: boolean = false;
+
+  // Barn Checkpoint Station ("Pappy's Farm Barn")
+  private nextBarnDistance: number = 500;
+  private isAtBarn: boolean = false;
+  private barnContainer: Phaser.GameObjects.Container | null = null;
+  private barnSignContainer: Phaser.GameObjects.Container | null = null;
+  private barnSignSpawned: boolean = false;
+  private barnStationSpawned: boolean = false;
+
+  // Dynamic Biomes & Road Variety
+  private currentBiome: string = 'meadow';
+  private spawnSceneryTimer: number = 0;
+  private spawnAnimalTimer: number = 0;
 
   private isAdWatching: boolean = false;
   private activeBillboard: Phaser.GameObjects.Container | null = null;
@@ -135,11 +152,23 @@ export default class FarmRide extends Phaser.Scene {
     this.fence = this.add.tileSprite(0, height - 260, width, 200, 'farm-fence').setOrigin(0, 0);
     this.ground = this.add.tileSprite(0, this.groundY, width, 140, 'farm-ground').setOrigin(0, 0);
 
-    // Collectibles, Obstacles & 360 Stunt Tracks & Billboards
+    // Collectibles, Obstacles, Stunt Tracks, Billboards & Scenery Props
     this.collectibles = this.add.group();
     this.obstacles = this.add.group();
     this.stuntTracks = this.add.group();
     this.billboards = this.add.group();
+    this.sceneryProps = this.add.group();
+
+    this.isPaused = false;
+    this.isAtBarn = false;
+    this.nextBarnDistance = 500;
+    this.barnSignSpawned = false;
+    this.barnStationSpawned = false;
+    this.barnContainer = null;
+    this.barnSignContainer = null;
+    this.currentBiome = 'meadow';
+    this.spawnSceneryTimer = 0;
+    this.spawnAnimalTimer = 0;
 
     // Determine equipped rabbit & bike textures from custom events or default
     const rabbitTexture = (window as unknown as { currentEquippedRabbit?: string }).currentEquippedRabbit || 'rabbit-starter';
@@ -255,6 +284,20 @@ export default class FarmRide extends Phaser.Scene {
     };
     window.addEventListener('game:resume_ride', onResumeRide);
 
+    // Listen to Game Pause & Resume triggers
+    const onExternalPause = () => this.handlePause();
+    window.addEventListener('game:pause', onExternalPause);
+
+    const onExternalResume = () => this.handleResume();
+    window.addEventListener('game:resume', onExternalResume);
+
+    // Listen to Barn Exit trigger from React modal
+    const onExitBarn = (e: Event) => {
+      const customEvent = e as CustomEvent<{ boost?: boolean }>;
+      this.handleExitBarn(customEvent?.detail);
+    };
+    window.addEventListener('game:exit_barn', onExitBarn);
+
     // Dynamic Responsive Resize for mobile orientation changes
     const handleResize = (gameSize: Phaser.Structs.Size) => {
       const w = gameSize.width;
@@ -285,6 +328,9 @@ export default class FarmRide extends Phaser.Scene {
       window.removeEventListener('game:trigger_flip_360', onExternalFlip);
       window.removeEventListener('game:trigger_ad_view', onExternalAd);
       window.removeEventListener('game:resume_ride', onResumeRide);
+      window.removeEventListener('game:pause', onExternalPause);
+      window.removeEventListener('game:resume', onExternalResume);
+      window.removeEventListener('game:exit_barn', onExitBarn);
       this.scale.off('resize', handleResize);
     });
 
@@ -349,12 +395,21 @@ export default class FarmRide extends Phaser.Scene {
 
   update(time: number, delta: number) {
     if (this.isGameOver) return;
+    if (this.isPaused) return;
+    if (this.isAtBarn) {
+      // Parked inside the Barn Rest Stop: gentle idle breathing bob
+      this.riderContainer.y = this.groundY - 35 + Math.sin(time * 0.005) * 1.5;
+      return;
+    }
     if (this.isAdWatching) {
       // Park rider cleanly next to billboard with gentle breathing idle bob
       this.riderContainer.y = this.groundY - 35 + Math.sin(time * 0.005) * 1.5;
       return;
     }
     const dt = delta / 1000;
+
+    // Dynamic Biome progression based on distance
+    this.updateBiome(time, dt);
 
     // Keys Check
     if (this.jumpKey && Phaser.Input.Keyboard.JustDown(this.jumpKey)) this.handleJump();
@@ -503,11 +558,80 @@ export default class FarmRide extends Phaser.Scene {
       this.adCooldownTimer -= dt;
     }
 
+    // Barn Checkpoint Pacing (Every 500m milestone)
+    if (this.distanceMeters >= this.nextBarnDistance - 65 && !this.barnSignSpawned) {
+      this.barnSignSpawned = true;
+      this.spawnBarnSign();
+    }
+    if (this.distanceMeters >= this.nextBarnDistance - 25 && !this.barnStationSpawned) {
+      this.barnStationSpawned = true;
+      this.spawnBarnStation();
+    }
+
+    // Scenery Props Pacing (Sunflowers, apple trees, lanterns based on biome)
+    this.spawnSceneryTimer += dt;
+    if (this.spawnSceneryTimer >= 2.8) {
+      this.spawnSceneryTimer = 0;
+      this.spawnSceneryProp();
+    }
+
+    // Roadside Cheering Farm Animals Pacing
+    this.spawnAnimalTimer += dt;
+    if (this.spawnAnimalTimer >= 14.0) {
+      this.spawnAnimalTimer = 0;
+      this.spawnFriendlyAnimal();
+    }
+
     // Roadside Animated Billboard Ad bonus opportunity (spawn at most once every 150s when not on cooldown)
     this.billboardTimer += dt;
     if (this.billboardTimer >= 150 && this.adCooldownTimer <= 0) {
       this.billboardTimer = 0;
       this.spawnBillboard();
+    }
+
+    // Move Barn Station and Check Entrance
+    if (this.barnContainer) {
+      this.barnContainer.x -= this.currentSpeed * dt;
+      if (!this.isAtBarn && Math.abs(this.riderContainer.x - (this.barnContainer.x - 30)) < 35 && this.isGrounded) {
+        this.enterBarnStation();
+      }
+    }
+
+    if (this.barnSignContainer) {
+      this.barnSignContainer.x -= this.currentSpeed * dt;
+      if (this.barnSignContainer.x < -180) {
+        this.barnSignContainer.destroy();
+        this.barnSignContainer = null;
+      }
+    }
+
+    // Move Scenery Props and Cheering Animals
+    const sceneryArr = this.sceneryProps.getChildren() as Phaser.GameObjects.Sprite[];
+    for (let i = sceneryArr.length - 1; i >= 0; i--) {
+      const prop = sceneryArr[i];
+      prop.x -= this.currentSpeed * dt;
+
+      // Check cheering animal proximity
+      if (prop.getData('isAnimal') && !prop.getData('cheered')) {
+        if (Math.abs(this.riderContainer.x - prop.x) < 80) {
+          prop.setData('cheered', true);
+          this.tweens.add({
+            targets: prop,
+            y: prop.y - 18,
+            duration: 160,
+            yoyo: true,
+            repeat: 2
+          });
+          this.carrotsCollected += 2;
+          this.coins += 10;
+          sounds.playCollect('carrot');
+          this.showStuntText('🐮 ANIMAL CHEER! +2 Carrots 🥕');
+        }
+      }
+
+      if (prop.x < -250) {
+        prop.destroy();
+      }
     }
 
     const riderBounds = new Phaser.Geom.Rectangle(
@@ -858,33 +982,51 @@ export default class FarmRide extends Phaser.Scene {
     let value = 10;
     let spawnY = this.groundY - 50;
 
-    if (rand < 0.38) {
+    if (rand < 0.26) {
       texture = 'item-star';
       type = 'star';
       value = 5;
       spawnY = this.groundY - (Math.random() > 0.5 ? 90 : 50);
-    } else if (rand < 0.72) {
+    } else if (rand < 0.52) {
       texture = 'item-carrot';
       type = 'carrot';
       value = 10;
       spawnY = this.groundY - 50;
-    } else if (rand < 0.84) {
+    } else if (rand < 0.64) {
+      // 🎈 Floating Carrot Balloon (High aerial pickup)
+      texture = 'item-balloon';
+      type = 'balloon';
+      value = 20;
+      spawnY = this.groundY - 140;
+    } else if (rand < 0.74) {
       texture = 'item-crate';
       type = 'crate';
       value = 50 + Math.floor(Math.random() * 150);
       spawnY = this.groundY - 45;
-    } else if (rand < 0.90) {
+    } else if (rand < 0.82) {
+      // 🌈 Rainbow Speed Pad
+      texture = 'item-rainbow-pad';
+      type = 'rainbow-pad';
+      value = 15;
+      spawnY = this.groundY - 10;
+    } else if (rand < 0.88) {
       // 🧲 Magnet Power-up
       texture = 'item-magnet';
       type = 'magnet';
       value = 25;
       spawnY = this.groundY - 60;
-    } else if (rand < 0.96) {
+    } else if (rand < 0.94) {
       // 🛡️ Shield Power-up
       texture = 'item-shield';
       type = 'shield';
       value = 25;
       spawnY = this.groundY - 60;
+    } else if (rand < 0.97) {
+      // 🍀 Rare Lucky 4-Leaf Clover
+      texture = 'item-clover';
+      type = 'clover';
+      value = 50;
+      spawnY = this.groundY - 65;
     } else {
       // ⚡ Super Nitro Rocket
       texture = 'item-nitro';
@@ -1006,6 +1148,22 @@ export default class FarmRide extends Phaser.Scene {
       this.boostTimer = 4.5;
       this.boostMeter = 100;
       this.showStuntText('🚀 SUPER NITRO ROCKET (5s)! 🚀');
+    } else if (type === 'balloon') {
+      sounds.playCollect('crate');
+      this.comboStreak += 3;
+      this.showStuntText('🎈 CARROT BALLOON POP! +3 COMBO! 🎈');
+    } else if (type === 'clover') {
+      sounds.playPowerup();
+      this.magnetTimer = 12.0;
+      this.showStuntText('🍀 LUCKY 4-LEAF CLOVER! 12s MAGNET FRENZY 🍀');
+    } else if (type === 'rainbow-pad') {
+      sounds.playBoost();
+      this.isBoosting = true;
+      this.boostTimer = 3.0;
+      this.boostMeter = 100;
+      if (this.boostParticles) this.boostParticles.start();
+      this.cameras.main.shake(180, 0.006);
+      this.showStuntText('🌈 RAINBOW SUPER SPEED! 🌈');
     } else {
       // Carrot, star, or crate: advance combo streak and pitch
       this.comboStreak++;
@@ -1103,5 +1261,174 @@ export default class FarmRide extends Phaser.Scene {
         ads: this.adsViewed
       });
     });
+  }
+
+  // ─── Pause & Resume Handlers ─────────────────────────────────────────────
+  private handlePause() {
+    this.isPaused = true;
+    if (this.boostParticles) this.boostParticles.stop();
+    this.tweens.pauseAll();
+  }
+
+  private handleResume() {
+    this.isPaused = false;
+    this.tweens.resumeAll();
+  }
+
+  // ─── Barn Station Handlers ───────────────────────────────────────────────
+  private spawnBarnSign() {
+    const width = this.scale.width;
+    const sign = this.add.container(width + 80, this.groundY - 50);
+    const sprite = this.add.sprite(0, 0, 'barn-sign');
+    sign.add(sprite);
+    this.barnSignContainer = sign;
+  }
+
+  private spawnBarnStation() {
+    const width = this.scale.width;
+    const barn = this.add.container(width + 180, this.groundY - 80);
+    const sprite = this.add.sprite(0, 0, 'barn-station');
+    barn.add(sprite);
+    this.barnContainer = barn;
+  }
+
+  private enterBarnStation() {
+    this.isAtBarn = true;
+    this.currentSpeed = 0;
+    this.velocityY = 0;
+    this.isGrounded = true;
+    this.riderContainer.y = this.groundY - 35;
+    this.riderContainer.angle = 0;
+    this.boostMeter = 100; // Restore stamina!
+
+    sounds.playPowerup();
+    sounds.playCollect('crate');
+
+    // Milestone bonus reward!
+    const milestoneBonus = 50;
+    this.coins += milestoneBonus;
+    this.carrotsCollected += 10;
+
+    this.showStuntText('🌾 BARN CHECKPOINT! +50 Coins 🥕');
+
+    // Dispatch event to React UI to open the Barn Refresh Modal
+    window.dispatchEvent(
+      new CustomEvent('game:enter_barn', {
+        detail: {
+          distance: Math.round(this.distanceMeters),
+          coins: this.coins,
+          carrots: this.carrotsCollected,
+          bonusCoins: milestoneBonus,
+          bonusCarrots: 10
+        }
+      })
+    );
+  }
+
+  private handleExitBarn(detail?: { boost?: boolean }) {
+    this.isAtBarn = false;
+    this.nextBarnDistance += 600;
+    this.barnSignSpawned = false;
+    this.barnStationSpawned = false;
+
+    // Super Nitro Boost exit launch!
+    this.currentSpeed = this.baseSpeed * 2.2;
+    this.isBoosting = true;
+    this.boostTimer = 5.0; // 5-second turbo boost!
+    this.boostMeter = 100;
+
+    sounds.playBoost();
+    if (this.boostParticles) this.boostParticles.start();
+    this.cameras.main.shake(250, 0.008);
+    this.showStuntText('🚀 TURBO BARN LAUNCH! (5s BOOST) 🚀');
+
+    // Slide barn away
+    if (this.barnContainer) {
+      this.tweens.add({
+        targets: this.barnContainer,
+        x: -400,
+        duration: 800,
+        ease: 'Quad.easeIn',
+        onComplete: () => {
+          this.barnContainer?.destroy();
+          this.barnContainer = null;
+        }
+      });
+    }
+  }
+
+  // ─── Dynamic Biomes & Roadside Scenery ────────────────────────────────────
+  private updateBiome(time: number, dt: number) {
+    let newBiome = 'meadow';
+    if (this.distanceMeters >= 1800) newBiome = 'golden';
+    else if (this.distanceMeters >= 1300) newBiome = 'twilight';
+    else if (this.distanceMeters >= 800) newBiome = 'orchard';
+    else if (this.distanceMeters >= 400) newBiome = 'sunflower';
+
+    if (newBiome !== this.currentBiome) {
+      this.currentBiome = newBiome;
+      window.dispatchEvent(
+        new CustomEvent('game:biome_change', { detail: { biome: newBiome } })
+      );
+
+      // Smoothly tint parallax scenery based on biome
+      if (newBiome === 'sunflower') {
+        this.sky.setTint(0xFFE082);
+        this.hills.setTint(0xFFD54F);
+      } else if (newBiome === 'orchard') {
+        this.sky.setTint(0xFFAB91);
+        this.hills.setTint(0xAED581);
+      } else if (newBiome === 'twilight') {
+        this.sky.setTint(0x9575CD);
+        this.hills.setTint(0x7E57C2);
+      } else if (newBiome === 'golden') {
+        this.sky.setTint(0xFFF176);
+        this.hills.setTint(0x81C784);
+      } else {
+        this.sky.clearTint();
+        this.hills.clearTint();
+      }
+    }
+  }
+
+  private spawnSceneryProp() {
+    const width = this.scale.width;
+    let texture = 'prop-sunflower';
+    let y = this.groundY - 55;
+
+    if (this.currentBiome === 'sunflower') {
+      texture = 'prop-sunflower';
+      y = this.groundY - 50;
+    } else if (this.currentBiome === 'orchard') {
+      texture = 'prop-appletree';
+      y = this.groundY - 65;
+    } else if (this.currentBiome === 'twilight') {
+      texture = 'prop-lantern';
+      y = this.groundY - 50;
+    } else {
+      // Meadow: alternating sunflower or haybale
+      texture = Math.random() > 0.5 ? 'prop-sunflower' : 'item-haybale';
+      y = this.groundY - 30;
+    }
+
+    if (this.textures.exists(texture)) {
+      const prop = this.add.sprite(width + 60, y, texture);
+      prop.setDepth(0);
+      this.sceneryProps.add(prop);
+    }
+  }
+
+  private spawnFriendlyAnimal() {
+    const width = this.scale.width;
+    const isCow = Math.random() > 0.5;
+    const texture = isCow ? 'prop-cow' : 'prop-sheep';
+
+    if (this.textures.exists(texture)) {
+      const animal = this.add.sprite(width + 80, this.groundY - 35, texture);
+      animal.setData('isAnimal', true);
+      animal.setData('cheered', false);
+      animal.setDepth(0);
+      this.sceneryProps.add(animal);
+    }
   }
 }

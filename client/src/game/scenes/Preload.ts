@@ -621,6 +621,432 @@ export default class Preload extends Phaser.Scene {
 
       badgeCanvas.refresh();
     }
+
+    // 11. Generate Barn Rest Stop Checkpoint & Journey Variety Assets
+    this.generateJourneyAndBarnTextures();
+  }
+
+  private generateJourneyAndBarnTextures() {
+    // A. Barn Rest Stop Station (260 x 200)
+    const barnCanvas = this.textures.createCanvas('barn-station', 260, 200);
+    if (barnCanvas) {
+      const ctx = barnCanvas.getContext();
+      // Main Barn Building Body (Rustic Red)
+      ctx.fillStyle = '#B71C1C';
+      ctx.fillRect(25, 75, 210, 125);
+      ctx.strokeStyle = '#5F0909';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(25, 75, 210, 125);
+
+      // White corner trim boards
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(25, 75, 12, 125);
+      ctx.fillRect(223, 75, 12, 125);
+
+      // Barn Gambrel Roof
+      ctx.fillStyle = '#78281F';
+      ctx.beginPath();
+      ctx.moveTo(10, 75);
+      ctx.lineTo(60, 25);
+      ctx.lineTo(130, 8);
+      ctx.lineTo(200, 25);
+      ctx.lineTo(250, 75);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Cupola / Weather Vane on apex
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(115, -4, 30, 15);
+      ctx.fillStyle = '#FFC93C';
+      ctx.beginPath();
+      ctx.arc(130, -10, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Open Double Barn Bay Doors (Warm golden interior light)
+      const bayGrad = ctx.createLinearGradient(70, 95, 190, 200);
+      bayGrad.addColorStop(0, '#FFE082');
+      bayGrad.addColorStop(0.3, '#FFB300');
+      bayGrad.addColorStop(1, '#3E2723');
+      ctx.fillStyle = bayGrad;
+      ctx.fillRect(75, 95, 110, 105);
+
+      // White Cross X Trim on side panels
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(37, 85); ctx.lineTo(75, 135);
+      ctx.moveTo(75, 85); ctx.lineTo(37, 135);
+      ctx.moveTo(185, 85); ctx.lineTo(223, 135);
+      ctx.moveTo(223, 85); ctx.lineTo(185, 135);
+      ctx.stroke();
+
+      // Overhead Barn Signboard
+      ctx.fillStyle = '#FFC93C';
+      ctx.beginPath();
+      ctx.roundRect(40, 50, 180, 24, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#E65100';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#1B3824';
+      ctx.font = 'bold 11px Fredoka, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🌾 PAPPY\'S BARN REST STOP 🥕', 130, 62);
+
+      // Carrot juice refreshment icon in door
+      ctx.font = '24px sans-serif';
+      ctx.fillText('🥤', 130, 150);
+
+      barnCanvas.refresh();
+    }
+
+    // B. Barn Approach Road Sign (110 x 80)
+    const signCanvas = this.textures.createCanvas('barn-sign', 110, 80);
+    if (signCanvas) {
+      const ctx = signCanvas.getContext();
+      // Wooden post
+      ctx.fillStyle = '#5D4037';
+      ctx.fillRect(50, 30, 10, 50);
+      // Board
+      ctx.fillStyle = '#FFC93C';
+      ctx.beginPath();
+      ctx.roundRect(5, 5, 100, 36, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#E65100';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#3E2723';
+      ctx.font = 'bold 9px Fredoka, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('REST STOP', 55, 15);
+      ctx.font = 'bold 11px Fredoka, sans-serif';
+      ctx.fillText('BARN AHEAD ➔', 55, 29);
+
+      signCanvas.refresh();
+    }
+
+    // C. Floating Carrot Balloon (46 x 60)
+    const balloonCanvas = this.textures.createCanvas('item-balloon', 46, 60);
+    if (balloonCanvas) {
+      const ctx = balloonCanvas.getContext();
+      // Orange balloon carrot bulb
+      ctx.fillStyle = '#FF7A00';
+      ctx.beginPath();
+      ctx.ellipse(23, 22, 18, 20, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#E65100';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Highlight shine
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.beginPath();
+      ctx.ellipse(17, 15, 6, 9, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Green leafy tuft on top
+      ctx.fillStyle = '#4CAF50';
+      ctx.beginPath();
+      ctx.moveTo(23, 2);
+      ctx.lineTo(16, -6);
+      ctx.lineTo(23, -2);
+      ctx.lineTo(30, -6);
+      ctx.closePath();
+      ctx.fill();
+
+      // String
+      ctx.strokeStyle = '#B0BEC5';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(23, 42);
+      ctx.quadraticCurveTo(20, 50, 23, 58);
+      ctx.stroke();
+
+      balloonCanvas.refresh();
+    }
+
+    // D. Lucky 4-Leaf Clover (48 x 48)
+    const cloverCanvas = this.textures.createCanvas('item-clover', 48, 48);
+    if (cloverCanvas) {
+      const ctx = cloverCanvas.getContext();
+      // Golden / emerald glow aura
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.35)';
+      ctx.beginPath();
+      ctx.arc(24, 24, 22, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4 heart leaves
+      const drawLeaf = (cx: number, cy: number, rot: number) => {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rot);
+        ctx.fillStyle = '#00E676';
+        ctx.beginPath();
+        ctx.arc(-5, -5, 6, 0, Math.PI * 2);
+        ctx.arc(5, -5, 6, 0, Math.PI * 2);
+        ctx.moveTo(-10, -3);
+        ctx.lineTo(0, 8);
+        ctx.lineTo(10, -3);
+        ctx.fill();
+        ctx.restore();
+      };
+
+      drawLeaf(24, 24, 0);
+      drawLeaf(24, 24, Math.PI * 0.5);
+      drawLeaf(24, 24, Math.PI);
+      drawLeaf(24, 24, Math.PI * 1.5);
+
+      // Gold center sparkle
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(24, 24, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      cloverCanvas.refresh();
+    }
+
+    // E. Rainbow Speed Boost Pad (110 x 24)
+    const padCanvas = this.textures.createCanvas('item-rainbow-pad', 110, 24);
+    if (padCanvas) {
+      const ctx = padCanvas.getContext();
+      // Glowing rainbow stripe gradient
+      const rainbow = ctx.createLinearGradient(0, 0, 110, 0);
+      rainbow.addColorStop(0, '#FF1744');
+      rainbow.addColorStop(0.2, '#FF9100');
+      rainbow.addColorStop(0.4, '#FFEA00');
+      rainbow.addColorStop(0.6, '#00E676');
+      rainbow.addColorStop(0.8, '#00E5FF');
+      rainbow.addColorStop(1, '#D500F9');
+
+      ctx.fillStyle = rainbow;
+      ctx.beginPath();
+      ctx.roundRect(0, 2, 110, 20, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Forward Chevrons
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 3;
+      for (let x = 20; x <= 90; x += 22) {
+        ctx.beginPath();
+        ctx.moveTo(x - 6, 5);
+        ctx.lineTo(x + 4, 12);
+        ctx.lineTo(x - 6, 19);
+        ctx.stroke();
+      }
+
+      padCanvas.refresh();
+    }
+
+    // F. Hay Bale Launch Ramp (70 x 45)
+    const hayCanvas = this.textures.createCanvas('item-haybale', 70, 45);
+    if (hayCanvas) {
+      const ctx = hayCanvas.getContext();
+      // Straw body
+      ctx.fillStyle = '#FFD54F';
+      ctx.beginPath();
+      ctx.roundRect(4, 4, 62, 37, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#FFA000';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Twine ties
+      ctx.strokeStyle = '#E65100';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(22, 4); ctx.lineTo(22, 41);
+      ctx.moveTo(48, 4); ctx.lineTo(48, 41);
+      ctx.stroke();
+
+      // Spring arrow indicator
+      ctx.fillStyle = '#4CAF50';
+      ctx.font = 'bold 12px Fredoka, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⬆ BOUNCE', 35, 26);
+
+      hayCanvas.refresh();
+    }
+
+    // G. Roadside Sunflower (60 x 110)
+    const sunflowerCanvas = this.textures.createCanvas('prop-sunflower', 60, 110);
+    if (sunflowerCanvas) {
+      const ctx = sunflowerCanvas.getContext();
+      // Stem
+      ctx.strokeStyle = '#388E3C';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(30, 40);
+      ctx.quadraticCurveTo(24, 75, 30, 110);
+      ctx.stroke();
+
+      // Leaf
+      ctx.fillStyle = '#4CAF50';
+      ctx.beginPath();
+      ctx.ellipse(40, 75, 12, 6, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Flower Head: Golden Petals
+      ctx.fillStyle = '#FFC107';
+      for (let i = 0; i < 12; i++) {
+        const ang = (i * Math.PI) / 6;
+        ctx.beginPath();
+        ctx.arc(30 + Math.cos(ang) * 16, 32 + Math.sin(ang) * 16, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Dark brown seed center
+      ctx.fillStyle = '#4E342E';
+      ctx.beginPath();
+      ctx.arc(30, 32, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      sunflowerCanvas.refresh();
+    }
+
+    // H. Roadside Apple Tree (120 x 140)
+    const appleCanvas = this.textures.createCanvas('prop-appletree', 120, 140);
+    if (appleCanvas) {
+      const ctx = appleCanvas.getContext();
+      // Trunk
+      ctx.fillStyle = '#5D4037';
+      ctx.fillRect(52, 70, 16, 70);
+
+      // Foliage Canopy
+      ctx.fillStyle = '#2E7D32';
+      ctx.beginPath();
+      ctx.arc(60, 50, 44, 0, Math.PI * 2);
+      ctx.arc(35, 60, 30, 0, Math.PI * 2);
+      ctx.arc(85, 60, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Red Apples
+      ctx.fillStyle = '#E53935';
+      const apples = [
+        { x: 45, y: 35 }, { x: 75, y: 38 }, { x: 30, y: 65 },
+        { x: 62, y: 60 }, { x: 88, y: 62 }, { x: 55, y: 80 }
+      ];
+      apples.forEach(a => {
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      appleCanvas.refresh();
+    }
+
+    // I. Twilight Roadside Lantern (40 x 110)
+    const lanternCanvas = this.textures.createCanvas('prop-lantern', 40, 110);
+    if (lanternCanvas) {
+      const ctx = lanternCanvas.getContext();
+      // Fence Post
+      ctx.fillStyle = '#3E2723';
+      ctx.fillRect(16, 35, 8, 75);
+
+      // Arm
+      ctx.fillRect(16, 35, 18, 4);
+
+      // Glowing Lantern
+      ctx.fillStyle = '#FFA000';
+      ctx.beginPath();
+      ctx.arc(26, 48, 14, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#FFF9C4';
+      ctx.beginPath();
+      ctx.roundRect(20, 42, 12, 16, 3);
+      ctx.fill();
+      ctx.strokeStyle = '#212121';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      lanternCanvas.refresh();
+    }
+
+    // J. Friendly Cheering Farm Cow (75 x 55)
+    const cowCanvas = this.textures.createCanvas('prop-cow', 75, 55);
+    if (cowCanvas) {
+      const ctx = cowCanvas.getContext();
+      // Body (White with black patches)
+      ctx.fillStyle = '#ECEFF1';
+      ctx.beginPath();
+      ctx.roundRect(10, 15, 50, 30, 8);
+      ctx.fill();
+
+      // Black patches
+      ctx.fillStyle = '#263238';
+      ctx.beginPath();
+      ctx.arc(25, 24, 9, 0, Math.PI * 2);
+      ctx.arc(45, 32, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Head
+      ctx.fillStyle = '#ECEFF1';
+      ctx.beginPath();
+      ctx.arc(58, 20, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pink muzzle
+      ctx.fillStyle = '#FF80AB';
+      ctx.beginPath();
+      ctx.ellipse(65, 23, 7, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Legs
+      ctx.fillStyle = '#CFD8DC';
+      ctx.fillRect(18, 42, 6, 12);
+      ctx.fillRect(44, 42, 6, 12);
+
+      // Bell
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(52, 33, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      cowCanvas.refresh();
+    }
+
+    // K. Fluffy Cheering Farm Sheep (65 x 50)
+    const sheepCanvas = this.textures.createCanvas('prop-sheep', 65, 50);
+    if (sheepCanvas) {
+      const ctx = sheepCanvas.getContext();
+      // Fluffy white wool cloud body
+      ctx.fillStyle = '#FFFFFF';
+      for (let x = 15; x <= 45; x += 10) {
+        for (let y = 15; y <= 35; y += 10) {
+          ctx.beginPath();
+          ctx.arc(x, y, 9, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Black face
+      ctx.fillStyle = '#37474F';
+      ctx.beginPath();
+      ctx.ellipse(50, 22, 8, 10, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ears
+      ctx.beginPath();
+      ctx.ellipse(45, 14, 4, 2, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Legs
+      ctx.fillStyle = '#263238';
+      ctx.fillRect(20, 38, 4, 10);
+      ctx.fillRect(38, 38, 4, 10);
+
+      sheepCanvas.refresh();
+    }
   }
 }
 

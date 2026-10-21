@@ -1051,3 +1051,413 @@
   0% { transform: scale(0.6); opacity: 0.4; }
   100% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px #FFD54F; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   PAUSE OVERLAY & AUDIO CONTROLS
+   ══════════════════════════════════════════════════════════════════════ */
+
+.pause-overlay-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(14, 38, 20, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.pause-modal-card {
+  background: #FFFFFF;
+  border-radius: 28px;
+  max-width: 520px;
+  width: 100%;
+  padding: 2.25rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  position: relative;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.pause-header {
+  text-align: center;
+}
+
+.pause-badge-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FFF9C4 0%, #FFE082 100%);
+  border: 4px solid #FFC93C;
+  color: #1E6336;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.75rem auto;
+  font-size: 2rem;
+  box-shadow: 0 8px 20px rgba(255, 201, 60, 0.35);
+}
+
+.pause-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #1B3824;
+  letter-spacing: -0.5px;
+}
+
+.pause-stats-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  background: #F1F8E9;
+  border-radius: 18px;
+  padding: 1rem;
+  border: 1px solid #C8E6C9;
+}
+
+.pause-stat-item {
+  text-align: center;
+}
+
+.pause-stat-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #558B2F;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pause-stat-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1B3824;
+  margin-top: 0.2rem;
+}
+
+/* Audio Mixer Sliders in Pause Screen */
+.audio-mixer-box {
+  background: #FAFAFA;
+  border-radius: 18px;
+  padding: 1.15rem;
+  border: 1px solid #ECEFF1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.audio-mixer-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #37474F;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.volume-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #607D8B;
+  min-width: 75px;
+}
+
+.volume-slider {
+  flex: 1;
+  accent-color: #2D8A4E;
+  cursor: pointer;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.volume-val-pct {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #37474F;
+  min-width: 38px;
+  text-align: right;
+  font-family: monospace;
+}
+
+/* Soundtracks & YouTube Selector */
+.music-selector-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.music-tab-btn {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: #ECEFF1;
+  color: #546E7A;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.music-tab-btn.active {
+  background: #2D8A4E;
+  color: #FFFFFF;
+}
+
+.soundtrack-pill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.soundtrack-pill {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  background: #FFFFFF;
+  border: 1.5px solid #CFD8DC;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+
+.soundtrack-pill.active {
+  border-color: #2D8A4E;
+  background: #E8F5E9;
+}
+
+.soundtrack-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1B3824;
+}
+
+.soundtrack-genre {
+  font-size: 0.75rem;
+  color: #78909C;
+  font-weight: 500;
+}
+
+/* YouTube URL Input Box */
+.youtube-input-wrap {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.youtube-input {
+  flex: 1;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  border: 2px solid #CFD8DC;
+  font-size: 0.85rem;
+}
+
+.youtube-input:focus {
+  border-color: #FF0000;
+}
+
+.youtube-presets-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.preset-chip {
+  padding: 0.35rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #FFEBEE;
+  color: #C62828;
+  border: 1px solid #FFCDD2;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.preset-chip:hover {
+  background: #FFCDD2;
+}
+
+/* Pause Action Buttons */
+.pause-actions-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.pause-btn-primary {
+  flex: 1.6;
+  background: linear-gradient(135deg, #2D8A4E 0%, #1E6336 100%);
+  color: #FFFFFF;
+  border-radius: 16px;
+  padding: 0.85rem 1.25rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(45, 138, 78, 0.35);
+  transition: transform 0.15s;
+}
+
+.pause-btn-primary:hover {
+  transform: translateY(-2px);
+}
+
+.pause-btn-secondary {
+  flex: 1;
+  background: #ECEFF1;
+  color: #37474F;
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid #CFD8DC;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pause-btn-secondary:hover {
+  background: #CFD8DC;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   BARN REST STOP CHECKPOINT MODAL
+   ══════════════════════════════════════════════════════════════════════ */
+
+.barn-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(46, 12, 12, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.barn-modal-card {
+  background: #FFFFFF;
+  border-radius: 28px;
+  max-width: 520px;
+  width: 100%;
+  padding: 2.25rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  border: 3px solid #FFC93C;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  text-align: center;
+}
+
+.barn-top-icon {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #B71C1C 0%, #D32F2F 100%);
+  border: 4px solid #FFC93C;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  margin: 0 auto;
+  box-shadow: 0 8px 24px rgba(183, 28, 28, 0.4);
+}
+
+.barn-modal-title {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #B71C1C;
+  letter-spacing: -0.5px;
+}
+
+.barn-perks-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.barn-perk-card {
+  background: #FFF8E1;
+  border-radius: 16px;
+  padding: 0.85rem 0.5rem;
+  border: 1.5px dashed #FFB300;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.barn-perk-icon {
+  font-size: 1.8rem;
+}
+
+.barn-perk-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #E65100;
+  text-transform: uppercase;
+}
+
+.barn-perk-desc {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #1B3824;
+}
+
+.barn-launch-btn {
+  background: linear-gradient(135deg, #FF7A00 0%, #E65100 100%);
+  color: #FFFFFF;
+  border-radius: 18px;
+  padding: 1.05rem 2rem;
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  box-shadow: 0 10px 28px rgba(255, 122, 0, 0.45);
+  transition: transform 0.2s, box-shadow 0.2s;
+  animation: barnLaunchPulse 1.8s infinite;
+}
+
+.barn-launch-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 14px 34px rgba(255, 122, 0, 0.6);
+}
+
+@keyframes barnLaunchPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+

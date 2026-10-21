@@ -3,8 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { PhaserGame } from '../components/game/PhaserGame';
 import { useAuth } from '../context/AuthContext';
 import { sounds } from '../game/audio';
+import { bgm, SOUNDTRACKS, YOUTUBE_PRESETS, MusicSourceType } from '../game/bgm';
 import api from '../lib/api';
-import { Zap, Trophy, Coins, Volume2, VolumeX, ArrowLeft, ArrowUp, RotateCcw, RotateCw, ShoppingCart, Wallet, AlertCircle, Tv, CheckCircle2, Sparkles, PlayCircle, Heart, X } from 'lucide-react';
+import {
+  Zap, Trophy, Coins, Volume2, VolumeX, ArrowLeft, ArrowUp, RotateCcw, RotateCw,
+  ShoppingCart, Wallet, AlertCircle, Tv, CheckCircle2, Sparkles, PlayCircle, Heart, X,
+  Pause, Play as PlayIcon, Music, Sliders, ExternalLink
+} from 'lucide-react';
 import '../styles/game.css';
 
 interface SponsorInfo {
@@ -108,11 +113,33 @@ export const Play: React.FC = () => {
     magnetActive: false
   });
 
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(() => bgm.isMuted);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [gameOverData, setGameOverData] = useState<EndRideData | null>(null);
   const [limitModalOpen, setLimitModalOpen] = useState(false);
   const [remainingRides, setRemainingRides] = useState<string | number>('10');
+
+  // Pause State
+  const [isPaused, setIsPaused] = useState(false);
+
+  // Barn Checkpoint State
+  const [isBarnOpen, setIsBarnOpen] = useState(false);
+  const [barnData, setBarnData] = useState<{
+    distance: number;
+    coins: number;
+    carrots: number;
+    bonusCoins: number;
+    bonusCarrots: number;
+  } | null>(null);
+
+  // Audio Mixer & BGM State
+  const [musicSource, setMusicSource] = useState<MusicSourceType>(() => bgm.currentSource);
+  const [activeTrack, setActiveTrack] = useState<string>(() => bgm.getActiveTrackId());
+  const [ytInput, setYtInput] = useState<string>(() => bgm.getYouTubeVideoId());
+  const [masterVol, setMasterVol] = useState<number>(() => bgm.masterVolume);
+  const [musicVol, setMusicVol] = useState<number>(() => bgm.musicVolume);
+  const [sfxVol, setSfxVol] = useState<number>(() => bgm.sfxVolume);
+  const [currentBiomeName, setCurrentBiomeName] = useState<string>('Sunny Emerald Meadows');
 
   // 30-Second Billboard Ad State
   const [isBillboardOpen, setIsBillboardOpen] = useState(false);
@@ -166,6 +193,7 @@ export const Play: React.FC = () => {
       setIsBillboardComplete(false);
       setSponsorIdx(0);
       setReactions([]);
+      bgm.pause(); // Pause BGM during sponsor ad!
     };
 
     window.addEventListener('game:open_billboard_ad', handleOpenAd);
@@ -173,6 +201,79 @@ export const Play: React.FC = () => {
       window.removeEventListener('game:open_billboard_ad', handleOpenAd);
     };
   }, []);
+
+  // Background Music Lifecycle
+  useEffect(() => {
+    const handleRideStart = () => {
+      bgm.start();
+    };
+    window.addEventListener('game:ride_start', handleRideStart);
+    const startTimer = setTimeout(() => {
+      bgm.start();
+    }, 600);
+
+    return () => {
+      clearTimeout(startTimer);
+      window.removeEventListener('game:ride_start', handleRideStart);
+      bgm.stop();
+    };
+  }, []);
+
+  // Listen for Barn Checkpoint and Biome changes
+  useEffect(() => {
+    const handleEnterBarn = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        distance: number;
+        coins: number;
+        carrots: number;
+        bonusCoins: number;
+        bonusCarrots: number;
+      }>;
+      setBarnData(customEvent.detail);
+      setIsBarnOpen(true);
+
+      // Auto-credit +₦2.50 (50 coins) milestone reward
+      const bonusNaira = (customEvent.detail.bonusCoins || 50) / 20;
+      const cur = user?.balanceNaira !== undefined ? user.balanceNaira : Number(localStorage.getItem('rabbit_guest_balance') || 0);
+      const newBal = Math.round((cur + bonusNaira) * 100) / 100;
+      updateBalance(newBal);
+    };
+
+    const handleBiomeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ biome: string }>;
+      const biomeMap: Record<string, string> = {
+        meadow: '🌻 Sunny Emerald Meadows',
+        sunflower: '🌾 Sunflower Windmill Valley',
+        orchard: '🍎 Autumn Apple Orchard',
+        twilight: '✨ Twilight Lantern Trail',
+        golden: '🌟 Golden Harvest Gateway'
+      };
+      const name = biomeMap[customEvent.detail.biome] || '🌾 Farm Trail';
+      setCurrentBiomeName(name);
+      setToastMessage(name);
+      setTimeout(() => setToastMessage(null), 2500);
+    };
+
+    window.addEventListener('game:enter_barn', handleEnterBarn);
+    window.addEventListener('game:biome_change', handleBiomeChange);
+    return () => {
+      window.removeEventListener('game:enter_barn', handleEnterBarn);
+      window.removeEventListener('game:biome_change', handleBiomeChange);
+    };
+  }, [user]);
+
+  // Keyboard shortcut listener: Escape or P to Pause/Resume
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Escape' || e.code === 'KeyP') {
+        if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+        e.preventDefault();
+        handleTogglePause();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gameOverData, isBillboardOpen, isBarnOpen]);
 
   // 30-Second Countdown Timer with Metronome Tick, Sponsor Rotation & Fanfare
   useEffect(() => {
@@ -323,9 +424,68 @@ export const Play: React.FC = () => {
     window.dispatchEvent(new CustomEvent('game:jump'));
   };
 
+  const handleTogglePause = () => {
+    if (gameOverData || isBillboardOpen || isBarnOpen) return;
+    setIsPaused((prev) => {
+      const next = !prev;
+      if (next) {
+        bgm.pause();
+        window.dispatchEvent(new CustomEvent('game:pause'));
+      } else {
+        bgm.resume();
+        window.dispatchEvent(new CustomEvent('game:resume'));
+      }
+      return next;
+    });
+  };
+
+  const handleExitBarn = () => {
+    setIsBarnOpen(false);
+    sounds.playBoost();
+    window.dispatchEvent(new CustomEvent('game:exit_barn', { detail: { boost: true } }));
+    setToastMessage('🚀 Super Nitro Launch! (5s Boost)');
+    setTimeout(() => setToastMessage(null), 2500);
+  };
+
+  const handleMasterVolChange = (v: number) => {
+    setMasterVol(v);
+    bgm.setVolumes(v, musicVol, sfxVol);
+    sounds.setVolumes(sfxVol, v, isMuted);
+  };
+
+  const handleMusicVolChange = (v: number) => {
+    setMusicVol(v);
+    bgm.setVolumes(masterVol, v, sfxVol);
+  };
+
+  const handleSfxVolChange = (v: number) => {
+    setSfxVol(v);
+    bgm.setVolumes(masterVol, musicVol, v);
+    sounds.setVolumes(v, masterVol, isMuted);
+  };
+
+  const handleSelectSoundtrack = (id: string) => {
+    setActiveTrack(id);
+    setMusicSource('soundtrack');
+    bgm.setSoundtrack(id);
+  };
+
+  const handleApplyYouTube = (videoIdOrUrl: string) => {
+    const success = bgm.setYouTubeVideo(videoIdOrUrl);
+    if (success) {
+      setMusicSource('youtube');
+      setToastMessage('🎵 YouTube Soundtrack Connected!');
+      setTimeout(() => setToastMessage(null), 2000);
+    } else {
+      setToastMessage('⚠️ Invalid YouTube URL or Video ID');
+      setTimeout(() => setToastMessage(null), 2000);
+    }
+  };
+
   const toggleSound = () => {
-    sounds.enabled = !sounds.enabled;
-    setIsMuted(!sounds.enabled);
+    const muted = bgm.toggleMute();
+    setIsMuted(muted);
+    sounds.setVolumes(sfxVol, masterVol, muted);
   };
 
   return (
@@ -480,6 +640,29 @@ export const Play: React.FC = () => {
             <span>{stats.isBoosting ? 'BOOSTING!' : 'BOOST'}</span>
           </button>
 
+          {/* Music Audio Drawer Toggle */}
+          <button
+            onClick={handleTogglePause}
+            className="hud-icon-btn"
+            title="Background Music & Audio Settings"
+          >
+            <Music size={20} />
+          </button>
+
+          {/* Pause / Resume Button */}
+          <button
+            onClick={handleTogglePause}
+            className="hud-icon-btn"
+            title={isPaused ? "Resume (ESC)" : "Pause Game (ESC / P)"}
+            style={{
+              background: isPaused ? '#FFC93C' : undefined,
+              color: isPaused ? '#1B3824' : undefined,
+              boxShadow: isPaused ? '0 0 16px rgba(255, 201, 60, 0.8)' : undefined
+            }}
+          >
+            {isPaused ? <PlayIcon size={20} /> : <Pause size={20} />}
+          </button>
+
           {/* Sound Toggle */}
           <button onClick={toggleSound} className="hud-icon-btn" title={isMuted ? 'Unmute' : 'Mute'}>
             {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
@@ -510,6 +693,10 @@ export const Play: React.FC = () => {
         <span>•</span>
         <span>
           <span className="key-badge">TV</span> 30s Billboard Ad
+        </span>
+        <span>•</span>
+        <span>
+          <span className="key-badge">ESC</span> / <span className="key-badge">P</span> Pause
         </span>
       </div>
 
@@ -846,6 +1033,230 @@ export const Play: React.FC = () => {
                 <span>Visit Farm Shop</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* PAUSE OVERLAY MODAL                                        */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {isPaused && (
+        <div className="pause-overlay-modal" onClick={handleTogglePause}>
+          <div className="pause-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="pause-header">
+              <div className="pause-badge-icon">🐰</div>
+              <h2 className="pause-title">Game Paused</h2>
+              <p style={{ color: '#607D8B', fontSize: '0.9rem', marginTop: '0.2rem' }}>
+                Take a breather! Your ride progress is safely frozen.
+              </p>
+            </div>
+
+            {/* Run Stats Snapshot */}
+            <div className="pause-stats-summary">
+              <div className="pause-stat-item">
+                <div className="pause-stat-label">Distance</div>
+                <div className="pause-stat-val">{(stats.distance / 1000).toFixed(2)} km</div>
+              </div>
+              <div className="pause-stat-item">
+                <div className="pause-stat-label">Coins</div>
+                <div className="pause-stat-val">+{stats.coins} (₦{(stats.coins / 20).toFixed(1)})</div>
+              </div>
+              <div className="pause-stat-item">
+                <div className="pause-stat-label">Carrots</div>
+                <div className="pause-stat-val">{stats.carrots} 🥕</div>
+              </div>
+            </div>
+
+            {/* Audio Settings & Music Selector */}
+            <div className="audio-mixer-box">
+              <div className="audio-mixer-title">
+                <Music size={18} color="#2D8A4E" />
+                <span>Background Music &amp; Volume Control</span>
+              </div>
+
+              {/* Sliders */}
+              <div className="volume-row">
+                <span className="volume-label">Master:</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={masterVol}
+                  onChange={(e) => handleMasterVolChange(parseFloat(e.target.value))}
+                  className="volume-slider"
+                />
+                <span className="volume-val-pct">{Math.round(masterVol * 100)}%</span>
+              </div>
+
+              <div className="volume-row">
+                <span className="volume-label">Music:</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={musicVol}
+                  onChange={(e) => handleMusicVolChange(parseFloat(e.target.value))}
+                  className="volume-slider"
+                />
+                <span className="volume-val-pct">{Math.round(musicVol * 100)}%</span>
+              </div>
+
+              <div className="volume-row">
+                <span className="volume-label">Sound FX:</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={sfxVol}
+                  onChange={(e) => handleSfxVolChange(parseFloat(e.target.value))}
+                  className="volume-slider"
+                />
+                <span className="volume-val-pct">{Math.round(sfxVol * 100)}%</span>
+              </div>
+
+              {/* Music Source Selector */}
+              <div style={{ marginTop: '0.4rem' }}>
+                <div className="music-selector-tabs">
+                  <button
+                    className={`music-tab-btn ${musicSource === 'soundtrack' ? 'active' : ''}`}
+                    onClick={() => { setMusicSource('soundtrack'); bgm.setSource('soundtrack'); }}
+                  >
+                    📻 Farm Soundtracks
+                  </button>
+                  <button
+                    className={`music-tab-btn ${musicSource === 'youtube' ? 'active' : ''}`}
+                    onClick={() => { setMusicSource('youtube'); bgm.setSource('youtube'); }}
+                  >
+                    📺 YouTube Player
+                  </button>
+                </div>
+
+                {musicSource === 'soundtrack' ? (
+                  <div className="soundtrack-pill-list">
+                    {SOUNDTRACKS.map((track) => (
+                      <div
+                        key={track.id}
+                        onClick={() => handleSelectSoundtrack(track.id)}
+                        className={`soundtrack-pill ${activeTrack === track.id ? 'active' : ''}`}
+                      >
+                        <div>
+                          <div className="soundtrack-name">{track.name}</div>
+                          <div className="soundtrack-genre">{track.description}</div>
+                        </div>
+                        {activeTrack === track.id && (
+                          <span style={{ color: '#2D8A4E', fontWeight: 800, fontSize: '0.85rem' }}>Playing</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="youtube-input-wrap">
+                      <input
+                        type="text"
+                        value={ytInput}
+                        onChange={(e) => setYtInput(e.target.value)}
+                        placeholder="Paste YouTube Video URL or ID"
+                        className="youtube-input"
+                      />
+                      <button
+                        onClick={() => handleApplyYouTube(ytInput)}
+                        className="btn-primary"
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.82rem' }}
+                      >
+                        Play
+                      </button>
+                    </div>
+
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#90A4AE', textTransform: 'uppercase' }}>
+                        Curated Presets:
+                      </span>
+                      <div className="youtube-presets-row">
+                        {YOUTUBE_PRESETS.map((p) => (
+                          <button
+                            key={p.id}
+                            className="preset-chip"
+                            onClick={() => { setYtInput(p.id); handleApplyYouTube(p.id); }}
+                          >
+                            ▶ {p.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="pause-actions-row">
+              <button onClick={handleTogglePause} className="pause-btn-primary">
+                <PlayIcon size={20} />
+                <span>Resume Ride</span>
+              </button>
+              <button
+                onClick={() => {
+                  handleTogglePause();
+                  handleRestartRide();
+                }}
+                className="pause-btn-secondary"
+              >
+                <RotateCcw size={16} />
+                <span>Restart</span>
+              </button>
+              <button onClick={() => navigate('/')} className="pause-btn-secondary">
+                <span>Exit Hub</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* BARN REST STOP CHECKPOINT MODAL                            */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {isBarnOpen && barnData && (
+        <div className="barn-modal-overlay">
+          <div className="barn-modal-card">
+            <div className="barn-top-icon">🌾</div>
+            <div>
+              <h2 className="barn-modal-title">Pappy's Barn Rest Stop!</h2>
+              <p style={{ color: '#5D4037', fontSize: '0.92rem', marginTop: '0.25rem', fontWeight: 600 }}>
+                Milestone Checkpoint reached at {barnData.distance}m! Take a well-deserved breather.
+              </p>
+            </div>
+
+            {/* Perks & Milestone rewards */}
+            <div className="barn-perks-grid">
+              <div className="barn-perk-card">
+                <div className="barn-perk-icon">🥕</div>
+                <div className="barn-perk-title">Milestone Reward</div>
+                <div className="barn-perk-desc">+{barnData.bonusCoins} Coins &amp; +10 Carrots</div>
+              </div>
+              <div className="barn-perk-card">
+                <div className="barn-perk-icon">🥤</div>
+                <div className="barn-perk-title">Carrot Nitro Juice</div>
+                <div className="barn-perk-desc">100% Boost Refilled!</div>
+              </div>
+              <div className="barn-perk-card">
+                <div className="barn-perk-icon">💖</div>
+                <div className="barn-perk-title">Tune-Up Service</div>
+                <div className="barn-perk-desc">Gears Oiled &amp; Checked</div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: '#78909C' }}>
+              Your bike is fully tuned. Launch out of the barn with an automatic <strong>5-Second Super Nitro Boost</strong>!
+            </p>
+
+            <button onClick={handleExitBarn} className="barn-launch-btn">
+              <Zap size={24} fill="#FFF" />
+              <span>Hit the Road! (5s Super Boost)</span>
+            </button>
           </div>
         </div>
       )}

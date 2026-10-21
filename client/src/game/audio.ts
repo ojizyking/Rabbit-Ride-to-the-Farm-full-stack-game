@@ -1,12 +1,21 @@
 class SoundEffects {
   private ctx: AudioContext | null = null;
+  private sfxGain: GainNode | null = null;
   public enabled: boolean = true;
+  private sfxVolume: number = 0.8;
+  private masterVolume: number = 0.8;
+  private isMuted: boolean = false;
 
   private initCtx() {
     if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
+        this.sfxGain = this.ctx.createGain();
+        this.updateGain();
+        this.sfxGain.connect(this.ctx.destination);
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
@@ -14,8 +23,32 @@ class SoundEffects {
     }
   }
 
+  public setVolumes(sfxVol: number, masterVol: number, muted: boolean = false) {
+    this.sfxVolume = sfxVol;
+    this.masterVolume = masterVol;
+    this.isMuted = muted;
+    this.updateGain();
+  }
+
+  private updateGain() {
+    if (this.sfxGain && this.ctx) {
+      const effective = this.isMuted || !this.enabled ? 0 : this.sfxVolume * this.masterVolume;
+      this.sfxGain.gain.setValueAtTime(effective, this.ctx.currentTime);
+    }
+  }
+
+  private getDestination(): AudioNode {
+    this.initCtx();
+    if (!this.sfxGain && this.ctx) {
+      this.sfxGain = this.ctx.createGain();
+      this.updateGain();
+      this.sfxGain.connect(this.ctx.destination);
+    }
+    return this.sfxGain || this.ctx!.destination;
+  }
+
   playJump() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -30,11 +63,11 @@ class SoundEffects {
       gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.getDestination());
 
       osc.start();
       osc.stop(this.ctx.currentTime + 0.22);
-    } catch (e) {
+    } catch {
       // Audio autoplay policy
     }
   }
@@ -52,7 +85,7 @@ class SoundEffects {
   ];
 
   playCollect(type: string = 'coin', streak: number = 0) {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -71,7 +104,7 @@ class SoundEffects {
         gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.45);
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        gain.connect(this.getDestination());
         osc.start();
         osc.stop(this.ctx.currentTime + 0.48);
       } else {
@@ -89,17 +122,17 @@ class SoundEffects {
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.16);
 
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        gain.connect(this.getDestination());
         osc.start();
         osc.stop(this.ctx.currentTime + 0.17);
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
 
   playPowerup() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -113,17 +146,17 @@ class SoundEffects {
         gain.gain.setValueAtTime(0.18, now + idx * 0.05);
         gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.05 + 0.22);
         osc.connect(gain);
-        gain.connect(this.ctx!.destination);
+        gain.connect(this.getDestination());
         osc.start(now + idx * 0.05);
         osc.stop(now + idx * 0.05 + 0.25);
       });
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
 
   playShieldBreak() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -138,16 +171,16 @@ class SoundEffects {
       gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.28);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.getDestination());
       osc.start();
       osc.stop(this.ctx.currentTime + 0.3);
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
 
   playBoost() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -162,16 +195,16 @@ class SoundEffects {
       gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.getDestination());
       osc.start();
       osc.stop(this.ctx.currentTime + 0.38);
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
 
   playFlipStunt() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -187,17 +220,17 @@ class SoundEffects {
         gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.06 + 0.35);
 
         osc.connect(gain);
-        gain.connect(this.ctx!.destination);
+        gain.connect(this.getDestination());
         osc.start(now + i * 0.06);
         osc.stop(now + i * 0.06 + 0.38);
       });
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
 
   playTick() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -212,16 +245,16 @@ class SoundEffects {
       gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.getDestination());
       osc.start();
       osc.stop(this.ctx.currentTime + 0.06);
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
 
   playAdFanfare() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -245,17 +278,17 @@ class SoundEffects {
         gain.gain.exponentialRampToValueAtTime(0.01, now + t + d);
 
         osc.connect(gain);
-        gain.connect(this.ctx!.destination);
+        gain.connect(this.getDestination());
         osc.start(now + t);
         osc.stop(now + t + d + 0.05);
       });
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
 
   playCrash() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
@@ -270,13 +303,14 @@ class SoundEffects {
       gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.28);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.getDestination());
       osc.start();
       osc.stop(this.ctx.currentTime + 0.3);
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
 }
 
 export const sounds = new SoundEffects();
+export default sounds;
