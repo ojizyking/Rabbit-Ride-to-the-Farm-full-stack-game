@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
-import { Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, CheckCircle2, AlertTriangle, ShieldCheck, CreditCard, RefreshCw } from 'lucide-react';
+import { Wallet as WalletIcon, ArrowDownCircle, ArrowUpCircle, CheckCircle2, AlertTriangle, ShieldCheck, CreditCard, RefreshCw, Copy, Share2, Users, Gift, Edit3, Check, X } from 'lucide-react';
 import '../styles/wallet.css';
 
 
@@ -21,7 +21,7 @@ const NIGERIAN_BANKS = [
 
 interface Transaction {
   _id: string;
-  type: 'earn' | 'shop' | 'subscription' | 'withdrawal';
+  type: 'earn' | 'shop' | 'subscription' | 'withdrawal' | 'referral';
   amount: number;
   description: string;
   reference?: string;
@@ -30,7 +30,7 @@ interface Transaction {
 }
 
 export const Wallet: React.FC = () => {
-  const { user, token, openAuthModal, refreshUser, updateBalance } = useAuth();
+  const { user, token, openAuthModal, refreshUser, updateBalance, customizeReferralCode } = useAuth();
   const [searchParams] = useSearchParams();
 
   // Withdraw form state
@@ -53,6 +53,14 @@ export const Wallet: React.FC = () => {
     amount: number;
     tier: string;
   } | null>(null);
+
+  // Referral Hub state
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [showCustomCodeModal, setShowCustomCodeModal] = useState(false);
+  const [customCode, setCustomCode] = useState('');
+  const [customCodeLoading, setCustomCodeLoading] = useState(false);
+  const [customCodeMsg, setCustomCodeMsg] = useState<{ success: boolean; text: string } | null>(null);
 
   // Transactions list
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -272,7 +280,7 @@ export const Wallet: React.FC = () => {
             </button>
           </div>
           <div style={{ fontSize: '0.95rem', color: '#FFE082', fontWeight: 600, marginBottom: '0.25rem' }}>
-            🪙 {((user?.balanceNaira || 0) * 10).toLocaleString()} Coins (Rate: 1,000 Coins = ₦100)
+            🪙 {((user?.balanceNaira || 0) * 20).toLocaleString()} Coins (Rate: 1,000 Coins = ₦50)
           </div>
           <span style={{ fontSize: '0.85rem', opacity: 0.9 }}>
             Equipped: {user?.currentRabbit?.name || 'Starter White Rabbit'} + {user?.currentBike?.name || 'Classic Bike'}
@@ -440,6 +448,212 @@ export const Wallet: React.FC = () => {
         </div>
       </div>
 
+      {/* ══════════ REFERRAL HUB CARD ══════════ */}
+      <div style={{ background: 'linear-gradient(135deg, #1A237E 0%, #4A148C 50%, #880E4F 100%)', borderRadius: '20px', padding: '2rem', color: '#FFFFFF', boxShadow: '0 8px 32px rgba(26,35,126,0.3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          <div style={{ background: 'rgba(255,255,255,0.15)', padding: '0.65rem', borderRadius: '14px' }}>
+            <Users size={28} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>Referral Hub</h3>
+            <p style={{ fontSize: '0.85rem', opacity: 0.8, margin: 0 }}>Invite friends → Earn ₦100 per invite</p>
+          </div>
+        </div>
+
+        {/* Referral Code Display */}
+        <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: '14px', padding: '1.25rem', marginBottom: '1.25rem', border: '1px solid rgba(255,255,255,0.2)' }}>
+          <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1.5px', opacity: 0.7, fontWeight: 600 }}>Your Referral Code</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '2px', color: '#FFC107', fontFamily: 'monospace' }}>
+              {user?.referralCode || 'LOGIN_REQUIRED'}
+            </span>
+            <button
+              onClick={() => {
+                if (user?.referralCode) {
+                  navigator.clipboard.writeText(user.referralCode);
+                  setCodeCopied(true);
+                  setTimeout(() => setCodeCopied(false), 2000);
+                }
+              }}
+              style={{ background: codeCopied ? '#4CAF50' : 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '8px', padding: '0.4rem 0.75rem', color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.2s' }}
+            >
+              {codeCopied ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy</>}
+            </button>
+            <button
+              onClick={() => { setCustomCode(user?.referralCode || ''); setCustomCodeMsg(null); setShowCustomCodeModal(true); }}
+              style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px', padding: '0.4rem 0.75rem', color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', fontWeight: 600 }}
+            >
+              <Edit3 size={14} /> Customize
+            </button>
+          </div>
+        </div>
+
+        {/* Referral Link + Share Buttons */}
+        <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <Share2 size={16} style={{ opacity: 0.7 }} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.85 }}>Share Your Link</span>
+          </div>
+          <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '0.6rem 0.85rem', fontSize: '0.8rem', fontFamily: 'monospace', color: '#CE93D8', wordBreak: 'break-all', marginBottom: '0.85rem' }}>
+            {user?.referralCode ? `${window.location.origin}?ref=${user.referralCode}` : 'Login to get your link'}
+          </div>
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            {/* Copy Link */}
+            <button
+              onClick={() => {
+                if (user?.referralCode) {
+                  navigator.clipboard.writeText(`${window.location.origin}?ref=${user.referralCode}`);
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 2000);
+                }
+              }}
+              style={{ background: linkCopied ? '#4CAF50' : 'rgba(255,255,255,0.18)', border: 'none', borderRadius: '10px', padding: '0.55rem 1rem', color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 600, transition: 'all 0.2s' }}
+            >
+              {linkCopied ? <><Check size={15} /> Copied!</> : <><Copy size={15} /> Copy Link</>}
+            </button>
+            {/* WhatsApp */}
+            <button
+              onClick={() => {
+                if (user?.referralCode) {
+                  const msg = encodeURIComponent(`🐰 Join me on Rabbit Ride to the Farm! Ride, earn coins & withdraw real cash! Use my code ${user.referralCode} and get ₦50 welcome bonus!\n\n${window.location.origin}?ref=${user.referralCode}`);
+                  window.open(`https://wa.me/?text=${msg}`, '_blank');
+                }
+              }}
+              style={{ background: '#25D366', border: 'none', borderRadius: '10px', padding: '0.55rem 1rem', color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 700 }}
+            >
+              WhatsApp
+            </button>
+            {/* Telegram */}
+            <button
+              onClick={() => {
+                if (user?.referralCode) {
+                  const msg = encodeURIComponent(`🐰 Join Rabbit Ride to the Farm! Earn coins & withdraw real cash! Use code ${user.referralCode} for ₦50 bonus!`);
+                  const url = encodeURIComponent(`${window.location.origin}?ref=${user.referralCode}`);
+                  window.open(`https://t.me/share/url?url=${url}&text=${msg}`, '_blank');
+                }
+              }}
+              style={{ background: '#0088CC', border: 'none', borderRadius: '10px', padding: '0.55rem 1rem', color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 700 }}
+            >
+              Telegram
+            </button>
+            {/* Native Share */}
+            {'share' in navigator && (
+              <button
+                onClick={() => {
+                  if (user?.referralCode) {
+                    navigator.share({
+                      title: 'Rabbit Ride to the Farm',
+                      text: `🐰 Ride, earn coins & withdraw! Use my code ${user.referralCode} for ₦50 bonus!`,
+                      url: `${window.location.origin}?ref=${user.referralCode}`
+                    }).catch(() => {});
+                  }
+                }}
+                style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '10px', padding: '0.55rem 1rem', color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 600 }}
+              >
+                <Share2 size={15} /> More
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Referral Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+          <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: '12px', padding: '1rem', textAlign: 'center', border: '1px solid rgba(255,255,255,0.15)' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 800, color: '#FFC107' }}>{user?.referralsCount || 0}</div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.75, fontWeight: 600, marginTop: '0.2rem' }}>Friends Invited</div>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: '12px', padding: '1rem', textAlign: 'center', border: '1px solid rgba(255,255,255,0.15)' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 800, color: '#69F0AE' }}>₦{(user?.referralEarnings || 0).toLocaleString()}</div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.75, fontWeight: 600, marginTop: '0.2rem' }}>Total Referral Earnings</div>
+          </div>
+        </div>
+
+        {/* Referral Reward Explanation */}
+        <div style={{ marginTop: '1rem', background: 'rgba(255,255,255,0.08)', borderRadius: '10px', padding: '0.85rem 1rem', display: 'flex', alignItems: 'flex-start', gap: '0.65rem' }}>
+          <Gift size={20} style={{ color: '#FFC107', flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ fontSize: '0.82rem', lineHeight: 1.55, opacity: 0.85 }}>
+            <strong>How it works:</strong> Share your code → Friend signs up → You earn <strong>₦100</strong> instantly. Your friend gets a <strong>₦50 welcome bonus</strong>. No limits — invite as many as you want!
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════ CUSTOM CODE MODAL ══════════ */}
+      {showCustomCodeModal && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '440px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <h3 style={{ fontSize: '1.35rem', color: '#1A237E', fontWeight: 700, margin: 0 }}>Customize Referral Code</h3>
+              <button
+                onClick={() => setShowCustomCodeModal(false)}
+                style={{ background: '#F5F5F5', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#546E7A' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.88rem', color: '#546E7A', marginBottom: '1rem', lineHeight: 1.5 }}>
+              Choose a memorable code for your friends (3–15 characters, letters, numbers, and hyphens only).
+            </p>
+
+            {customCodeMsg && (
+              <div style={{
+                background: customCodeMsg.success ? '#E8F5E9' : '#FFEBEE',
+                border: `1px solid ${customCodeMsg.success ? '#A5D6A7' : '#FFCDD2'}`,
+                color: customCodeMsg.success ? '#2E7D32' : '#C62828',
+                padding: '0.7rem', borderRadius: '10px', fontSize: '0.88rem', marginBottom: '1rem', fontWeight: 600
+              }}>
+                {customCodeMsg.text}
+              </div>
+            )}
+
+            <input
+              type="text"
+              maxLength={15}
+              value={customCode}
+              onChange={(e) => setCustomCode(e.target.value.replace(/[^a-zA-Z0-9-]/g, '').toUpperCase())}
+              placeholder="e.g. KING-RIDER"
+              style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: '12px', border: '2px solid #C5CAE9', fontSize: '1.2rem', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '2px', textAlign: 'center', marginBottom: '1rem', textTransform: 'uppercase' }}
+            />
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={async () => {
+                  if (customCode.length < 3) {
+                    setCustomCodeMsg({ success: false, text: 'Code must be at least 3 characters.' });
+                    return;
+                  }
+                  setCustomCodeLoading(true);
+                  setCustomCodeMsg(null);
+                  try {
+                    const result = await customizeReferralCode(customCode);
+                    setCustomCodeMsg({ success: result.success, text: result.message });
+                    if (result.success) {
+                      setTimeout(() => setShowCustomCodeModal(false), 1500);
+                    }
+                  } catch {
+                    setCustomCodeMsg({ success: false, text: 'Something went wrong. Try again.' });
+                  } finally {
+                    setCustomCodeLoading(false);
+                  }
+                }}
+                disabled={customCodeLoading || customCode.length < 3}
+                className="btn-primary"
+                style={{ flex: 1, justifyContent: 'center', padding: '0.85rem' }}
+              >
+                {customCodeLoading ? 'Saving...' : 'Save Custom Code'}
+              </button>
+              <button
+                onClick={() => setShowCustomCodeModal(false)}
+                className="btn-outline"
+                style={{ justifyContent: 'center', padding: '0.85rem' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PAYSTACK POPUP SIMULATION MODAL */}
       {paystackModalData && (
         <div className="modal-overlay">
@@ -493,7 +707,7 @@ export const Wallet: React.FC = () => {
         <p style={{ fontSize: '0.9rem', color: '#37474F', lineHeight: 1.6, margin: 0 }}>
           Rabbit Ride to the Farm is a game featuring optional in-game purchases and eligible reward or withdrawal features.
           In-game purchases provide the items or gameplay access described at checkout and do not guarantee cash rewards, profits, or financial returns.
-          Reward eligibility and withdrawals are governed by applicable game rules (Minimum withdrawal: ₦1,000; Rate: 1,000 Coins = ₦100).
+          Reward eligibility and withdrawals are governed by applicable game rules (Minimum withdrawal: ₦1,000; Rate: 1,000 Coins = ₦50).
           Please review the terms and conditions before making a purchase or participating in reward activities. Play responsibly and only spend what you can afford.
         </p>
       </div>

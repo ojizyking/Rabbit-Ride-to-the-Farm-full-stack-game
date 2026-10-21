@@ -129,8 +129,8 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
         console.warn('Backend ride sync offline, computing local reward:', err);
       }
 
-      // Offline / fallback calculation: 1,000 Coins = ₦100 (10 Coins = ₦1)
-      const fallbackNaira = Math.round((details.coins / 10) * 100) / 100;
+      // Offline / fallback calculation: 1,000 Coins = ₦50 (20 Coins = ₦1)
+      const fallbackNaira = Math.round((details.coins / 20) * 100) / 100;
       const currentBal = user?.balanceNaira !== undefined ? user.balanceNaira : Number(localStorage.getItem('rabbit_guest_balance') || 0);
       const newBal = Math.round((currentBal + fallbackNaira) * 100) / 100;
 

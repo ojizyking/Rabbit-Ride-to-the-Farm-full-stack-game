@@ -114,9 +114,9 @@ exports.endRide = async (req, res) => {
     const user = await User.findById(req.user._id);
     const multiplier = getTierMultiplier(user.subscriptionTier);
 
-    // Calculate Naira earned from coins/tokens: 1,000 coins = 100 Naira (10 coins = 1 Naira) + tier boost multiplier
+    // Calculate Naira earned from coins/tokens: 1,000 coins = 50 Naira (20 coins = 1 Naira) + tier boost multiplier
     const totalCoins = Math.max(0, Number(coins));
-    const baseNaira = totalCoins / 10;
+    const baseNaira = totalCoins / 20;
     const nairaEarned = Math.round(baseNaira * multiplier * 100) / 100;
     const distanceKm = Number((Number(distance) / 1000).toFixed(2)) || 0.5;
 

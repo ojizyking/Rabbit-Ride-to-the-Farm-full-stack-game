@@ -57,12 +57,14 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setToken(clerkToken);
 
       const guestBalance = Number(localStorage.getItem('rabbit_guest_balance') || 0);
+      const referralCode = localStorage.getItem('rabbit_referral_code') || undefined;
       const res = await api.post('/auth/clerk-sync', {
         clerkId: clerkUser.id,
         email: clerkUser.primaryEmailAddress?.emailAddress ?? '',
         firstName: clerkUser.firstName ?? '',
         avatarUrl: clerkUser.imageUrl ?? '',
-        guestBalance
+        guestBalance,
+        referralCode
       });
 
       if (res.data.success) {
@@ -71,6 +73,7 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setClerkSynced(true);
         localStorage.removeItem('rabbit_guest_balance');
         localStorage.removeItem('rabbit_offline_user');
+        localStorage.removeItem('rabbit_referral_code');
         setAuthModalOpen(false);
       }
     } catch (err) {
@@ -202,12 +205,28 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  const customizeReferralCode = async (code: string) => {
+    try {
+      const res = await api.put('/auth/customize-referral-code', { customCode: code });
+      if (res.data.success) {
+        setUser((prev) => prev ? { ...prev, referralCode: res.data.referralCode } : null);
+        return { success: true, message: res.data.message, referralCode: res.data.referralCode };
+      }
+      return { success: false, message: res.data.message || 'Failed to update code' };
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      const msg = e.response?.data?.message || e.message || 'Error updating referral code';
+      return { success: false, message: msg };
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user, token, isLoading, authModalOpen, authMode, isClerkUser,
       login, register, quickDemoLogin, logout,
       refreshUser: fetchProfile,
       updateBalance,
+      customizeReferralCode,
       openAuthModal: (mode = 'login') => { setAuthMode(mode); setAuthModalOpen(true); },
       closeAuthModal: () => setAuthModalOpen(false)
     }}>

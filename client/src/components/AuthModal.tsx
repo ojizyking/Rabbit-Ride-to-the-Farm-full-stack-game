@@ -8,6 +8,9 @@ export const AuthModal: React.FC = () => {
   const { authModalOpen, authMode, closeAuthModal, openAuthModal, login, register, quickDemoLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState(() => {
+    try { return localStorage.getItem('rabbit_referral_code') || ''; } catch { return ''; }
+  });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showLegacyForm, setShowLegacyForm] = useState(!CLERK_KEY); // show form immediately if no Clerk
@@ -20,7 +23,7 @@ export const AuthModal: React.FC = () => {
     setLoading(true);
     try {
       if (authMode === 'login') await login(email, password);
-      else await register(email, password);
+      else await register(email, password, referralCode || undefined);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
       setError(
@@ -168,6 +171,32 @@ export const AuthModal: React.FC = () => {
                   style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '12px', border: '2px solid #CFD8DC', fontSize: '1rem' }} />
               </div>
             </div>
+            {authMode === 'register' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#37474F' }}>Referral Code (Optional)</label>
+                  <span style={{ fontSize: '0.78rem', color: '#2E7D32', fontWeight: 700 }}>🎁 +₦50 Starting Bonus</span>
+                </div>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Sparkles size={18} style={{ position: 'absolute', left: '12px', color: '#FF7A00' }} />
+                  <input
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. RABBIT-7X9A"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem 0.75rem 2.5rem',
+                      borderRadius: '12px',
+                      border: '2px solid #CFD8DC',
+                      fontSize: '0.95rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.5px'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             <button type="submit" disabled={loading} className="btn-primary"
               style={{ width: '100%', justifyContent: 'center', marginTop: '0.25rem', padding: '0.8rem' }}>
               {authMode === 'login' ? <LogIn size={18} /> : <UserPlus size={18} />}

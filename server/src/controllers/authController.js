@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Rabbit = require('../models/Rabbit');
 const Bicycle = require('../models/Bicycle');
+const Transaction = require('../models/Transaction');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'rabbit_super_secret_jwt_key_2026_farm_ride';
 
@@ -14,14 +15,68 @@ function generateToken(user) {
   );
 }
 
+function generateRandomReferralCode() {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let random = '';
+  for (let i = 0; i < 4; i++) {
+    random += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `RABBIT-${random}`;
+}
+
+async function getUniqueReferralCode() {
+  let code = generateRandomReferralCode();
+  let existing = await User.findOne({ referralCode: code });
+  let attempts = 0;
+  while (existing && attempts < 10) {
+    code = generateRandomReferralCode();
+    existing = await User.findOne({ referralCode: code });
+    attempts++;
+  }
+  return code;
+}
+
+async function processReferralReward(newUserId, newUserEmail, referralCode) {
+  if (!referralCode) return { referrerBonus: 0, refereeBonus: 0, referrerId: null };
+  const cleanCode = String(referralCode).trim().toUpperCase();
+  const referrer = await User.findOne({ referralCode: cleanCode });
+
+  if (!referrer || referrer._id.toString() === newUserId.toString()) {
+    return { referrerBonus: 0, refereeBonus: 0, referrerId: null };
+  }
+
+  // Credit Referrer ₦100 Reward
+  referrer.balanceNaira = Math.round((referrer.balanceNaira + 100) * 100) / 100;
+  referrer.referralsCount = (referrer.referralsCount || 0) + 1;
+  referrer.referralEarnings = (referrer.referralEarnings || 0) + 100;
+  await referrer.save();
+
+  // Log transaction for referrer
+  try {
+    const tx = new Transaction({
+      userId: referrer._id,
+      type: 'referral',
+      amount: 100,
+      description: `Referral Bonus: Invited ${newUserEmail}`,
+      status: 'completed'
+    });
+    await tx.save();
+  } catch (err) {
+    console.warn('Referral tx logging error:', err);
+  }
+
+  return { referrerBonus: 100, refereeBonus: 50, referrerId: referrer._id };
+}
+
 exports.register = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, referralCode } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
-    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    const cleanEmail = email.toLowerCase().trim();
+    const existing = await User.findOne({ email: cleanEmail });
     if (existing) {
       return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
     }
@@ -33,17 +88,31 @@ exports.register = async (req, res) => {
     const defaultRabbit = await Rabbit.findOne({ priceNaira: 0 });
     const defaultBike = await Bicycle.findOne({ priceNaira: 0 });
 
+    const userReferralCode = await getUniqueReferralCode();
+
     const newUser = new User({
-      email: email.toLowerCase().trim(),
+      email: cleanEmail,
       password: hashedPassword,
-      balanceNaira: 50, // Welcome bonus!
+      balanceNaira: 50, // Standard welcome bonus!
       totalRides: 0,
       currentRabbitId: defaultRabbit ? defaultRabbit._id : null,
       currentBikeId: defaultBike ? defaultBike._id : null,
       ownedRabbits: defaultRabbit ? [defaultRabbit._id] : [],
       ownedBikes: defaultBike ? [defaultBike._id] : [],
-      subscriptionTier: 'free'
+      subscriptionTier: 'free',
+      referralCode: userReferralCode,
+      referralsCount: 0,
+      referralEarnings: 0
     });
+
+    // Check & credit referral bonus if invite code provided
+    if (referralCode) {
+      const refResult = await processReferralReward(newUser._id, cleanEmail, referralCode);
+      if (refResult.referrerId) {
+        newUser.referredBy = refResult.referrerId;
+        newUser.balanceNaira += refResult.refereeBonus; // +₦50 referee welcome perk (starts with ₦100)
+      }
+    }
 
     await newUser.save();
 
@@ -66,6 +135,9 @@ exports.register = async (req, res) => {
         totalRides: populatedUser.totalRides,
         subscriptionTier: populatedUser.subscriptionTier,
         subscriptionExpiresAt: populatedUser.subscriptionExpiresAt,
+        referralCode: populatedUser.referralCode,
+        referralsCount: populatedUser.referralsCount || 0,
+        referralEarnings: populatedUser.referralEarnings || 0,
         currentRabbit: populatedUser.currentRabbitId,
         currentBike: populatedUser.currentBikeId,
         ownedRabbits: populatedUser.ownedRabbits,
@@ -95,6 +167,12 @@ exports.login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
 
+    // Auto-generate referral code if user doesn't have one
+    if (!user.referralCode) {
+      user.referralCode = await getUniqueReferralCode();
+      await user.save();
+    }
+
     const populatedUser = await User.findById(user._id)
       .populate('currentRabbitId')
       .populate('currentBikeId')
@@ -114,6 +192,9 @@ exports.login = async (req, res) => {
         totalRides: populatedUser.totalRides,
         subscriptionTier: populatedUser.subscriptionTier,
         subscriptionExpiresAt: populatedUser.subscriptionExpiresAt,
+        referralCode: populatedUser.referralCode,
+        referralsCount: populatedUser.referralsCount || 0,
+        referralEarnings: populatedUser.referralEarnings || 0,
         currentRabbit: populatedUser.currentRabbitId,
         currentBike: populatedUser.currentBikeId,
         ownedRabbits: populatedUser.ownedRabbits,
@@ -138,16 +219,27 @@ exports.getMe = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
+    // Auto-generate referral code if missing
+    if (!user.referralCode) {
+      user.referralCode = await getUniqueReferralCode();
+      await user.save();
+    }
+
     return res.json({
       success: true,
       user: {
         id: user._id,
         email: user.email,
+        firstName: user.firstName || '',
+        avatarUrl: user.avatarUrl || '',
         balanceNaira: user.balanceNaira,
         totalRides: user.totalRides,
         subscriptionTier: user.subscriptionTier,
         subscriptionExpiresAt: user.subscriptionExpiresAt,
         dailyRidesToday: user.dailyRidesToday,
+        referralCode: user.referralCode,
+        referralsCount: user.referralsCount || 0,
+        referralEarnings: user.referralEarnings || 0,
         currentRabbit: user.currentRabbitId,
         currentBike: user.currentBikeId,
         ownedRabbits: user.ownedRabbits,
@@ -162,7 +254,7 @@ exports.getMe = async (req, res) => {
 
 exports.clerkSync = async (req, res) => {
   try {
-    const { clerkId, email, firstName, avatarUrl, guestBalance } = req.body;
+    const { clerkId, email, firstName, avatarUrl, guestBalance, referralCode } = req.body;
     if (!clerkId || !email) {
       return res.status(400).json({ success: false, message: 'clerkId and email are required.' });
     }
@@ -174,24 +266,38 @@ exports.clerkSync = async (req, res) => {
 
     const defaultRabbit = await Rabbit.findOne({ priceNaira: 0 });
     const defaultBike = await Bicycle.findOne({ priceNaira: 0 });
-
     const guestBonus = Math.max(0, Number(guestBalance) || 0);
 
     if (!user) {
-      // Create new user linked to Clerk
+      const userReferralCode = await getUniqueReferralCode();
+      let startingBal = 50 + guestBonus;
+
       user = new User({
         clerkId,
         email: cleanEmail,
         firstName: firstName || '',
         avatarUrl: avatarUrl || '',
-        balanceNaira: 50 + guestBonus, // Welcome bonus + guest balance!
+        balanceNaira: startingBal,
         totalRides: 0,
         currentRabbitId: defaultRabbit ? defaultRabbit._id : null,
         currentBikeId: defaultBike ? defaultBike._id : null,
         ownedRabbits: defaultRabbit ? [defaultRabbit._id] : [],
         ownedBikes: defaultBike ? [defaultBike._id] : [],
-        subscriptionTier: 'free'
+        subscriptionTier: 'free',
+        referralCode: userReferralCode,
+        referralsCount: 0,
+        referralEarnings: 0
       });
+
+      // Check referral bonus for new Clerk signup
+      if (referralCode) {
+        const refResult = await processReferralReward(user._id, cleanEmail, referralCode);
+        if (refResult.referrerId) {
+          user.referredBy = refResult.referrerId;
+          user.balanceNaira += refResult.refereeBonus; // +₦50 referee welcome perk
+        }
+      }
+
       await user.save();
     } else {
       // Update existing user with Clerk ID and avatar
@@ -200,6 +306,9 @@ exports.clerkSync = async (req, res) => {
       if (avatarUrl && !user.avatarUrl) user.avatarUrl = avatarUrl;
       if (guestBonus > 0) {
         user.balanceNaira = Math.round((user.balanceNaira + guestBonus) * 100) / 100;
+      }
+      if (!user.referralCode) {
+        user.referralCode = await getUniqueReferralCode();
       }
       if (!user.currentRabbitId && defaultRabbit) user.currentRabbitId = defaultRabbit._id;
       if (!user.currentBikeId && defaultBike) user.currentBikeId = defaultBike._id;
@@ -228,6 +337,9 @@ exports.clerkSync = async (req, res) => {
         subscriptionTier: populatedUser.subscriptionTier,
         subscriptionExpiresAt: populatedUser.subscriptionExpiresAt,
         dailyRidesToday: populatedUser.dailyRidesToday,
+        referralCode: populatedUser.referralCode,
+        referralsCount: populatedUser.referralsCount || 0,
+        referralEarnings: populatedUser.referralEarnings || 0,
         currentRabbit: populatedUser.currentRabbitId,
         currentBike: populatedUser.currentBikeId,
         ownedRabbits: populatedUser.ownedRabbits,
@@ -237,5 +349,63 @@ exports.clerkSync = async (req, res) => {
   } catch (err) {
     console.error('clerkSync error:', err);
     return res.status(500).json({ success: false, message: 'Server error syncing Clerk user.' });
+  }
+};
+
+exports.customizeReferralCode = async (req, res) => {
+  try {
+    const { customCode } = req.body;
+    if (!customCode) {
+      return res.status(400).json({ success: false, message: 'Custom code is required.' });
+    }
+
+    const cleanCode = String(customCode).trim().toUpperCase();
+    const regex = /^[A-Z0-9-]{3,15}$/;
+    if (!regex.test(cleanCode)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code must be 3-15 characters long and contain only letters, numbers, or hyphens.'
+      });
+    }
+
+    // Check if code taken by another user
+    const existing = await User.findOne({ referralCode: cleanCode });
+    if (existing && existing._id.toString() !== req.user._id.toString()) {
+      return res.status(409).json({ success: false, message: 'This referral code is already taken. Try another!' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    user.referralCode = cleanCode;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Referral code customized successfully!',
+      referralCode: cleanCode
+    });
+  } catch (err) {
+    console.error('customizeReferralCode error:', err);
+    return res.status(500).json({ success: false, message: 'Server error customizing referral code.' });
+  }
+};
+
+exports.getReferralStats = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const referrals = await User.find({ referredBy: req.user._id })
+      .select('email firstName createdAt');
+
+    return res.json({
+      success: true,
+      referralCode: user.referralCode,
+      referralsCount: user.referralsCount || referrals.length,
+      referralEarnings: user.referralEarnings || (referrals.length * 100),
+      referrals
+    });
+  } catch (err) {
+    console.error('getReferralStats error:', err);
+    return res.status(500).json({ success: false, message: 'Server error fetching referrals.' });
   }
 };

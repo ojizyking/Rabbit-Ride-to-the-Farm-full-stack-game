@@ -33,7 +33,7 @@ const SPONSORS: SponsorInfo[] = [
     tag: 'OFFICIAL PAYOUTS',
     title: 'Paystack Instant Cashouts 🏦⚡',
     subtitle: 'Automated Real Naira Bank Transfers in Under 10 Seconds',
-    perk: 'Zero Wait Time • 1,000 Coins = ₦100 Direct to Bank',
+    perk: 'Zero Wait Time • 1,000 Coins = ₦50 Direct to Bank',
     accentColor: '#00C853',
     bgColor: 'linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)',
     icon: '💳',
@@ -380,7 +380,7 @@ export const Play: React.FC = () => {
               }}
             >
               <Wallet size={15} />
-              <span>BANK (+₦{(stats.coins / 10).toFixed(1)})</span>
+              <span>BANK (+₦{(stats.coins / 20).toFixed(1)})</span>
             </button>
           )}
 
@@ -599,9 +599,9 @@ export const Play: React.FC = () => {
               </div>
               <div className="gameover-stat-box">
                 <span className="gameover-stat-val earnings">
-                  +₦{(gameOverData.nairaEarned !== undefined ? gameOverData.nairaEarned : (gameOverData.coins / 10)).toLocaleString()}
+                  +₦{(gameOverData.nairaEarned !== undefined ? gameOverData.nairaEarned : (gameOverData.coins / 20)).toLocaleString()}
                 </span>
-                <span className="gameover-stat-label">Reward Value (1,000 Coins = ₦100)</span>
+                <span className="gameover-stat-label">Reward Value (1,000 Coins = ₦50)</span>
               </div>
               <div className="gameover-stat-box">
                 <span className="gameover-stat-val" style={{ color: '#2E7D32' }}>

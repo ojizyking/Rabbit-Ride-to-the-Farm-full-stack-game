@@ -346,7 +346,7 @@ export const Landing: React.FC = () => {
               </li>
               <li>
                 <CheckCircle2 size={18} color="#2D8A4E" style={{ flexShrink: 0, marginTop: '3px' }} />
-                <span>How rewards are calculated and credited (Base rate: 1,000 Coins = ₦100).</span>
+                <span>How rewards are calculated and credited (Base rate: 1,000 Coins = ₦50).</span>
               </li>
               <li>
                 <CheckCircle2 size={18} color="#2D8A4E" style={{ flexShrink: 0, marginTop: '3px' }} />

@@ -33,6 +33,10 @@ export interface UserProfile {
   subscriptionTier: 'free' | 'basic' | 'growth' | 'pro' | 'elite';
   subscriptionExpiresAt: string | null;
   dailyRidesToday?: number;
+  referralCode?: string;
+  referredBy?: string;
+  referralsCount?: number;
+  referralEarnings?: number;
   currentRabbit?: RabbitItem;
   currentBike?: BicycleItem;
   ownedRabbits?: (string | RabbitItem)[];
@@ -47,11 +51,12 @@ interface AuthContextType {
   authMode: 'login' | 'register';
   isClerkUser: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, referralCode?: string) => Promise<void>;
   quickDemoLogin: () => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   updateBalance: (newBalance: number) => void;
+  customizeReferralCode: (code: string) => Promise<{ success: boolean; message: string; referralCode?: string }>;
   openAuthModal: (mode?: 'login' | 'register') => void;
   closeAuthModal: () => void;
 }
@@ -82,6 +87,9 @@ const DEFAULT_STARTER_BIKE: BicycleItem = {
 
 function createLocalUser(email: string): UserProfile {
   const guestBalance = Number(localStorage.getItem('rabbit_guest_balance') || 0);
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let rand = '';
+  for (let i = 0; i < 4; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
   return {
     id: 'user_' + Date.now().toString(36),
     email: email.toLowerCase().trim(),
@@ -89,6 +97,9 @@ function createLocalUser(email: string): UserProfile {
     totalRides: 0,
     subscriptionTier: 'free',
     subscriptionExpiresAt: null,
+    referralCode: `RABBIT-${rand}`,
+    referralsCount: 0,
+    referralEarnings: 0,
     currentRabbit: DEFAULT_STARTER_RABBIT,
     currentBike: DEFAULT_STARTER_BIKE,
     ownedRabbits: [DEFAULT_STARTER_RABBIT],
@@ -127,12 +138,14 @@ function useLegacyAuth(setUser: React.Dispatch<React.SetStateAction<UserProfile 
     }
   };
 
-  const register = async (email: string, password: string) => {
+  const register = async (email: string, password: string, referralCode?: string) => {
     try {
-      const res = await api.post('/auth/register', { email, password });
+      const code = referralCode || localStorage.getItem('rabbit_referral_code') || undefined;
+      const res = await api.post('/auth/register', { email, password, referralCode: code });
       if (res.data.success) {
         localStorage.setItem('rabbit_token', res.data.token);
         localStorage.removeItem('rabbit_offline_user');
+        localStorage.removeItem('rabbit_referral_code');
         setToken(res.data.token);
         setUser(res.data.user);
         setAuthModalOpen(false);
@@ -145,15 +158,11 @@ function useLegacyAuth(setUser: React.Dispatch<React.SetStateAction<UserProfile 
       const mockToken = 'offline_' + btoa(JSON.stringify({ email, time: Date.now() }));
       localStorage.setItem('rabbit_token', mockToken);
       localStorage.setItem('rabbit_offline_user', JSON.stringify(localUser));
+      localStorage.removeItem('rabbit_referral_code');
       setToken(mockToken);
       setUser(localUser);
       setAuthModalOpen(false);
     }
-  };
-
-  const quickDemoLogin = async () => {
-    try { await login('rider@rabbitride.com', 'Ride2Farm!'); }
-    catch { await register('rider@rabbitride.com', 'Ride2Farm!'); }
   };
 
   return { login, register, quickDemoLogin };
@@ -208,13 +217,27 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setUser(null);
   };
 
-  const updateBalance = (newBalance: number) => {
-    setUser((prev) => {
-      if (!prev) { localStorage.setItem('rabbit_guest_balance', String(newBalance)); return null; }
-      const updated = { ...prev, balanceNaira: newBalance };
-      localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
-      return updated;
-    });
+  const customizeReferralCode = async (code: string) => {
+    try {
+      const res = await api.put('/auth/customize-referral-code', { customCode: code });
+      if (res.data.success) {
+        setUser((prev) => prev ? { ...prev, referralCode: res.data.referralCode } : null);
+        return { success: true, message: res.data.message, referralCode: res.data.referralCode };
+      }
+      return { success: false, message: res.data.message || 'Failed to update code' };
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      const msg = e.response?.data?.message || e.message || 'Error updating referral code';
+      // Fallback for offline mode
+      const clean = code.trim().toUpperCase();
+      setUser((prev) => {
+        if (!prev) return null;
+        const updated = { ...prev, referralCode: clean };
+        localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
+        return updated;
+      });
+      return { success: true, message: 'Referral code updated (offline mode)!', referralCode: clean };
+    }
   };
 
   return (
@@ -223,6 +246,7 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       login, register, quickDemoLogin, logout,
       refreshUser: fetchProfile,
       updateBalance,
+      customizeReferralCode,
       openAuthModal: (mode = 'login') => { setAuthMode(mode); setAuthModalOpen(true); },
       closeAuthModal: () => setAuthModalOpen(false)
     }}>
