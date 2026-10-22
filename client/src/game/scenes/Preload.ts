@@ -6,32 +6,279 @@ export default class Preload extends Phaser.Scene {
   }
 
   preload() {
-    // Show smooth loading bar
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    const progressBar = this.add.graphics();
-    const progressBox = this.add.graphics();
-    progressBox.fillStyle(0x1B5E20, 0.4);
-    progressBox.fillRoundedRect(width / 2 - 160, height / 2 - 20, 320, 40, 12);
+    // 1. Synchronously create canvas texture for the animated running rabbit
+    if (!this.textures.exists('preload-runner')) {
+      const runnerCanvas = this.textures.createCanvas('preload-runner', 96, 76);
+      if (runnerCanvas) {
+        const ctx = runnerCanvas.getContext();
 
-    const loadingText = this.add.text(width / 2, height / 2 - 45, 'Loading Rabbit Farm...', {
-      fontFamily: 'Fredoka, sans-serif',
-      fontSize: '22px',
+        // Bicycle Wheels
+        ctx.fillStyle = '#263238';
+        ctx.beginPath();
+        ctx.arc(22, 54, 13, 0, Math.PI * 2);
+        ctx.arc(74, 54, 13, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#FFC93C';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = '#455A64';
+        ctx.beginPath();
+        ctx.arc(22, 54, 5, 0, Math.PI * 2);
+        ctx.arc(74, 54, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bike Frame (Gold / Yellow)
+        ctx.strokeStyle = '#FFC93C';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(22, 54);
+        ctx.lineTo(46, 52);
+        ctx.lineTo(62, 36);
+        ctx.lineTo(40, 36);
+        ctx.closePath();
+        ctx.moveTo(46, 52);
+        ctx.lineTo(74, 54);
+        ctx.stroke();
+
+        // Saddle
+        ctx.strokeStyle = '#3E2723';
+        ctx.lineWidth = 4.5;
+        ctx.beginPath();
+        ctx.moveTo(34, 34);
+        ctx.lineTo(46, 34);
+        ctx.stroke();
+
+        // Handlebars
+        ctx.strokeStyle = '#FFC93C';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(62, 36);
+        ctx.lineTo(66, 24);
+        ctx.lineTo(60, 24);
+        ctx.stroke();
+
+        // Rabbit Body (White fur, racing stance)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = '#37474F';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.ellipse(48, 28, 14, 11, -0.25, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Paws gripping handlebar
+        ctx.beginPath();
+        ctx.arc(62, 26, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Rabbit Head
+        ctx.beginPath();
+        ctx.ellipse(54, 17, 11, 9, -0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Pink Cheeks & Eye
+        ctx.fillStyle = '#FF8A80';
+        ctx.beginPath();
+        ctx.arc(58, 20, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#212121';
+        ctx.beginPath();
+        ctx.arc(57, 16, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(56.3, 15.3, 0.9, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Green Helmet
+        ctx.fillStyle = '#2D8A4E';
+        ctx.strokeStyle = '#1B5E20';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(52, 14, 10, Math.PI, 0, false);
+        ctx.fill();
+        ctx.stroke();
+
+        // Fast wind-swept ears blowing backward
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = '#37474F';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.ellipse(32, 9, 14, 5, -0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#FF80AB';
+        ctx.beginPath();
+        ctx.ellipse(32, 9, 9, 2.8, -0.35, 0, Math.PI * 2);
+        ctx.fill();
+
+        runnerCanvas.refresh();
+      }
+    }
+
+    // Sky & Meadow Background
+    const bg = this.add.graphics();
+    bg.fillGradientStyle(0x70C7EC, 0x70C7EC, 0xD9F2CE, 0xD9F2CE, 1);
+    bg.fillRect(0, 0, width, height);
+
+    // Warm Morning Sun
+    bg.fillStyle(0xFFEB3B, 0.9);
+    bg.fillCircle(width - 90, 80, 50);
+
+    // Soft Cloud
+    bg.fillStyle(0xFFFFFF, 0.75);
+    bg.fillCircle(120, 90, 30);
+    bg.fillCircle(150, 80, 40);
+    bg.fillCircle(180, 90, 30);
+
+    // Track Geometry
+    const trackWidth = Math.min(width * 0.82, 480);
+    const trackHeight = 22;
+    const trackX = width / 2;
+    const trackY = height / 2 + 35;
+    const trackStartX = trackX - trackWidth / 2;
+
+    // Grass turf cushion around track
+    const turf = this.add.graphics();
+    turf.fillStyle(0x43A047, 0.55);
+    turf.fillRoundedRect(trackStartX - 16, trackY - 8, trackWidth + 32, trackHeight + 16, 16);
+
+    // Dirt road bed with wood finish
+    const roadTrack = this.add.graphics();
+    roadTrack.fillStyle(0x3E2723, 0.9);
+    roadTrack.fillRoundedRect(trackStartX, trackY, trackWidth, trackHeight, 11);
+    roadTrack.lineStyle(2.5, 0x8D6E63, 0.8);
+    roadTrack.strokeRoundedRect(trackStartX, trackY, trackWidth, trackHeight, 11);
+
+    // Road dashed lane stripes
+    const roadStripes = this.add.graphics();
+    roadStripes.fillStyle(0xFFFFFF, 0.35);
+    const stripesCount = Math.floor(trackWidth / 24);
+    for (let i = 0; i < stripesCount; i++) {
+      roadStripes.fillRect(trackStartX + 8 + (i * 24), trackY + trackHeight / 2 - 1.5, 12, 3);
+    }
+
+    // Glowing carrot progress fill
+    const progressBar = this.add.graphics();
+
+    // 0% to 100% Counter Text
+    const percentText = this.add.text(width / 2, trackY - 70, '0%', {
+      fontFamily: 'Fredoka, -apple-system, sans-serif',
+      fontSize: '48px',
       color: '#1B5E20',
-      fontStyle: 'bold'
+      fontStyle: 'bold',
+      stroke: '#FFFFFF',
+      strokeThickness: 6
     }).setOrigin(0.5, 0.5);
 
+    // Milestone status text
+    const statusText = this.add.text(width / 2, trackY + 44, '🐰 Rabbit warming up paws...', {
+      fontFamily: 'Fredoka, -apple-system, sans-serif',
+      fontSize: '17px',
+      color: '#2E7D32',
+      fontStyle: 'bold',
+      stroke: '#FFFFFF',
+      strokeThickness: 3
+    }).setOrigin(0.5, 0.5);
+
+    // Running Rabbit Sprite mounted on progress head
+    const rabbitRunner = this.add.image(trackStartX, trackY - 26, 'preload-runner')
+      .setOrigin(0.5, 0.85)
+      .setScale(0.85);
+
+    // Bouncing hop animation for the runner
+    this.tweens.add({
+      targets: rabbitRunner,
+      y: trackY - 30,
+      rotation: 0.04,
+      duration: 120,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
     this.load.on('progress', (value: number) => {
+      // 1. Draw glowing carrot-orange progress fill
       progressBar.clear();
-      progressBar.fillStyle(0xFF7A00, 1);
-      progressBar.fillRoundedRect(width / 2 - 150, height / 2 - 12, 300 * value, 24, 8);
+      if (value > 0.01) {
+        const fillWidth = Math.max(12, trackWidth * value);
+        progressBar.fillStyle(0xFF7A00, 1);
+        progressBar.fillRoundedRect(trackStartX, trackY, fillWidth, trackHeight, 11);
+
+        progressBar.fillStyle(0xFFC93C, 0.85);
+        progressBar.fillRoundedRect(trackStartX + 2, trackY + 2, fillWidth - 4, 6, 3);
+      }
+
+      // 2. Position the sprinting rabbit
+      const currentX = trackStartX + (trackWidth * value);
+      rabbitRunner.x = currentX;
+
+      // 3. Update the 0 to 100% counter
+      const pct = Math.round(value * 100);
+      percentText.setText(`${pct}%`);
+
+      // 4. Milestone messages
+      if (pct < 28) {
+        statusText.setText('🐰 Rabbit warming up paws...');
+      } else if (pct < 55) {
+        statusText.setText('🚲 Tuning bike chain & carrot nitro boost...');
+      } else if (pct < 85) {
+        statusText.setText('🌾 Scouting dirt track & secret farm shortcuts...');
+      } else if (pct < 100) {
+        statusText.setText('🥕 Polishing golden carrots & cash rewards...');
+      } else {
+        statusText.setText('🏁 100% Loaded! Ready to ride!');
+      }
+
+      // 5. Emit dust puff behind rabbit
+      if (Math.random() > 0.35) {
+        const dust = this.add.circle(currentX - 25, trackY + 6, Phaser.Math.Between(3, 7), 0xD7CCC8, 0.7);
+        this.tweens.add({
+          targets: dust,
+          x: dust.x - Phaser.Math.Between(15, 30),
+          y: dust.y - Phaser.Math.Between(5, 12),
+          alpha: 0,
+          scale: 1.6,
+          duration: 350,
+          onComplete: () => dust.destroy()
+        });
+      }
     });
 
     this.load.on('complete', () => {
-      progressBar.destroy();
-      progressBox.destroy();
-      loadingText.destroy();
+      percentText.setText('100%');
+      statusText.setText('🏁 Ready! Hop on & Ride! 🐰💨');
+
+      // Zoom-off transition before launching the FarmRide scene
+      this.tweens.add({
+        targets: rabbitRunner,
+        x: width + 120,
+        scaleX: 1.05,
+        duration: 320,
+        ease: 'Power2',
+        onComplete: () => {
+          bg.destroy();
+          turf.destroy();
+          roadTrack.destroy();
+          roadStripes.destroy();
+          progressBar.destroy();
+          percentText.destroy();
+          statusText.destroy();
+          rabbitRunner.destroy();
+          this.scene.start('FarmRide');
+        }
+      });
     });
 
     // Preload SVG assets

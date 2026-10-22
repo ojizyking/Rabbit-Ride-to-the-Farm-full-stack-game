@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import AuthModal from './components/AuthModal';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
+import RabbitRunningLoader from './components/common/RabbitRunningLoader';
 import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import Play from './pages/Play';
@@ -13,7 +15,7 @@ import api from './lib/api';
 import './styles/index.css';
 
 const AppContent: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
   // Periodic heartbeat for live presence and online user tracking
   useEffect(() => {
@@ -35,6 +37,10 @@ const AppContent: React.FC = () => {
     return () => clearInterval(interval);
   }, [user]);
 
+  if (isLoading) {
+    return <RabbitRunningLoader fullscreen={true} />;
+  }
+
   return (
     <div className="app-container">
       <Navbar />
@@ -49,6 +55,7 @@ const AppContent: React.FC = () => {
         </Routes>
       </main>
       <AuthModal />
+      <PWAInstallPrompt />
     </div>
   );
 };

@@ -1,0 +1,190 @@
+/* ═══════════════════════════════════════════════════════════════════ */
+/* RABBIT RUNNING 0-100% LOADER STYLES                                */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+.rabbit-loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  user-select: none;
+  font-family: var(--font-family, 'Fredoka', sans-serif);
+}
+
+.rabbit-loader-container.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: radial-gradient(circle at 50% 40%, #E8F5E9 0%, #C8E6C9 70%, #A5D6A7 100%);
+  padding: 1.5rem;
+}
+
+.rabbit-loader-card {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  border: 3px solid #C8E6C9;
+  border-radius: 28px;
+  padding: 2.25rem 2rem;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(27, 56, 36, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: cardPopIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cardPopIn {
+  from { opacity: 0; transform: scale(0.92) translateY(16px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Runner Stage & Parallax Road */
+.rabbit-runner-stage {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #E0F7FA 0%, #E8F5E9 75%, #C8E6C9 100%);
+}
+
+.rabbit-runner-actor {
+  width: 84px;
+  height: 84px;
+  margin-bottom: -4px;
+  z-index: 2;
+  animation: rabbitHop 0.28s ease-in-out infinite alternate;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.15));
+}
+
+@keyframes rabbitHop {
+  0%   { transform: translateY(0px) rotate(-1.5deg); }
+  100% { transform: translateY(-7px) rotate(2deg); }
+}
+
+/* Road surface under rabbit */
+.rabbit-runner-track {
+  width: 100%;
+  height: 20px;
+  background: #4E342E;
+  position: relative;
+  overflow: hidden;
+  border-top: 3px solid #2D8A4E;
+}
+
+.rabbit-runner-dashes {
+  position: absolute;
+  top: 7px;
+  left: 0;
+  width: 200%;
+  height: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    #FFFFFF 0px,
+    #FFFFFF 18px,
+    transparent 18px,
+    transparent 36px
+  );
+  animation: roadScroll 0.55s linear infinite;
+}
+
+@keyframes roadScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Dust particles behind bike */
+.rabbit-runner-dust {
+  position: absolute;
+  bottom: 18px;
+  left: calc(50% - 46px);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(141, 110, 99, 0.45);
+  animation: dustPuff 0.4s ease-out infinite;
+}
+
+@keyframes dustPuff {
+  0% {
+    transform: translate(0, 0) scale(0.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-32px, -12px) scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Numeric Counter: 0% to 100% */
+.rabbit-loader-percent-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-bottom: 0.85rem;
+}
+
+.rabbit-loader-percent-val {
+  font-size: 3.25rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #1B5E20;
+  font-family: var(--font-family, 'Fredoka', sans-serif);
+  letter-spacing: -1px;
+  text-shadow: 0 2px 4px rgba(45, 138, 78, 0.15);
+}
+
+.rabbit-loader-percent-sign {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #FF7A00;
+}
+
+/* Progress Track Bar */
+.rabbit-loader-bar-wrap {
+  width: 100%;
+  height: 18px;
+  background: #E0E0E0;
+  border-radius: 9999px;
+  padding: 3px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.rabbit-loader-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #FF7A00 0%, #FFC93C 100%);
+  transition: width 0.12s ease-out;
+  box-shadow: 0 2px 8px rgba(255, 122, 0, 0.4);
+  position: relative;
+}
+
+.rabbit-loader-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 9999px;
+}
+
+/* Status Tip */
+.rabbit-loader-status {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2E7D32;
+  min-height: 24px;
+}

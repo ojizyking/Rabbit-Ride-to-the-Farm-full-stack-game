@@ -20,6 +20,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import '../styles/dashboard.css';
+import RabbitRunningLoader from '../components/common/RabbitRunningLoader';
 
 export const Dashboard: React.FC = () => {
   const { user, refreshUser, customizeReferralCode } = useAuth();
@@ -34,8 +35,8 @@ export const Dashboard: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="dashboard-page" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-        <h2>Loading your rider profile... 🐰</h2>
+      <div className="dashboard-page" style={{ padding: '2rem 1rem' }}>
+        <RabbitRunningLoader fullscreen={false} message="Loading your rider profile... 🐰" />
       </div>
     );
   }
