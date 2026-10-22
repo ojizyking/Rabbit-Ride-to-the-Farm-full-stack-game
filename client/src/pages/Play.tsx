@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PhaserGame } from '../components/game/PhaserGame';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, cacheServerBalance } from '../context/AuthContext';
 import { sounds } from '../game/audio';
 import { bgm, SOUNDTRACKS, YOUTUBE_PRESETS, MusicSourceType } from '../game/bgm';
 import api from '../lib/api';
@@ -232,11 +232,9 @@ export const Play: React.FC = () => {
       setBarnData(customEvent.detail);
       setIsBarnOpen(true);
 
-      // Auto-credit +₦2.50 (50 coins) milestone reward
-      const bonusNaira = (customEvent.detail.bonusCoins || 50) / 20;
-      const cur = user?.balanceNaira !== undefined ? user.balanceNaira : Number(localStorage.getItem('rabbit_guest_balance') || 0);
-      const newBal = Math.round((cur + bonusNaira) * 100) / 100;
-      updateBalance(newBal);
+      // Note: Barn bonus coins are included in the ride's total coins and
+      // will be credited server-side when the ride ends via /api/game/end-ride.
+      // No direct updateBalance() call here — trust the server.
     };
 
     const handleBiomeChange = (e: Event) => {
@@ -324,6 +322,7 @@ export const Play: React.FC = () => {
         .then((res) => {
           if (res.data?.newBalance !== undefined) {
             updateBalance(res.data.newBalance);
+            cacheServerBalance(res.data.newBalance);
           }
         })
         .catch((err) => console.warn('Ad collect sync:', err));

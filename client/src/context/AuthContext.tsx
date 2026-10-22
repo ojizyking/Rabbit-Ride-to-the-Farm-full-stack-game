@@ -27,6 +27,7 @@ export interface BicycleItem {
 
 export interface UserProfile {
   id: string;
+  playerId?: string;
   email: string;
   role?: 'user' | 'admin';
   balanceNaira: number;
@@ -86,8 +87,17 @@ export const DEFAULT_STARTER_BIKE: BicycleItem = {
   description: 'Reliable yellow farm bicycle with sturdy wheels.'
 };
 
+/**
+ * Creates a local offline user. Uses the last known server balance
+ * (from rabbit_last_server_balance) instead of hardcoded ₦50 to prevent
+ * balance resets when the server is temporarily unreachable.
+ */
 export function createLocalUser(email: string): UserProfile {
+  // Use last known server balance, fallback to guest balance, then default ₦50
+  const lastServerBalance = Number(localStorage.getItem('rabbit_last_server_balance') || 0);
   const guestBalance = Number(localStorage.getItem('rabbit_guest_balance') || 0);
+  const startBalance = lastServerBalance > 0 ? lastServerBalance : (50 + guestBalance);
+
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   let rand = '';
   for (let i = 0; i < 3; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -112,7 +122,7 @@ export function createLocalUser(email: string): UserProfile {
     id: 'user_' + Date.now().toString(36),
     email: email.toLowerCase().trim(),
     role: (email.toLowerCase().includes('admin') ? 'admin' : 'user') as 'user' | 'admin',
-    balanceNaira: 50 + guestBalance,
+    balanceNaira: startBalance,
     totalRides: 0,
     subscriptionTier: 'free',
     subscriptionExpiresAt: null,
@@ -126,12 +136,71 @@ export function createLocalUser(email: string): UserProfile {
   };
 }
 
+/**
+ * Queue a failed ride to localStorage for later sync with the server.
+ */
+export function queueOfflineRide(rideData: {
+  coins: number;
+  distance: number;
+  stars: number;
+  carrots: number;
+  boxes: number;
+  adViews: number;
+}) {
+  try {
+    const queue = JSON.parse(localStorage.getItem('rabbit_offline_rides') || '[]');
+    queue.push({
+      ...rideData,
+      timestamp: new Date().toISOString()
+    });
+    // Cap at 50 queued rides to prevent localStorage bloat
+    localStorage.setItem('rabbit_offline_rides', JSON.stringify(queue.slice(-50)));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+/**
+ * Drain the offline ride queue by syncing all buffered rides to the server.
+ * Returns the new authoritative balance from the server.
+ */
+export async function syncOfflineRides(
+  updateBalanceFn: (balance: number) => void
+): Promise<void> {
+  try {
+    const queue = JSON.parse(localStorage.getItem('rabbit_offline_rides') || '[]');
+    if (queue.length === 0) return;
+
+    const res = await api.post('/game/sync-offline', { rides: queue });
+    if (res.data.success) {
+      localStorage.removeItem('rabbit_offline_rides');
+      if (res.data.newBalance !== undefined) {
+        updateBalanceFn(res.data.newBalance);
+        localStorage.setItem('rabbit_last_server_balance', String(res.data.newBalance));
+      }
+      console.log(`✅ Synced ${res.data.ridesProcessed} offline ride(s), earned ₦${res.data.totalNairaEarned}`);
+    }
+  } catch (err) {
+    // Queue stays — will retry on next login
+    console.warn('Offline ride sync failed, will retry later:', err);
+  }
+}
+
+/**
+ * Cache the server's authoritative balance to localStorage.
+ * This prevents createLocalUser from falling back to ₦50.
+ */
+export function cacheServerBalance(balance: number) {
+  localStorage.setItem('rabbit_last_server_balance', String(balance));
+}
+
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // ─── Shared login/register/logout logic (used by both providers) ──────────────
 function useLegacyAuth(setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>,
   setToken: React.Dispatch<React.SetStateAction<string | null>>,
-  setAuthModalOpen: React.Dispatch<React.SetStateAction<boolean>>) {
+  setAuthModalOpen: React.Dispatch<React.SetStateAction<boolean>>,
+  updateBalanceFn: (b: number) => void) {
 
   const login = async (email: string, password: string) => {
     try {
@@ -141,7 +210,11 @@ function useLegacyAuth(setUser: React.Dispatch<React.SetStateAction<UserProfile 
         localStorage.removeItem('rabbit_offline_user');
         setToken(res.data.token);
         setUser(res.data.user);
+        // Cache the authoritative server balance
+        cacheServerBalance(res.data.user.balanceNaira);
         setAuthModalOpen(false);
+        // Sync any offline rides queued while server was unreachable
+        syncOfflineRides(updateBalanceFn);
         return;
       }
     } catch (err: unknown) {
@@ -167,6 +240,8 @@ function useLegacyAuth(setUser: React.Dispatch<React.SetStateAction<UserProfile 
         localStorage.removeItem('rabbit_referral_code');
         setToken(res.data.token);
         setUser(res.data.user);
+        // Cache the authoritative server balance
+        cacheServerBalance(res.data.user.balanceNaira);
         setAuthModalOpen(false);
         return;
       }
@@ -200,7 +275,18 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
-  const { login, register, quickDemoLogin } = useLegacyAuth(setUser, setToken, setAuthModalOpen);
+  const updateBalance = (newBalance: number) => {
+    setUser((prev) => {
+      if (!prev) { localStorage.setItem('rabbit_guest_balance', String(newBalance)); return null; }
+      const updated = { ...prev, balanceNaira: newBalance };
+      localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
+      // Also cache as last known server balance to prevent ₦50 resets
+      localStorage.setItem('rabbit_last_server_balance', String(newBalance));
+      return updated;
+    });
+  };
+
+  const { login, register, quickDemoLogin } = useLegacyAuth(setUser, setToken, setAuthModalOpen, updateBalance);
 
   const fetchProfile = useCallback(async () => {
     const currentToken = localStorage.getItem('rabbit_token');
@@ -216,7 +302,13 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     try {
       const res = await api.get('/auth/me');
-      if (res.data.success) setUser(res.data.user);
+      if (res.data.success) {
+        setUser(res.data.user);
+        // Cache the server's authoritative balance
+        cacheServerBalance(res.data.user.balanceNaira);
+        // Sync any pending offline rides
+        syncOfflineRides(updateBalance);
+      }
     } catch (err: unknown) {
       const e = err as { response?: { status?: number } };
       if (e.response?.status === 401) {
@@ -237,6 +329,8 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const logout = () => {
     localStorage.removeItem('rabbit_token');
     localStorage.removeItem('rabbit_offline_user');
+    // Note: We do NOT clear rabbit_last_server_balance or rabbit_offline_rides on logout
+    // so offline earnings survive and will sync on next login
     setToken(null);
     setUser(null);
   };
@@ -290,15 +384,6 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
       return { success: true, message: 'Referral code customized successfully!', referralCode: clean };
     }
-  };
-
-  const updateBalance = (newBalance: number) => {
-    setUser((prev) => {
-      if (!prev) { localStorage.setItem('rabbit_guest_balance', String(newBalance)); return null; }
-      const updated = { ...prev, balanceNaira: newBalance };
-      localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
-      return updated;
-    });
   };
 
   return (

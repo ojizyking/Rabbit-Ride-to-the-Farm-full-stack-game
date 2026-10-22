@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Rabbit = require('../models/Rabbit');
 const Bicycle = require('../models/Bicycle');
 const Transaction = require('../models/Transaction');
+const { generatePlayerId } = require('../models/modelAdapter');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'rabbit_super_secret_jwt_key_2026_farm_ride';
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@rabbitride.farm,admin@farm.com')
@@ -135,8 +136,10 @@ exports.register = async (req, res) => {
     const defaultBike = await Bicycle.findOne({ priceNaira: 0 });
 
     const userReferralCode = await getUniqueReferralCode(cleanEmail);
+    const playerId = generatePlayerId();
 
     const newUser = new User({
+      playerId,
       email: cleanEmail,
       password: hashedPassword,
       balanceNaira: 50, // Standard welcome bonus!
@@ -177,6 +180,7 @@ exports.register = async (req, res) => {
       token,
       user: {
         id: populatedUser._id,
+        playerId: populatedUser.playerId,
         email: populatedUser.email,
         role: populatedUser.role || 'user',
         balanceNaira: populatedUser.balanceNaira,
@@ -235,6 +239,12 @@ exports.login = async (req, res) => {
       await user.save();
     }
 
+    // Auto-backfill playerId for existing users
+    if (!user.playerId) {
+      user.playerId = generatePlayerId();
+      await user.save();
+    }
+
     user.lastSeenAt = new Date();
     await user.save();
 
@@ -252,6 +262,7 @@ exports.login = async (req, res) => {
       token,
       user: {
         id: populatedUser._id,
+        playerId: populatedUser.playerId,
         email: populatedUser.email,
         role: populatedUser.role || 'user',
         balanceNaira: populatedUser.balanceNaira,
@@ -291,10 +302,17 @@ exports.getMe = async (req, res) => {
       await user.save();
     }
 
+    // Auto-backfill playerId for existing users
+    if (!user.playerId) {
+      user.playerId = generatePlayerId();
+      await user.save();
+    }
+
     return res.json({
       success: true,
       user: {
         id: user._id,
+        playerId: user.playerId,
         email: user.email,
         role: user.role || 'user',
         firstName: user.firstName || '',
@@ -337,9 +355,11 @@ exports.clerkSync = async (req, res) => {
 
     if (!user) {
       const userReferralCode = await getUniqueReferralCode(firstName || cleanEmail);
+      const playerId = generatePlayerId();
       let startingBal = 50 + guestBonus;
 
       user = new User({
+        playerId,
         clerkId,
         email: cleanEmail,
         firstName: firstName || '',
@@ -377,6 +397,9 @@ exports.clerkSync = async (req, res) => {
       if (!user.referralCode) {
         user.referralCode = await getUniqueReferralCode(user.firstName || user.email);
       }
+      if (!user.playerId) {
+        user.playerId = generatePlayerId();
+      }
       if (!user.currentRabbitId && defaultRabbit) user.currentRabbitId = defaultRabbit._id;
       if (!user.currentBikeId && defaultBike) user.currentBikeId = defaultBike._id;
       await user.save();
@@ -396,6 +419,7 @@ exports.clerkSync = async (req, res) => {
       token,
       user: {
         id: populatedUser._id,
+        playerId: populatedUser.playerId,
         email: populatedUser.email,
         role: populatedUser.role || 'user',
         firstName: populatedUser.firstName,

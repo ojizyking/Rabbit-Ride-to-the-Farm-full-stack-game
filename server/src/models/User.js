@@ -2,6 +2,12 @@ const mongoose = require('mongoose');
 const { createModelWrapper } = require('./modelAdapter');
 
 const userSchema = new mongoose.Schema({
+  playerId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true
+  },
   clerkId: {
     type: String,
     sparse: true,

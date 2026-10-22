@@ -116,6 +116,47 @@ async function seedInitialShop() {
   }
 }
 
+/**
+ * Backfill unique playerId for all existing users that don't have one.
+ * Runs once on server startup.
+ */
+async function backfillPlayerIds() {
+  try {
+    const User = require('../models/User');
+    const { generatePlayerId } = require('../models/modelAdapter');
+    const memoryStore = require('./memoryStore');
+
+    // Check if using memory store (no MongoDB)
+    if (mongoose.connection.readyState !== 1) {
+      const users = memoryStore.data.users || [];
+      let backfilled = 0;
+      for (const user of users) {
+        if (!user.playerId) {
+          user.playerId = generatePlayerId();
+          backfilled++;
+        }
+      }
+      if (backfilled > 0) {
+        memoryStore.save();
+        console.log(`✅ Backfilled playerId for ${backfilled} existing user(s).`);
+      }
+      return;
+    }
+
+    // MongoDB mode
+    const usersWithout = await User.find({ playerId: { $exists: false } });
+    if (usersWithout.length > 0) {
+      for (const user of usersWithout) {
+        user.playerId = generatePlayerId();
+        await user.save();
+      }
+      console.log(`✅ Backfilled playerId for ${usersWithout.length} existing user(s) in MongoDB.`);
+    }
+  } catch (err) {
+    console.error('Error backfilling playerIds:', err);
+  }
+}
+
 async function connectDB() {
   const primaryUri = process.env.MONGO_URI || 'mongodb://localhost:27017/rabbit_farm';
   try {
@@ -126,6 +167,7 @@ async function connectDB() {
     });
     console.log('MongoDB connected successfully via Mongoose.');
     await seedInitialShop();
+    await backfillPlayerIds();
   } catch (err) {
     console.log('------------------------------------------------------------');
     console.log('ℹ️  No external MongoDB daemon running at ' + primaryUri);
@@ -133,6 +175,7 @@ async function connectDB() {
     console.log('✅ Server is 100% operational with full persistent state.');
     console.log('------------------------------------------------------------');
     await seedInitialShop();
+    await backfillPlayerIds();
   }
 }
 

@@ -2,7 +2,25 @@ const mongoose = require('mongoose');
 const memoryStore = require('../config/memoryStore');
 
 function generateId() {
-  return 'id_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+  // Use crypto-safe UUID when available, otherwise high-entropy fallback
+  try {
+    const crypto = require('crypto');
+    return crypto.randomUUID();
+  } catch {
+    // Fallback: timestamp + 12 random alphanumeric chars for high entropy
+    const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+    let rand = '';
+    for (let i = 0; i < 12; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    return 'id_' + Date.now().toString(36) + '_' + rand;
+  }
+}
+
+function generatePlayerId() {
+  // Generates a unique player ID in format RR-XXXXXXXX (8 alphanumeric chars)
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let id = '';
+  for (let i = 0; i < 8; i++) id += chars.charAt(Math.floor(Math.random() * chars.length));
+  return 'RR-' + id;
 }
 
 function createModelWrapper(collectionName, mongooseModel) {
@@ -267,4 +285,4 @@ function createModelWrapper(collectionName, mongooseModel) {
   };
 }
 
-module.exports = { createModelWrapper, generateId };
+module.exports = { createModelWrapper, generateId, generatePlayerId };

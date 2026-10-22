@@ -9,5 +9,6 @@ router.use(authMiddleware);
 router.post('/start-ride', gameController.startRide);
 router.post('/collect', gameController.collect);
 router.post('/end-ride', gameController.endRide);
+router.post('/sync-offline', gameController.syncOffline);
 
 module.exports = router;

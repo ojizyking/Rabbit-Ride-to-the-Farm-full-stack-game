@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth as useClerkAuth, useUser as useClerkUser, useClerk } from '@clerk/clerk-react';
 import api, { registerClerkTokenGetter, clearClerkTokenGetter } from '../lib/api';
-import { AuthContext, LegacyAuthProvider, createLocalUser } from './AuthContext';
+import { AuthContext, LegacyAuthProvider, createLocalUser, cacheServerBalance, syncOfflineRides } from './AuthContext';
 import type { UserProfile, RabbitItem, BicycleItem } from './AuthContext';
 
 export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -21,6 +21,17 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isClerkUser, setIsClerkUser] = useState(false);
   const [clerkSynced, setClerkSynced] = useState(false);
+
+  const updateBalance = (newBalance: number) => {
+    setUser((prev) => {
+      if (!prev) { localStorage.setItem('rabbit_guest_balance', String(newBalance)); return null; }
+      const updated = { ...prev, balanceNaira: newBalance };
+      if (!isClerkUser) localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
+      // Always cache the latest balance to prevent ₦50 resets
+      localStorage.setItem('rabbit_last_server_balance', String(newBalance));
+      return updated;
+    });
+  };
 
   // Register Clerk token getter for api.ts interceptor
   useEffect(() => {
@@ -55,6 +66,8 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       if (res.data.success) {
         setUser(res.data.user);
+        // Cache server's authoritative balance
+        cacheServerBalance(res.data.user.balanceNaira);
         if (res.data.token) {
           localStorage.setItem('rabbit_token', res.data.token);
           setToken(res.data.token);
@@ -65,6 +78,8 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         localStorage.removeItem('rabbit_offline_user');
         localStorage.removeItem('rabbit_referral_code');
         setAuthModalOpen(false);
+        // Sync any offline rides queued while server was unreachable
+        syncOfflineRides(updateBalance);
       }
     } catch (err) {
       console.error('Clerk sync failed:', err);
@@ -103,7 +118,13 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     try {
       const res = await api.get('/auth/me');
-      if (res.data?.success && res.data?.user) setUser(res.data.user);
+      if (res.data?.success && res.data?.user) {
+        setUser(res.data.user);
+        // Cache server's authoritative balance
+        cacheServerBalance(res.data.user.balanceNaira);
+        // Sync any pending offline rides
+        syncOfflineRides(updateBalance);
+      }
     } catch (err: unknown) {
       const e = err as { response?: { status?: number } };
       if (e.response?.status === 401) {
@@ -130,7 +151,11 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         localStorage.removeItem('rabbit_offline_user');
         setToken(res.data.token);
         setUser(res.data.user);
+        // Cache server's authoritative balance
+        cacheServerBalance(res.data.user.balanceNaira);
         setAuthModalOpen(false);
+        // Sync any offline rides
+        syncOfflineRides(updateBalance);
         return;
       }
     } catch (err: unknown) {
@@ -154,6 +179,8 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         localStorage.removeItem('rabbit_offline_user');
         setToken(res.data.token);
         setUser(res.data.user);
+        // Cache server's authoritative balance
+        cacheServerBalance(res.data.user.balanceNaira);
         setAuthModalOpen(false);
         return;
       }
@@ -178,21 +205,14 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const logout = () => {
     localStorage.removeItem('rabbit_token');
     localStorage.removeItem('rabbit_offline_user');
+    // Note: We do NOT clear rabbit_last_server_balance or rabbit_offline_rides on logout
+    // so offline earnings survive and will sync on next login
     setToken(null);
     setUser(null);
     setIsClerkUser(false);
     setClerkSynced(false);
     clearClerkTokenGetter();
     if (isSignedIn) clerkSignOut().catch(() => { /* ignore */ });
-  };
-
-  const updateBalance = (newBalance: number) => {
-    setUser((prev) => {
-      if (!prev) { localStorage.setItem('rabbit_guest_balance', String(newBalance)); return null; }
-      const updated = { ...prev, balanceNaira: newBalance };
-      if (!isClerkUser) localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
-      return updated;
-    });
   };
 
   const customizeReferralCode = async (code: string) => {

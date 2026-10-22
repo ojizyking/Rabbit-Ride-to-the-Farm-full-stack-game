@@ -4,6 +4,7 @@ import Preload from '../../game/scenes/Preload';
 import FarmRide from '../../game/scenes/FarmRide';
 import GameOver from '../../game/scenes/GameOver';
 import { useAuth } from '../../context/AuthContext';
+import { queueOfflineRide, cacheServerBalance } from '../../context/AuthContext';
 import api from '../../lib/api';
 
 interface PhaserGameProps {
@@ -91,7 +92,11 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
 
       // Optimistic background API call to /api/game/collect
       try {
-        await api.post('/game/collect', { type, value });
+        const res = await api.post('/game/collect', { type, value });
+        // Cache the updated server balance from collect response
+        if (res.data?.success && res.data.newBalance !== undefined) {
+          cacheServerBalance(res.data.newBalance);
+        }
       } catch (err) {
         // Handled silently to never interrupt 60fps gameplay
         console.warn('Background collect sync error:', err);
@@ -115,6 +120,8 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
         if (res.data.success) {
           if (res.data.newBalance !== undefined) {
             updateBalance(res.data.newBalance);
+            // Cache the server's authoritative balance — prevents ₦50 reset on next login
+            cacheServerBalance(res.data.newBalance);
           }
           if (onRideEnd) {
             onRideEnd({
@@ -126,26 +133,30 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
           return;
         }
       } catch (err) {
-        console.warn('Backend ride sync offline, computing local reward:', err);
+        console.warn('Backend ride sync offline, queueing for later sync:', err);
       }
 
-      // Offline / fallback calculation: 1,000 Coins = ₦50 (20 Coins = ₦1)
+      // ── Offline fallback: queue ride for later sync + compute local reward ──
+      // Queue ride data for automatic server sync on next successful login
+      queueOfflineRide(details);
+
+      // Local calculation for immediate UI feedback: 1,000 Coins = ₦50 (20 Coins = ₦1)
       const fallbackNaira = Math.round((details.coins / 20) * 100) / 100;
       const currentBal = user?.balanceNaira !== undefined ? user.balanceNaira : Number(localStorage.getItem('rabbit_guest_balance') || 0);
       const newBal = Math.round((currentBal + fallbackNaira) * 100) / 100;
 
-      // Always credit the wallet!
+      // Update local balance for immediate UI feedback
       updateBalance(newBal);
 
-      // Persist local transaction
+      // Persist local transaction record
       try {
         const existingTx = JSON.parse(localStorage.getItem('rabbit_offline_transactions') || '[]');
         existingTx.unshift({
           _id: 'tx_' + Date.now(),
           type: 'earn',
           amount: fallbackNaira,
-          description: `Ride reward (${(details.distance / 1000).toFixed(2)} km, ${details.coins} coins)`,
-          status: 'completed',
+          description: `Ride reward (${(details.distance / 1000).toFixed(2)} km, ${details.coins} coins) [offline]`,
+          status: 'pending_sync',
           createdAt: new Date().toISOString()
         });
         localStorage.setItem('rabbit_offline_transactions', JSON.stringify(existingTx.slice(0, 50)));
