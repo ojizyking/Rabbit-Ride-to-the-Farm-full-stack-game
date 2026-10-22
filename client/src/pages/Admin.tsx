@@ -514,7 +514,7 @@ export const Admin: React.FC = () => {
             <div className="admin-kpi-card green">
               <div className="kpi-header">
                 <span className="kpi-title">Online Riders Now</span>
-                <div className="kpi-icon-wrap" style={{ color: '#10B981' }}><Users size={20} /></div>
+                <div className="kpi-icon-wrap" style={{ color: '#34D399' }}><Users size={20} /></div>
               </div>
               <div className="kpi-value">{overview?.onlineUsers || 0}</div>
               <div className="kpi-subtext">
@@ -526,7 +526,7 @@ export const Admin: React.FC = () => {
             <div className="admin-kpi-card orange">
               <div className="kpi-header">
                 <span className="kpi-title">Hits Today</span>
-                <div className="kpi-icon-wrap" style={{ color: '#F59E0B' }}><TrendingUp size={20} /></div>
+                <div className="kpi-icon-wrap" style={{ color: '#FBBF24' }}><TrendingUp size={20} /></div>
               </div>
               <div className="kpi-value">{(overview?.hitsToday || 0).toLocaleString()}</div>
               <div className="kpi-subtext">
@@ -538,7 +538,7 @@ export const Admin: React.FC = () => {
             <div className="admin-kpi-card blue">
               <div className="kpi-header">
                 <span className="kpi-title">Platform Revenue</span>
-                <div className="kpi-icon-wrap" style={{ color: '#38BDF8' }}><DollarSign size={20} /></div>
+                <div className="kpi-icon-wrap" style={{ color: '#06B6D4' }}><DollarSign size={20} /></div>
               </div>
               <div className="kpi-value">₦{(overview?.totalRevenueNaira || 0).toLocaleString()}</div>
               <div className="kpi-subtext">
@@ -550,7 +550,7 @@ export const Admin: React.FC = () => {
             <div className="admin-kpi-card rose">
               <div className="kpi-header">
                 <span className="kpi-title">Pending Cashouts</span>
-                <div className="kpi-icon-wrap" style={{ color: '#F43F5E' }}><CreditCard size={20} /></div>
+                <div className="kpi-icon-wrap" style={{ color: '#FB7185' }}><CreditCard size={20} /></div>
               </div>
               <div className="kpi-value">{overview?.pendingWithdrawalsCount || 0}</div>
               <div className="kpi-subtext">
@@ -561,7 +561,7 @@ export const Admin: React.FC = () => {
             <div className="admin-kpi-card purple">
               <div className="kpi-header">
                 <span className="kpi-title">Total Rides</span>
-                <div className="kpi-icon-wrap" style={{ color: '#8B5CF6' }}><Gamepad2 size={20} /></div>
+                <div className="kpi-icon-wrap" style={{ color: '#A78BFA' }}><Gamepad2 size={20} /></div>
               </div>
               <div className="kpi-value">{(overview?.totalRidesCount || 0).toLocaleString()}</div>
               <div className="kpi-subtext">
@@ -576,7 +576,7 @@ export const Admin: React.FC = () => {
             <div className="admin-panel">
               <div className="admin-panel-header">
                 <h3 className="admin-panel-title">
-                  <Activity size={20} style={{ color: '#38BDF8' }} /> Real-Time Traffic Stream
+                  <Activity size={20} style={{ color: '#818CF8' }} /> Real-Time Traffic Stream
                 </h3>
                 <div className="status-code-pills">
                   <span className="status-pill s2xx">2xx: {telemetry?.statusCodes['2xx'] || 0}</span>
@@ -601,7 +601,7 @@ export const Admin: React.FC = () => {
                     {telemetry?.recentRequests && telemetry.recentRequests.length > 0 ? (
                       telemetry.recentRequests.slice(0, 15).map(req => (
                         <tr key={req.id}>
-                          <td style={{ color: '#64748B', whiteSpace: 'nowrap' }}>
+                          <td style={{ color: '#555872', whiteSpace: 'nowrap' }}>
                             {new Date(req.timestamp).toLocaleTimeString()}
                           </td>
                           <td>
@@ -637,34 +637,34 @@ export const Admin: React.FC = () => {
             <div className="admin-panel">
               <div className="admin-panel-header">
                 <h3 className="admin-panel-title">
-                  <Server size={20} style={{ color: '#10B981' }} /> System Health &amp; Endpoint Loads
+                  <Server size={20} style={{ color: '#34D399' }} /> System Health &amp; Endpoint Loads
                 </h3>
                 <span style={{ fontSize: '0.85rem', color: '#94A3B8' }}>
-                  Avg Latency: <strong style={{ color: '#38BDF8' }}>{telemetry?.avgLatencyMs || 0}ms</strong> (p95: {telemetry?.p95LatencyMs || 0}ms)
+                  Avg Latency: <strong style={{ color: '#67E8F9' }}>{telemetry?.avgLatencyMs || 0}ms</strong> (p95: {telemetry?.p95LatencyMs || 0}ms)
                 </span>
               </div>
 
               {/* Server Info Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '0.85rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#64748B' }}>MEMORY HEAP</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1.25rem' }} className="system-health-grid">
+                <div style={{ background: 'rgba(10, 12, 25, 0.6)', padding: '0.85rem', borderRadius: '14px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#555872', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>MEMORY HEAP</div>
                   <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#34D399' }}>
                     {telemetry?.system.heapUsedMb || 0} MB
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748B' }}>of {telemetry?.system.heapTotalMb || 0} MB</div>
+                  <div style={{ fontSize: '0.7rem', color: '#555872' }}>of {telemetry?.system.heapTotalMb || 0} MB</div>
                 </div>
 
-                <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '0.85rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#64748B' }}>UPTIME</div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#38BDF8' }}>
+                <div style={{ background: 'rgba(10, 12, 25, 0.6)', padding: '0.85rem', borderRadius: '14px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#555872', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>UPTIME</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#818CF8' }}>
                     {Math.floor((telemetry?.system.uptimeSeconds || 0) / 3600)}h {Math.floor(((telemetry?.system.uptimeSeconds || 0) % 3600) / 60)}m
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Online &amp; Stable</div>
+                  <div style={{ fontSize: '0.7rem', color: '#555872' }}>Online &amp; Stable</div>
                 </div>
 
-                <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '0.85rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#64748B' }}>GATEWAYS</div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FBBF24' }}>
+                <div style={{ background: 'rgba(10, 12, 25, 0.6)', padding: '0.85rem', borderRadius: '14px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#555872', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>GATEWAYS</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#C4B5FD' }}>
                     Paystack
                   </div>
                   <div style={{ fontSize: '0.7rem', color: '#34D399' }}>● Connected</div>
@@ -672,7 +672,7 @@ export const Admin: React.FC = () => {
               </div>
 
               {/* Popular Endpoints */}
-              <h4 style={{ fontSize: '0.9rem', color: '#94A3B8', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <h4 style={{ fontSize: '0.82rem', color: '#8B8FA3', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
                 Most Requested Endpoints
               </h4>
               <div className="admin-table-container">
@@ -687,7 +687,7 @@ export const Admin: React.FC = () => {
                     {telemetry?.topRoutes && telemetry.topRoutes.length > 0 ? (
                       telemetry.topRoutes.map((r, i) => (
                         <tr key={i}>
-                          <td style={{ fontFamily: 'monospace', color: '#38BDF8' }}>{r.path}</td>
+                          <td style={{ fontFamily: "'JetBrains Mono', monospace", color: '#818CF8' }}>{r.path}</td>
                           <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.count.toLocaleString()}</td>
                         </tr>
                       ))
@@ -709,9 +709,9 @@ export const Admin: React.FC = () => {
         <div className="admin-panel">
           <div className="admin-panel-header">
             <h3 className="admin-panel-title">
-              <Users size={20} style={{ color: '#38BDF8' }} /> Player Accounts Directory
+              <Users size={20} style={{ color: '#A78BFA' }} /> Player Accounts Directory
             </h3>
-            <span style={{ color: '#94A3B8', fontSize: '0.88rem' }}>
+            <span style={{ color: '#8B8FA3', fontSize: '0.85rem' }}>
               Showing {usersList.length} players
             </span>
           </div>
@@ -863,7 +863,7 @@ export const Admin: React.FC = () => {
           <div className="admin-panel">
             <div className="admin-panel-header">
               <h3 className="admin-panel-title">
-                <CreditCard size={20} style={{ color: '#F43F5E' }} /> Pending Cashout Queue
+                <CreditCard size={20} style={{ color: '#FB7185' }} /> Pending Cashout Queue
               </h3>
               <select
                 value={withdrawalStatusFilter}
@@ -968,7 +968,7 @@ export const Admin: React.FC = () => {
           <div className="admin-panel">
             <div className="admin-panel-header">
               <h3 className="admin-panel-title">
-                <Clock size={20} style={{ color: '#38BDF8' }} /> Platform Transaction Audit Ledger
+                <Clock size={20} style={{ color: '#67E8F9' }} /> Platform Transaction Audit Ledger
               </h3>
               <select
                 value={txTypeFilter}
@@ -1046,7 +1046,7 @@ export const Admin: React.FC = () => {
         <div className="admin-panel">
           <div className="admin-panel-header">
             <h3 className="admin-panel-title">
-              <Gamepad2 size={20} style={{ color: '#8B5CF6' }} /> Gameplay Activity &amp; Records
+              <Gamepad2 size={20} style={{ color: '#A78BFA' }} /> Gameplay Activity &amp; Records
             </h3>
           </div>
 
@@ -1087,7 +1087,7 @@ export const Admin: React.FC = () => {
                   gameStats.topRides.map((r, i) => (
                     <tr key={i}>
                       <td style={{ fontWeight: 800, color: i === 0 ? '#FBBF24' : '#E2E8F0' }}>#{i + 1}</td>
-                      <td style={{ fontWeight: 700, color: '#38BDF8' }}>{Math.round(r.distanceTraveled || 0)} meters</td>
+                      <td style={{ fontWeight: 700, color: '#818CF8' }}>{Math.round(r.distanceTraveled || 0)} meters</td>
                       <td style={{ color: '#F59E0B', fontWeight: 700 }}>🥕 {r.carrotsCollected || 0}</td>
                       <td style={{ color: '#94A3B8' }}>{new Date(r.createdAt || Date.now()).toLocaleDateString()}</td>
                     </tr>
@@ -1108,7 +1108,7 @@ export const Admin: React.FC = () => {
         <div className="admin-panel">
           <div className="admin-panel-header">
             <h3 className="admin-panel-title">
-              <Gift size={20} style={{ color: '#F59E0B' }} /> Referral Economy Command Center
+              <Gift size={20} style={{ color: '#FBBF24' }} /> Referral Economy Command Center
             </h3>
           </div>
 
@@ -1150,7 +1150,7 @@ export const Admin: React.FC = () => {
                           {ref.referralCode}
                         </code>
                       </td>
-                      <td style={{ fontWeight: 800, color: '#38BDF8' }}>{ref.referralsCount} riders</td>
+                      <td style={{ fontWeight: 800, color: '#818CF8' }}>{ref.referralsCount} riders</td>
                       <td style={{ fontWeight: 800, color: '#34D399' }}>₦{ref.referralEarnings.toLocaleString()}</td>
                     </tr>
                   ))
@@ -1172,9 +1172,9 @@ export const Admin: React.FC = () => {
         <div className="admin-panel">
           <div className="admin-panel-header">
             <h3 className="admin-panel-title">
-              <Settings size={20} style={{ color: '#38BDF8' }} /> Runtime Platform &amp; Economy Settings
+              <Settings size={20} style={{ color: '#A78BFA' }} /> Runtime Platform &amp; Economy Settings
             </h3>
-            <span style={{ color: '#94A3B8', fontSize: '0.85rem' }}>Changes apply immediately without redeploying</span>
+            <span style={{ color: '#8B8FA3', fontSize: '0.82rem' }}>Changes apply immediately without redeploying</span>
           </div>
 
           <div className="config-card">

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "make-admin": "node ../server/src/scripts/makeAdmin.js"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.11",
