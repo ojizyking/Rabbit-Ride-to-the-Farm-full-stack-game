@@ -1,4 +1,6 @@
 require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const { connectDB } = require('./config/db');
@@ -79,15 +81,6 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Health check endpoints for Railway / monitoring
-app.get('/', (req, res) => {
-  res.json({
-    status: 'online',
-    app: 'Rabbit Ride to the Farm API',
-    version: '1.0.0',
-    time: new Date().toISOString()
-  });
-});
-
 app.get(['/health', '/api/health'], (req, res) => {
   res.json({
     status: 'online',
@@ -96,6 +89,27 @@ app.get(['/health', '/api/health'], (req, res) => {
     time: new Date().toISOString()
   });
 });
+
+// Serve frontend static build if dist exists
+const clientDistPath = path.join(__dirname, '../../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ success: false, message: 'Endpoint not found' });
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.json({
+      status: 'online',
+      app: 'Rabbit Ride to the Farm API',
+      version: '1.0.0',
+      time: new Date().toISOString()
+    });
+  });
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

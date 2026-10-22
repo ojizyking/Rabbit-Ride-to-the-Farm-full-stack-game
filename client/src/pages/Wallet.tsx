@@ -751,6 +751,7 @@ export const Wallet: React.FC = () => {
                     const result = await customizeReferralCode(customCode);
                     setCustomCodeMsg({ success: result.success, text: result.message });
                     if (result.success) {
+                      if (refreshUser) refreshUser();
                       setTimeout(() => setShowCustomCodeModal(false), 1500);
                     }
                   } catch {

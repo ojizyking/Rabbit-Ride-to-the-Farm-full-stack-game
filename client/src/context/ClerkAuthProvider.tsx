@@ -5,22 +5,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth as useClerkAuth, useUser as useClerkUser, useClerk } from '@clerk/clerk-react';
 import api, { registerClerkTokenGetter, clearClerkTokenGetter } from '../lib/api';
-import { AuthContext, LegacyAuthProvider } from './AuthContext';
+import { AuthContext, LegacyAuthProvider, createLocalUser } from './AuthContext';
 import type { UserProfile, RabbitItem, BicycleItem } from './AuthContext';
-
-function createLocalUser(email: string): UserProfile {
-  const guestBalance = Number(localStorage.getItem('rabbit_guest_balance') || 0);
-  return {
-    id: 'user_' + Date.now().toString(36),
-    email: email.toLowerCase().trim(),
-    balanceNaira: 50 + guestBalance,
-    totalRides: 0,
-    subscriptionTier: 'free',
-    subscriptionExpiresAt: null,
-    currentRabbit: { _id: 'rab_001', name: 'Starter White Rabbit', priceNaira: 0, speed: 10, jump: 10, stamina: 10, grip: 10, drift: 10, imageUrl: '/assets/rabbits/starter_rabbit.svg' } as RabbitItem,
-    currentBike: { _id: 'bike_001', name: 'Classic Yellow Bike', priceNaira: 0, speed: 10, stability: 10, boost: 10, imageUrl: '/assets/bikes/starter_bike.svg' } as BicycleItem,
-  };
-}
 
 export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Clerk hooks — safe here because this component is only mounted inside <ClerkProvider>
@@ -102,9 +88,8 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [clerkLoaded, isSignedIn, clerkSynced, isClerkUser, syncClerkUser]);
 
-  // Fetch legacy profile when not signed in via Clerk
+  // Fetch profile when loaded or refreshed
   const fetchProfile = useCallback(async () => {
-    if (isSignedIn) return;
     const currentToken = localStorage.getItem('rabbit_token');
     if (!currentToken) { setIsLoading(false); return; }
 
@@ -118,11 +103,12 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     try {
       const res = await api.get('/auth/me');
-      if (res.data.success) setUser(res.data.user);
+      if (res.data?.success && res.data?.user) setUser(res.data.user);
     } catch (err: unknown) {
       const e = err as { response?: { status?: number } };
-      if (e.response?.status === 401) { logout(); }
-      else {
+      if (e.response?.status === 401) {
+        if (!isSignedIn) logout();
+      } else {
         const saved = localStorage.getItem('rabbit_offline_user');
         if (saved) { try { setUser(JSON.parse(saved)); } catch { /* ignore */ } }
       }
@@ -231,9 +217,16 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           throw postErr;
         }
       }
+      const clean = code.trim().toUpperCase();
       if (res && res.data.success) {
-        setUser((prev) => prev ? { ...prev, referralCode: res.data.referralCode } : null);
-        return { success: true, message: res.data.message, referralCode: res.data.referralCode };
+        const newCode = res.data.referralCode || clean;
+        setUser((prev) => {
+          if (!prev) return null;
+          const updated = { ...prev, referralCode: newCode };
+          localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
+          return updated;
+        });
+        return { success: true, message: res.data.message || 'Referral code customized successfully!', referralCode: newCode };
       }
       return { success: false, message: res?.data?.message || 'Failed to update code' };
     } catch (err: unknown) {
@@ -243,7 +236,12 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       // Graceful optimistic fallback for offline or proxy issues
       const clean = code.trim().toUpperCase();
-      setUser((prev) => prev ? { ...prev, referralCode: clean } : null);
+      setUser((prev) => {
+        if (!prev) return null;
+        const updated = { ...prev, referralCode: clean };
+        localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
+        return updated;
+      });
       return { success: true, message: 'Referral code customized successfully!', referralCode: clean };
     }
   };

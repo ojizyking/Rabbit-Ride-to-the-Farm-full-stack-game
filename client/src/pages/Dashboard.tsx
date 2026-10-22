@@ -40,7 +40,7 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  const referralCode = user.referralCode || 'RABBIT';
+  const referralCode = user.referralCode || (user.email ? user.email.split('@')[0].toUpperCase().slice(0, 6) : 'RIDER');
   const referralLink = `${window.location.origin}/?ref=${referralCode}`;
   const referralEarnings = user.referralEarnings || 0;
   const referralsCount = user.referralsCount || 0;

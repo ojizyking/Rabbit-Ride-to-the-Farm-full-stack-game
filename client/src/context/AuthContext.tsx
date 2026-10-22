@@ -62,7 +62,7 @@ interface AuthContextType {
   closeAuthModal: () => void;
 }
 
-const DEFAULT_STARTER_RABBIT: RabbitItem = {
+export const DEFAULT_STARTER_RABBIT: RabbitItem = {
   _id: 'rab_001',
   name: 'Starter White Rabbit',
   priceNaira: 0,
@@ -75,7 +75,7 @@ const DEFAULT_STARTER_RABBIT: RabbitItem = {
   description: 'A nimble white bunny ready to ride and explore.'
 };
 
-const DEFAULT_STARTER_BIKE: BicycleItem = {
+export const DEFAULT_STARTER_BIKE: BicycleItem = {
   _id: 'bike_001',
   name: 'Classic Yellow Bike',
   priceNaira: 0,
@@ -86,7 +86,7 @@ const DEFAULT_STARTER_BIKE: BicycleItem = {
   description: 'Reliable yellow farm bicycle with sturdy wheels.'
 };
 
-function createLocalUser(email: string): UserProfile {
+export function createLocalUser(email: string): UserProfile {
   const guestBalance = Number(localStorage.getItem('rabbit_guest_balance') || 0);
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   let rand = '';
@@ -263,9 +263,16 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           throw postErr;
         }
       }
+      const clean = code.trim().toUpperCase();
       if (res && res.data.success) {
-        setUser((prev) => prev ? { ...prev, referralCode: res.data.referralCode } : null);
-        return { success: true, message: res.data.message, referralCode: res.data.referralCode };
+        const newCode = res.data.referralCode || clean;
+        setUser((prev) => {
+          if (!prev) return null;
+          const updated = { ...prev, referralCode: newCode };
+          localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
+          return updated;
+        });
+        return { success: true, message: res.data.message || 'Referral code customized successfully!', referralCode: newCode };
       }
       return { success: false, message: res?.data?.message || 'Failed to update code' };
     } catch (err: unknown) {
