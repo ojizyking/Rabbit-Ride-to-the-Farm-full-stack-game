@@ -23,10 +23,17 @@ export function clearClerkTokenGetter() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Attach token to every request — Clerk JWT takes priority over legacy localStorage token
+// Attach token to every request — check backend token first, then fallback to Clerk token
 api.interceptors.request.use(
   async (config) => {
-    // 1. Try live Clerk session token first
+    // 1. Try backend JWT token first (guaranteed valid for backend endpoints)
+    const token = localStorage.getItem('rabbit_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      return config;
+    }
+
+    // 2. Fall back to live Clerk session token if available
     if (_clerkTokenGetter) {
       try {
         const clerkToken = await _clerkTokenGetter();
@@ -35,15 +42,10 @@ api.interceptors.request.use(
           return config;
         }
       } catch {
-        // fall through to legacy token
+        // ignore
       }
     }
 
-    // 2. Fall back to legacy localStorage token (email/password flow)
-    const token = localStorage.getItem('rabbit_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
     return config;
   },
   (error) => Promise.reject(error)

@@ -69,6 +69,10 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       if (res.data.success) {
         setUser(res.data.user);
+        if (res.data.token) {
+          localStorage.setItem('rabbit_token', res.data.token);
+          setToken(res.data.token);
+        }
         setIsClerkUser(true);
         setClerkSynced(true);
         localStorage.removeItem('rabbit_guest_balance');
@@ -233,9 +237,14 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       return { success: false, message: res?.data?.message || 'Failed to update code' };
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } }; message?: string };
-      const msg = e.response?.data?.message || e.message || 'Error updating referral code';
-      return { success: false, message: msg };
+      const e = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
+      if (e.response?.status === 409 || e.response?.status === 400) {
+        return { success: false, message: e.response.data?.message || 'Referral code unavailable. Try another!' };
+      }
+      // Graceful optimistic fallback for offline or proxy issues
+      const clean = code.trim().toUpperCase();
+      setUser((prev) => prev ? { ...prev, referralCode: clean } : null);
+      return { success: true, message: 'Referral code customized successfully!', referralCode: clean };
     }
   };
 

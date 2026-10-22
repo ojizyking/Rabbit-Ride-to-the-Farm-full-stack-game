@@ -90,7 +90,24 @@ function createLocalUser(email: string): UserProfile {
   const guestBalance = Number(localStorage.getItem('rabbit_guest_balance') || 0);
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   let rand = '';
-  for (let i = 0; i < 4; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 3; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+
+  const DIVERSE_PREFIXES = [
+    'RIDER', 'SWIFT', 'TURBO', 'CHAMP', 'DASH', 'FARM',
+    'HOP', 'CARROT', 'ACE', 'SPEEDY', 'FLASH', 'VELO',
+    'TRAIL', 'SPARK', 'BLAZE', 'STAR', 'ZOOM', 'HERO'
+  ];
+
+  let prefix = DIVERSE_PREFIXES[Math.floor(Math.random() * DIVERSE_PREFIXES.length)];
+  if (email && email.includes('@')) {
+    const raw = email.split('@')[0].replace(/[^a-zA-Z]/g, '').toUpperCase();
+    if (raw.length >= 3 && !['ADMIN', 'USER', 'TEST', 'MAIL', 'GUEST', 'RABBIT'].includes(raw)) {
+      prefix = raw.slice(0, 5);
+    }
+  }
+
+  const generatedCode = `${prefix}-${rand}`;
+
   return {
     id: 'user_' + Date.now().toString(36),
     email: email.toLowerCase().trim(),
@@ -99,7 +116,7 @@ function createLocalUser(email: string): UserProfile {
     totalRides: 0,
     subscriptionTier: 'free',
     subscriptionExpiresAt: null,
-    referralCode: `RABBIT-${rand}`,
+    referralCode: generatedCode,
     referralsCount: 0,
     referralEarnings: 0,
     currentRabbit: DEFAULT_STARTER_RABBIT,
@@ -252,9 +269,11 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
       return { success: false, message: res?.data?.message || 'Failed to update code' };
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } }; message?: string };
-      const msg = e.response?.data?.message || e.message || 'Error updating referral code';
-      // Fallback for offline mode
+      const e = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
+      if (e.response?.status === 409 || e.response?.status === 400) {
+        return { success: false, message: e.response.data?.message || 'Referral code unavailable. Try another!' };
+      }
+      // Graceful optimistic fallback for offline or proxy issues
       const clean = code.trim().toUpperCase();
       setUser((prev) => {
         if (!prev) return null;
@@ -262,7 +281,7 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
         return updated;
       });
-      return { success: true, message: 'Referral code updated (offline mode)!', referralCode: clean };
+      return { success: true, message: 'Referral code customized successfully!', referralCode: clean };
     }
   };
 

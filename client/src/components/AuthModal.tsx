@@ -118,7 +118,7 @@ export const AuthModal: React.FC = () => {
                   type="text"
                   value={referralCode}
                   onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. RABBIT-7X9A"
+                  placeholder="e.g. SWIFT-7X9, DAVID-402, or VIP-RIDER"
                   style={{
                     width: '100%',
                     padding: '0.75rem 1rem 0.75rem 2.5rem',

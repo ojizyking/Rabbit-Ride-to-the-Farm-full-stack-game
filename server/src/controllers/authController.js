@@ -26,23 +26,58 @@ function generateToken(user) {
   );
 }
 
-function generateRandomReferralCode() {
+const DIVERSE_PREFIXES = [
+  'RIDER', 'SWIFT', 'TURBO', 'CHAMP', 'DASH', 'FARM',
+  'HOP', 'CARROT', 'ACE', 'SPEEDY', 'FLASH', 'VELO',
+  'TRAIL', 'SPARK', 'BLAZE', 'STAR', 'ZOOM', 'HERO', 'BUNNY', 'SPRINT'
+];
+
+function generateCandidateReferralCode(hint) {
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let random = '';
-  for (let i = 0; i < 4; i++) {
-    random += chars.charAt(Math.floor(Math.random() * chars.length));
+  const getRandomChars = (len) => {
+    let res = '';
+    for (let i = 0; i < len; i++) {
+      res += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return res;
+  };
+
+  // Strategy 1: Personalized prefix from user's name or email if valid
+  if (hint && typeof hint === 'string') {
+    const rawName = hint.includes('@') ? hint.split('@')[0] : hint;
+    const cleanName = rawName.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    const disallowed = ['ADMIN', 'USER', 'TEST', 'MAIL', 'GUEST', 'RABBIT'];
+    if (cleanName.length >= 3 && !disallowed.includes(cleanName)) {
+      const prefix = cleanName.slice(0, 5);
+      return `${prefix}-${getRandomChars(3)}`;
+    }
   }
-  return `RABBIT-${random}`;
+
+  // Strategy 2: 80% themed diverse prefixes, 20% sleek 6-char alphanumeric
+  if (Math.random() < 0.8) {
+    const prefix = DIVERSE_PREFIXES[Math.floor(Math.random() * DIVERSE_PREFIXES.length)];
+    return `${prefix}-${getRandomChars(3)}`;
+  } else {
+    return `${getRandomChars(3)}${getRandomChars(3)}`;
+  }
 }
 
-async function getUniqueReferralCode() {
-  let code = generateRandomReferralCode();
+async function getUniqueReferralCode(hint = '') {
+  let code = generateCandidateReferralCode(hint);
   let existing = await User.findOne({ referralCode: code });
   let attempts = 0;
-  while (existing && attempts < 10) {
-    code = generateRandomReferralCode();
+  while (existing && attempts < 15) {
+    code = generateCandidateReferralCode(attempts > 3 ? '' : hint);
     existing = await User.findOne({ referralCode: code });
     attempts++;
+  }
+
+  // Guaranteed fallback
+  if (existing) {
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let extra = '';
+    for (let i = 0; i < 4; i++) extra += chars.charAt(Math.floor(Math.random() * chars.length));
+    code = `RIDER-${Date.now().toString(36).toUpperCase().slice(-3)}${extra.slice(0, 2)}`;
   }
   return code;
 }
@@ -99,7 +134,7 @@ exports.register = async (req, res) => {
     const defaultRabbit = await Rabbit.findOne({ priceNaira: 0 });
     const defaultBike = await Bicycle.findOne({ priceNaira: 0 });
 
-    const userReferralCode = await getUniqueReferralCode();
+    const userReferralCode = await getUniqueReferralCode(cleanEmail);
 
     const newUser = new User({
       email: cleanEmail,
@@ -196,7 +231,7 @@ exports.login = async (req, res) => {
 
     // Auto-generate referral code if user doesn't have one
     if (!user.referralCode) {
-      user.referralCode = await getUniqueReferralCode();
+      user.referralCode = await getUniqueReferralCode(user.firstName || user.email);
       await user.save();
     }
 
@@ -252,7 +287,7 @@ exports.getMe = async (req, res) => {
 
     // Auto-generate referral code if missing
     if (!user.referralCode) {
-      user.referralCode = await getUniqueReferralCode();
+      user.referralCode = await getUniqueReferralCode(user.firstName || user.email);
       await user.save();
     }
 
@@ -301,7 +336,7 @@ exports.clerkSync = async (req, res) => {
     const guestBonus = Math.max(0, Number(guestBalance) || 0);
 
     if (!user) {
-      const userReferralCode = await getUniqueReferralCode();
+      const userReferralCode = await getUniqueReferralCode(firstName || cleanEmail);
       let startingBal = 50 + guestBonus;
 
       user = new User({
@@ -340,7 +375,7 @@ exports.clerkSync = async (req, res) => {
         user.balanceNaira = Math.round((user.balanceNaira + guestBonus) * 100) / 100;
       }
       if (!user.referralCode) {
-        user.referralCode = await getUniqueReferralCode();
+        user.referralCode = await getUniqueReferralCode(user.firstName || user.email);
       }
       if (!user.currentRabbitId && defaultRabbit) user.currentRabbitId = defaultRabbit._id;
       if (!user.currentBikeId && defaultBike) user.currentBikeId = defaultBike._id;
