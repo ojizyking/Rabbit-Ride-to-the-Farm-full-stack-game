@@ -403,11 +403,16 @@ exports.customizeReferralCode = async (req, res) => {
 
     // Check if code taken by another user
     const existing = await User.findOne({ referralCode: cleanCode });
-    if (existing && existing._id.toString() !== req.user._id.toString()) {
+    const currentUserId = req.user?._id ? req.user._id.toString() : '';
+    if (existing && existing._id && existing._id.toString() !== currentUserId) {
       return res.status(409).json({ success: false, message: 'This referral code is already taken. Try another!' });
     }
 
-    const user = await User.findById(req.user._id);
+    if (!currentUserId) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
+    const user = await User.findById(currentUserId);
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
     user.referralCode = cleanCode;
@@ -419,8 +424,8 @@ exports.customizeReferralCode = async (req, res) => {
       referralCode: cleanCode
     });
   } catch (err) {
-    console.error('customizeReferralCode error:', err);
-    return res.status(500).json({ success: false, message: 'Server error customizing referral code.' });
+    console.error('customizeReferralCode error:', err.stack || err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error customizing referral code.' });
   }
 };
 

@@ -137,6 +137,24 @@ class MemoryStore {
         if (!this.data.bicycles || this.data.bicycles.length === 0) {
           this.data.bicycles = [...INITIAL_BIKES];
         }
+        if (!Array.isArray(this.data.systemConfigs)) {
+          this.data.systemConfigs = [];
+        }
+        if (!Array.isArray(this.data.withdrawals)) {
+          this.data.withdrawals = [];
+        }
+        if (!Array.isArray(this.data.transactions)) {
+          this.data.transactions = [];
+        }
+        if (!Array.isArray(this.data.subscriptions)) {
+          this.data.subscriptions = [];
+        }
+        if (!Array.isArray(this.data.rides)) {
+          this.data.rides = [];
+        }
+        if (!Array.isArray(this.data.users)) {
+          this.data.users = [];
+        }
       }
     } catch (e) {
       console.warn('Could not read dev_data.json, starting with fresh store:', e.message);

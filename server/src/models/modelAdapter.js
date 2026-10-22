@@ -25,8 +25,12 @@ function createModelWrapper(collectionName, mongooseModel) {
         return this;
       }
 
+      if (!Array.isArray(memoryStore.data[collectionName])) {
+        memoryStore.data[collectionName] = [];
+      }
       const list = memoryStore.data[collectionName];
-      const index = list.findIndex(item => item._id.toString() === this._id.toString());
+      const thisId = this._id ? this._id.toString() : '';
+      const index = list.findIndex(item => item && item._id && item._id.toString() === thisId);
       if (index >= 0) {
         list[index] = { ...this };
       } else {
@@ -196,6 +200,69 @@ function createModelWrapper(collectionName, mongooseModel) {
       }
       const list = memoryStore.data[collectionName] || [];
       return list.filter(item => matchesFilter(item, filter)).length;
+    },
+
+    findOneAndUpdate: async (filter = {}, update = {}, options = {}) => {
+      if (mongoose.connection.readyState === 1) {
+        return mongooseModel.findOneAndUpdate(filter, update, { new: true, ...options });
+      }
+      const list = memoryStore.data[collectionName] || [];
+      const index = list.findIndex(item => matchesFilter(item, filter));
+      if (index < 0) return null;
+      const updateFields = update.$set || update;
+      Object.assign(list[index], updateFields);
+      memoryStore.save();
+      return wrapResult(list[index]);
+    },
+
+    findByIdAndUpdate: async (id, update = {}, options = {}) => {
+      if (mongoose.connection.readyState === 1) {
+        return mongooseModel.findByIdAndUpdate(id, update, { new: true, ...options });
+      }
+      const list = memoryStore.data[collectionName] || [];
+      const index = list.findIndex(item => item._id?.toString() === id?.toString());
+      if (index < 0) return null;
+      const updateFields = update.$set || update;
+      Object.assign(list[index], updateFields);
+      memoryStore.save();
+      return wrapResult(list[index]);
+    },
+
+    updateOne: async (filter = {}, update = {}) => {
+      if (mongoose.connection.readyState === 1) {
+        return mongooseModel.updateOne(filter, update);
+      }
+      const list = memoryStore.data[collectionName] || [];
+      const index = list.findIndex(item => matchesFilter(item, filter));
+      if (index < 0) return { matchedCount: 0, modifiedCount: 0 };
+      const updateFields = update.$set || update;
+      Object.assign(list[index], updateFields);
+      memoryStore.save();
+      return { matchedCount: 1, modifiedCount: 1 };
+    },
+
+    deleteOne: async (filter = {}) => {
+      if (mongoose.connection.readyState === 1) {
+        return mongooseModel.deleteOne(filter);
+      }
+      const list = memoryStore.data[collectionName] || [];
+      const index = list.findIndex(item => matchesFilter(item, filter));
+      if (index < 0) return { deletedCount: 0 };
+      list.splice(index, 1);
+      memoryStore.save();
+      return { deletedCount: 1 };
+    },
+
+    deleteMany: async (filter = {}) => {
+      if (mongoose.connection.readyState === 1) {
+        return mongooseModel.deleteMany(filter);
+      }
+      const list = memoryStore.data[collectionName] || [];
+      const before = list.length;
+      memoryStore.data[collectionName] = list.filter(item => !matchesFilter(item, filter));
+      const deleted = before - memoryStore.data[collectionName].length;
+      memoryStore.save();
+      return { deletedCount: deleted };
     }
   };
 }

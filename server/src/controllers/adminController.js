@@ -524,11 +524,14 @@ exports.updateSystemConfig = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Configuration key required.' });
     }
 
+    const adminEmail = req.user?.email || (req.auth?.email) || 'admin';
     let cfg = await SystemConfig.findOne({ key });
     if (cfg) {
       cfg.value = value;
-      cfg.description = description || cfg.description;
-      cfg.updatedBy = req.user.email;
+      if (description !== undefined) {
+        cfg.description = description;
+      }
+      cfg.updatedBy = adminEmail;
       cfg.updatedAt = new Date();
       await cfg.save();
     } else {
@@ -536,7 +539,7 @@ exports.updateSystemConfig = async (req, res) => {
         key,
         value,
         description: description || '',
-        updatedBy: req.user.email,
+        updatedBy: adminEmail,
         updatedAt: new Date()
       });
     }
@@ -547,7 +550,10 @@ exports.updateSystemConfig = async (req, res) => {
       config: cfg
     });
   } catch (err) {
-    console.error('updateSystemConfig error:', err);
-    return res.status(500).json({ success: false, message: 'Server error updating system config.' });
+    console.error('updateSystemConfig error:', err.stack || err);
+    return res.status(500).json({
+      success: false,
+      message: `Failed to update config: ${err.message || 'Server error'}`
+    });
   }
 };

@@ -232,7 +232,16 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       } catch (postErr: unknown) {
         const pe = postErr as { response?: { status?: number } };
         if (pe.response?.status === 405 || pe.response?.status === 404) {
-          res = await api.put('/auth/customize-referral-code', { customCode: code });
+          try {
+            res = await api.put('/auth/customize-referral-code', { customCode: code });
+          } catch (putErr: unknown) {
+            const pue = putErr as { response?: { status?: number } };
+            if (pue.response?.status === 405 || pue.response?.status === 404) {
+              res = await api.patch('/auth/customize-referral-code', { customCode: code });
+            } else {
+              throw putErr;
+            }
+          }
         } else {
           throw postErr;
         }

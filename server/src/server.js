@@ -33,7 +33,7 @@ app.use(cors({
     if (isAllowed) return callback(null, true);
     callback(new Error(`CORS: Origin ${origin} not allowed`));
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
