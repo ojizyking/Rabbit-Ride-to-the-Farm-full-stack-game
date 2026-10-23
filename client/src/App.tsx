@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import AuthModal from './components/AuthModal';
@@ -78,6 +79,7 @@ export const App: React.FC = () => {
     <AuthProvider>
       <BrowserRouter>
         <AppContent />
+        <Analytics />
       </BrowserRouter>
     </AuthProvider>
   );
