@@ -6,6 +6,9 @@ export default class FarmRide extends Phaser.Scene {
   private hills!: Phaser.GameObjects.TileSprite;
   private fence!: Phaser.GameObjects.TileSprite;
   private ground!: Phaser.GameObjects.TileSprite;
+  private foregroundVerge!: Phaser.GameObjects.TileSprite;
+  private rabbitShadow!: Phaser.GameObjects.Sprite;
+  private roadTiltAngle: number = -1.8;
 
   private riderContainer!: Phaser.GameObjects.Container;
   private bikeSprite!: Phaser.GameObjects.Sprite;
@@ -146,11 +149,22 @@ export default class FarmRide extends Phaser.Scene {
     const height = this.scale.height;
     this.groundY = height - 120;
 
-    // Background Parallax
-    this.sky = this.add.tileSprite(0, 0, width, height, 'farm-sky').setOrigin(0, 0);
-    this.hills = this.add.tileSprite(0, height - 380, width, 300, 'farm-hills').setOrigin(0, 0);
-    this.fence = this.add.tileSprite(0, height - 260, width, 200, 'farm-fence').setOrigin(0, 0);
-    this.ground = this.add.tileSprite(0, this.groundY, width, 140, 'farm-ground').setOrigin(0, 0);
+    // Background Parallax - 3 distinct depth layers + tilted isometric ground + foreground rush
+    this.sky = this.add.tileSprite(0, 0, width, height, 'farm-sky').setOrigin(0, 0).setDepth(0);
+    this.hills = this.add.tileSprite(0, height - 380, width, 300, 'farm-hills').setOrigin(0, 0).setDepth(1);
+    this.fence = this.add.tileSprite(0, height - 260, width, 200, 'farm-fence').setOrigin(0, 0).setDepth(2);
+
+    // Isometric Tilted Ground Roadbed (160px height) with perspective inclination
+    this.ground = this.add.tileSprite(-20, this.groundY - 10, width + 40, 160, 'farm-ground').setOrigin(0, 0);
+    this.ground.setAngle(this.roadTiltAngle);
+    this.ground.setDepth(3);
+
+    // Extreme Foreground Parallax Layer (rush past camera at 1.35x speed)
+    if (this.textures.exists('farm-verge-rush')) {
+      this.foregroundVerge = this.add.tileSprite(-10, height - 55, width + 20, 70, 'farm-verge-rush').setOrigin(0, 0);
+      this.foregroundVerge.setAngle(this.roadTiltAngle);
+      this.foregroundVerge.setDepth(20);
+    }
 
     // Collectibles, Obstacles, Stunt Tracks, Billboards & Scenery Props
     this.collectibles = this.add.group();
@@ -174,8 +188,18 @@ export default class FarmRide extends Phaser.Scene {
     const rabbitTexture = (window as unknown as { currentEquippedRabbit?: string }).currentEquippedRabbit || 'rabbit-starter';
     const bikeTexture = (window as unknown as { currentEquippedBike?: string }).currentEquippedBike || 'bike-starter';
 
-    // Rider Container (Rabbit riding Bike)
+    // Soft Radial Drop Shadow under Rabbit (pinned to road plane)
+    if (this.textures.exists('shadow-oval')) {
+      this.rabbitShadow = this.add.sprite(180, this.groundY - 6, 'shadow-oval');
+      this.rabbitShadow.setScale(1.0, 0.55);
+      this.rabbitShadow.setAlpha(0.65);
+      this.rabbitShadow.setDepth(4);
+    }
+
+    // Rider Container (Rabbit riding Bike) with matching isometric tilt
     this.riderContainer = this.add.container(180, this.groundY - 35);
+    this.riderContainer.angle = this.roadTiltAngle;
+    this.riderContainer.setDepth(5);
 
     this.bikeSprite = this.add.sprite(0, 0, this.textures.exists(bikeTexture) ? bikeTexture : 'bike-starter');
     this.bikeSprite.setScale(0.9);
@@ -313,8 +337,15 @@ export default class FarmRide extends Phaser.Scene {
         this.fence.y = h - 260;
       }
       if (this.ground) {
-        this.ground.setSize(w, 140);
-        this.ground.y = this.groundY;
+        this.ground.setSize(w + 40, 160);
+        this.ground.y = this.groundY - 10;
+      }
+      if (this.foregroundVerge) {
+        this.foregroundVerge.setSize(w + 20, 70);
+        this.foregroundVerge.y = h - 55;
+      }
+      if (this.rabbitShadow) {
+        this.rabbitShadow.y = this.groundY - 6;
       }
       if (this.isGrounded && this.riderContainer) {
         this.riderContainer.y = this.groundY - 35;
@@ -354,7 +385,7 @@ export default class FarmRide extends Phaser.Scene {
       // Fun little bunny bike tilt
       this.tweens.add({
         targets: this.riderContainer,
-        angle: -15,
+        angle: this.roadTiltAngle - 15,
         duration: 150,
         yoyo: true,
         ease: 'Sine.easeOut'
@@ -446,11 +477,14 @@ export default class FarmRide extends Phaser.Scene {
       this.boostParticles.setPosition(this.riderContainer.x - 45, this.riderContainer.y + 10);
     }
 
-    // Parallax scrolling
-    this.sky.tilePositionX += this.currentSpeed * 0.08 * dt;
-    this.hills.tilePositionX += this.currentSpeed * 0.3 * dt;
-    this.fence.tilePositionX += this.currentSpeed * 0.65 * dt;
-    this.ground.tilePositionX += this.currentSpeed * dt;
+    // Parallax scrolling: 3 background layers + tilted roadbed + extreme foreground rush
+    this.sky.tilePositionX += this.currentSpeed * 0.06 * dt;
+    this.hills.tilePositionX += this.currentSpeed * 0.22 * dt;
+    this.fence.tilePositionX += this.currentSpeed * 0.62 * dt;
+    this.ground.tilePositionX += this.currentSpeed * 1.0 * dt;
+    if (this.foregroundVerge) {
+      this.foregroundVerge.tilePositionX += this.currentSpeed * 1.35 * dt;
+    }
 
     // -------------------------------------------------------------
     // 360-DEGREE LOOP-DE-LOOP EXECUTION
@@ -483,6 +517,28 @@ export default class FarmRide extends Phaser.Scene {
       this.riderContainer.y += this.velocityY * dt;
 
       // -------------------------------------------------------------
+      // DYNAMIC RABBIT DROP SHADOW (Altitude & Elevation Tracking)
+      // -------------------------------------------------------------
+      if (this.rabbitShadow) {
+        this.rabbitShadow.x = this.riderContainer.x;
+        this.rabbitShadow.y = this.groundY - 6;
+
+        if (this.isGrounded) {
+          this.rabbitShadow.setScale(1.0, 0.55);
+          this.rabbitShadow.setAlpha(0.65);
+        } else {
+          // Shrink scale and fade opacity dynamically with jump altitude
+          const jumpAltitude = Math.max(0, (this.groundY - 35) - this.riderContainer.y);
+          const shadowScaleX = Math.max(0.38, 1.0 - (jumpAltitude / 320) * 0.62);
+          const shadowScaleY = Math.max(0.20, 0.55 - (jumpAltitude / 320) * 0.35);
+          const shadowAlpha = Math.max(0.18, 0.65 - (jumpAltitude / 320) * 0.45);
+
+          this.rabbitShadow.setScale(shadowScaleX, shadowScaleY);
+          this.rabbitShadow.setAlpha(shadowAlpha);
+        }
+      }
+
+      // -------------------------------------------------------------
       // 360-DEGREE MID-AIR STUNT FLIP ROTATION
       // -------------------------------------------------------------
       if (!this.isGrounded) {
@@ -505,14 +561,26 @@ export default class FarmRide extends Phaser.Scene {
         if (this.airRotationTotal >= 300) {
           this.complete360AirFlip();
         } else {
-          this.riderContainer.angle = 0;
+          this.riderContainer.angle = this.roadTiltAngle;
+        }
+
+        // Squash & stretch tactile impact on shadow
+        if (this.rabbitShadow) {
+          this.rabbitShadow.setScale(1.35, 0.40);
+          this.tweens.add({
+            targets: this.rabbitShadow,
+            scaleX: 1.0,
+            scaleY: 0.55,
+            duration: 140,
+            ease: 'Quad.easeOut'
+          });
         }
 
         this.airRotationTotal = 0;
         this.currentAirAngle = 0;
         this.isStuntFlipping = false;
 
-        // Gentle riding bob animation
+        // Gentle riding bob animation matching isometric road surface
         this.riderContainer.y += Math.sin(time * 0.015) * 1.5;
       }
     }
@@ -610,6 +678,11 @@ export default class FarmRide extends Phaser.Scene {
     for (let i = sceneryArr.length - 1; i >= 0; i--) {
       const prop = sceneryArr[i];
       prop.x -= this.currentSpeed * dt;
+
+      // Perspective scaling: smaller in distance, larger in foreground
+      const baseScale = prop.getData('baseScale') || 0.95;
+      const baseY = prop.getData('baseY') || prop.y;
+      this.applyPerspectiveScale(prop, baseScale, baseY);
 
       // Check cheering animal proximity
       if (prop.getData('isAnimal') && !prop.getData('cheered')) {
@@ -740,13 +813,18 @@ export default class FarmRide extends Phaser.Scene {
       }
     }
 
-    // Move Collectibles & Check Collision
+    // Move Collectibles & Check Collision with Perspective Scaling
     const collectiblesArr = this.collectibles.getChildren() as Phaser.GameObjects.Sprite[];
     for (let i = collectiblesArr.length - 1; i >= 0; i--) {
       const item = collectiblesArr[i];
       item.x -= this.currentSpeed * dt;
 
-      // Floating wave animation
+      // Perspective scaling: smaller in distance, full size at player
+      const baseScale = item.getData('baseScale') || 0.95;
+      const baseY = item.getData('baseY') || item.y;
+      this.applyPerspectiveScale(item, baseScale, baseY);
+
+      // Floating wave animation on top of perspective elevation
       item.y += Math.sin(time * 0.005 + item.x * 0.02) * 0.8;
 
       if (Phaser.Geom.Intersects.RectangleToRectangle(riderBounds, item.getBounds())) {
@@ -756,24 +834,38 @@ export default class FarmRide extends Phaser.Scene {
       }
     }
 
-    // Move Obstacles & Check Collision (with Forgiving Hitbox, Stomp Bounce & Grace Life)
+    // Move Obstacles & Check Collision (with Perspective Scaling, Dynamic Shadows & Dynamic Hitbox)
     const obstaclesArr = this.obstacles.getChildren() as Phaser.GameObjects.Sprite[];
     for (let i = obstaclesArr.length - 1; i >= 0; i--) {
       const obs = obstaclesArr[i];
       obs.x -= this.currentSpeed * dt;
 
+      // Perspective scaling: small in distance, growing larger as it approaches
+      const baseScale = obs.getData('baseScale') || 0.9;
+      const baseY = obs.getData('baseY') || (this.groundY - 26);
+      this.applyPerspectiveScale(obs, baseScale, baseY);
+
+      // Attached grounded shadow update
+      const shadow = obs.getData('shadow') as Phaser.GameObjects.Sprite | undefined;
+      if (shadow) {
+        shadow.x = obs.x;
+        shadow.y = this.groundY - 6;
+        shadow.setScale(obs.scaleX * 0.72, obs.scaleY * 0.38);
+      }
+
       // Road warning sign: passes harmlessly
       if (obs.getData('isWarning')) {
-        if (obs.x < -100) obs.destroy();
+        if (obs.x < -100) this.destroyObstacle(obs);
         continue;
       }
 
-      // Forgiving inner hitboxes (shrink ~40% so grazing empty edges does not crash)
+      // Dynamic scaled hitbox: scales with visual size so distant obstacles aren't hit prematurely
+      const currentScale = obs.scaleX;
       const obsHitbox = new Phaser.Geom.Rectangle(
-        obs.x - 18,
-        obs.y - 12,
-        36,
-        34
+        obs.x - (18 * currentScale),
+        obs.y - (12 * currentScale),
+        36 * currentScale,
+        34 * currentScale
       );
 
       const riderHitbox = new Phaser.Geom.Rectangle(
@@ -788,7 +880,7 @@ export default class FarmRide extends Phaser.Scene {
         if (this.isBoosting || this.isLooping360) {
           this.createSmashExplosion(obs.x, obs.y);
           sounds.playCollect('crate');
-          obs.destroy();
+          this.destroyObstacle(obs);
           continue;
         }
 
@@ -799,7 +891,7 @@ export default class FarmRide extends Phaser.Scene {
           this.createSmashExplosion(obs.x, obs.y);
           sounds.playShieldBreak();
           this.showStuntText('🛡️ SHIELD BROKE! (SAFE) 🛡️');
-          obs.destroy();
+          this.destroyObstacle(obs);
           continue;
         }
 
@@ -813,7 +905,7 @@ export default class FarmRide extends Phaser.Scene {
           sounds.playCollect('crate');
           this.showStuntText('🥕 STOMP BOUNCE! +25 Coins 🥕');
           this.createSmashExplosion(obs.x, obs.y);
-          obs.destroy();
+          this.destroyObstacle(obs);
           continue;
         }
 
@@ -830,7 +922,7 @@ export default class FarmRide extends Phaser.Scene {
           sounds.playCrash();
           this.createSmashExplosion(obs.x, obs.y);
           this.showStuntText(`⚠️ OOF! ${this.lives} HEARTS LEFT! ⚠️`);
-          obs.destroy();
+          this.destroyObstacle(obs);
         } else {
           // 0 lives left -> trigger game over
           this.lives = 0;
@@ -838,7 +930,7 @@ export default class FarmRide extends Phaser.Scene {
           return;
         }
       } else if (obs.x < -100) {
-        obs.destroy();
+        this.destroyObstacle(obs);
       }
     }
 
@@ -893,6 +985,7 @@ export default class FarmRide extends Phaser.Scene {
     this.isLooping360 = false;
     this.loopsCompleted++;
     this.riderContainer.rotation = 0;
+    this.riderContainer.angle = this.roadTiltAngle;
     this.riderContainer.x = 180;
     this.riderContainer.y = this.groundY - 35;
     this.isGrounded = true;
@@ -922,7 +1015,7 @@ export default class FarmRide extends Phaser.Scene {
     const bonus = 50;
     this.coins += bonus;
     this.boostMeter = Math.min(100, this.boostMeter + 50);
-    this.riderContainer.angle = 0;
+    this.riderContainer.angle = this.roadTiltAngle;
 
     sounds.playFlipStunt();
     this.showStuntText('★ 360° STUNT FLIP! +50 Coins (5 ₦) ★');
@@ -1038,6 +1131,9 @@ export default class FarmRide extends Phaser.Scene {
     const sprite = this.add.sprite(width + 50, spawnY, texture);
     sprite.setData('type', type);
     sprite.setData('value', value);
+    sprite.setData('baseScale', 0.95);
+    sprite.setData('baseY', spawnY);
+    sprite.setDepth(3.5);
     this.collectibles.add(sprite);
   }
 
@@ -1048,11 +1144,27 @@ export default class FarmRide extends Phaser.Scene {
     const warnSign = this.add.sprite(width + 40, this.groundY - 26, 'obstacle-warning');
     warnSign.setScale(0.85);
     warnSign.setData('isWarning', true);
+    warnSign.setData('baseScale', 0.85);
+    warnSign.setData('baseY', this.groundY - 26);
+    warnSign.setDepth(3.5);
     this.obstacles.add(warnSign);
 
     // Spawn hay bale
     const sprite = this.add.sprite(width + 260, this.groundY - 26, 'obstacle-hay');
     sprite.setScale(0.9);
+    sprite.setData('baseScale', 0.9);
+    sprite.setData('baseY', this.groundY - 26);
+    sprite.setDepth(3.5);
+
+    // Obstacle drop shadow on road surface
+    if (this.textures.exists('shadow-oval')) {
+      const shadow = this.add.sprite(sprite.x, this.groundY - 6, 'shadow-oval');
+      shadow.setScale(0.65, 0.35);
+      shadow.setAlpha(0.5);
+      shadow.setDepth(2.5);
+      sprite.setData('shadow', shadow);
+    }
+
     this.obstacles.add(sprite);
   }
 
@@ -1085,7 +1197,7 @@ export default class FarmRide extends Phaser.Scene {
     this.velocityY = 0;
     this.isGrounded = true;
     this.riderContainer.y = this.groundY - 35;
-    this.riderContainer.angle = 0;
+    this.riderContainer.angle = this.roadTiltAngle;
 
     sounds.playCollect('star');
 
@@ -1298,7 +1410,7 @@ export default class FarmRide extends Phaser.Scene {
     this.velocityY = 0;
     this.isGrounded = true;
     this.riderContainer.y = this.groundY - 35;
-    this.riderContainer.angle = 0;
+    this.riderContainer.angle = this.roadTiltAngle;
     this.boostMeter = 100; // Restore stamina!
 
     sounds.playPowerup();
@@ -1375,18 +1487,23 @@ export default class FarmRide extends Phaser.Scene {
       if (newBiome === 'sunflower') {
         this.sky.setTint(0xFFE082);
         this.hills.setTint(0xFFD54F);
+        if (this.foregroundVerge) this.foregroundVerge.setTint(0xFFE082);
       } else if (newBiome === 'orchard') {
         this.sky.setTint(0xFFAB91);
         this.hills.setTint(0xAED581);
+        if (this.foregroundVerge) this.foregroundVerge.setTint(0xC5E1A5);
       } else if (newBiome === 'twilight') {
         this.sky.setTint(0x9575CD);
         this.hills.setTint(0x7E57C2);
+        if (this.foregroundVerge) this.foregroundVerge.setTint(0x7986CB);
       } else if (newBiome === 'golden') {
         this.sky.setTint(0xFFF176);
         this.hills.setTint(0x81C784);
+        if (this.foregroundVerge) this.foregroundVerge.setTint(0xFFEE58);
       } else {
         this.sky.clearTint();
         this.hills.clearTint();
+        if (this.foregroundVerge) this.foregroundVerge.clearTint();
       }
     }
   }
@@ -1413,7 +1530,9 @@ export default class FarmRide extends Phaser.Scene {
 
     if (this.textures.exists(texture)) {
       const prop = this.add.sprite(width + 60, y, texture);
-      prop.setDepth(0);
+      prop.setData('baseScale', 0.95);
+      prop.setData('baseY', y);
+      prop.setDepth(2.8);
       this.sceneryProps.add(prop);
     }
   }
@@ -1427,8 +1546,44 @@ export default class FarmRide extends Phaser.Scene {
       const animal = this.add.sprite(width + 80, this.groundY - 35, texture);
       animal.setData('isAnimal', true);
       animal.setData('cheered', false);
-      animal.setDepth(0);
+      animal.setData('baseScale', 0.9);
+      animal.setData('baseY', this.groundY - 35);
+      animal.setDepth(2.8);
       this.sceneryProps.add(animal);
     }
+  }
+
+  // ─── Perspective Scaling & Obstacle Shadow Helper Methods ─────────────────
+  private applyPerspectiveScale(
+    sprite: Phaser.GameObjects.Sprite | Phaser.GameObjects.Container,
+    baseScale: number = 1.0,
+    baseY: number
+  ) {
+    const playerX = this.riderContainer.x;
+    const spawnX = this.scale.width + 160;
+
+    if (sprite.x >= playerX) {
+      // Distance progress: 0.0 at playerX, 1.0 at spawnX
+      const factor = Math.min(1, Math.max(0, (sprite.x - playerX) / (spawnX - playerX)));
+      // Distant scale is 0.65x of baseScale, growing smoothly to 1.00x at player position
+      const scale = baseScale * (1.0 - factor * 0.35);
+      sprite.setScale(scale);
+      // Perspective Y inclination: far objects sit slightly higher on the tilted roadbed
+      sprite.y = baseY - factor * 14;
+    } else {
+      // Past the player: rushes into extreme foreground
+      const pastFactor = Math.min(1, (playerX - sprite.x) / 320);
+      const scale = baseScale * (1.0 + pastFactor * 0.18);
+      sprite.setScale(scale);
+      sprite.y = baseY + pastFactor * 8;
+    }
+  }
+
+  private destroyObstacle(obs: Phaser.GameObjects.Sprite) {
+    const shadow = obs.getData('shadow') as Phaser.GameObjects.Sprite | undefined;
+    if (shadow) {
+      shadow.destroy();
+    }
+    obs.destroy();
   }
 }

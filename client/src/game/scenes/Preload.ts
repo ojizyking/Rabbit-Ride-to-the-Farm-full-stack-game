@@ -343,123 +343,356 @@ export default class Preload extends Phaser.Scene {
       skyCanvas.refresh();
     }
 
-    // 2. Distant Hills & Farm Barns (1200 x 300)
+    // 2. Distant Hills & Pastoral Farm Farmland (1200 x 300)
     const hillsCanvas = this.textures.createCanvas('farm-hills', 1200, 300);
     if (hillsCanvas) {
       const ctx = hillsCanvas.getContext();
-      ctx.fillStyle = '#81C784';
+
+      // Deepest atmospheric ridge (bluish teal green)
+      ctx.fillStyle = '#A5D6A7';
       ctx.beginPath();
       ctx.moveTo(0, 300);
-      ctx.bezierCurveTo(200, 120, 400, 220, 600, 150);
-      ctx.bezierCurveTo(800, 100, 1000, 240, 1200, 140);
+      ctx.bezierCurveTo(250, 80, 500, 180, 750, 100);
+      ctx.bezierCurveTo(950, 60, 1100, 160, 1200, 90);
       ctx.lineTo(1200, 300);
       ctx.lineTo(0, 300);
       ctx.fill();
 
-      // Red Barn silhouette on hill
-      ctx.fillStyle = '#C62828';
-      ctx.fillRect(450, 150, 60, 40);
+      // Mid-distance rolling pastoral hills
+      ctx.fillStyle = '#81C784';
       ctx.beginPath();
-      ctx.moveTo(445, 150);
-      ctx.lineTo(480, 120);
-      ctx.lineTo(515, 150);
-      ctx.fill();
-      // Silo
-      ctx.fillStyle = '#90A4AE';
-      ctx.fillRect(518, 130, 20, 60);
-      ctx.beginPath();
-      ctx.arc(528, 130, 10, Math.PI, 0);
+      ctx.moveTo(0, 300);
+      ctx.bezierCurveTo(180, 140, 380, 220, 600, 160);
+      ctx.bezierCurveTo(820, 110, 1020, 240, 1200, 150);
+      ctx.lineTo(1200, 300);
+      ctx.lineTo(0, 300);
       ctx.fill();
 
-      // Windmill silhouette
-      ctx.fillStyle = '#5D4037';
-      ctx.fillRect(920, 140, 16, 55);
-      ctx.strokeStyle = '#FFE082';
-      ctx.lineWidth = 3;
+      // Foreground lush hill crest
+      ctx.fillStyle = '#66BB6A';
       ctx.beginPath();
-      ctx.moveTo(900, 130);
-      ctx.lineTo(956, 150);
-      ctx.moveTo(928, 110);
-      ctx.lineTo(928, 170);
+      ctx.moveTo(0, 300);
+      ctx.bezierCurveTo(300, 210, 650, 190, 900, 230);
+      ctx.bezierCurveTo(1050, 250, 1150, 220, 1200, 240);
+      ctx.lineTo(1200, 300);
+      ctx.lineTo(0, 300);
+      ctx.fill();
+
+      // Distant Red Barn on crest
+      ctx.fillStyle = '#C62828';
+      ctx.fillRect(440, 140, 68, 44);
+      // Barn Gambrel Roof
+      ctx.fillStyle = '#B71C1C';
+      ctx.beginPath();
+      ctx.moveTo(434, 140);
+      ctx.lineTo(454, 116);
+      ctx.lineTo(474, 106);
+      ctx.lineTo(494, 116);
+      ctx.lineTo(514, 140);
+      ctx.closePath();
+      ctx.fill();
+      // White barn doors
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(464, 156, 20, 28);
+      ctx.strokeStyle = '#B71C1C';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(464, 156, 20, 28);
+      ctx.beginPath();
+      ctx.moveTo(464, 156);
+      ctx.lineTo(484, 184);
+      ctx.moveTo(484, 156);
+      ctx.lineTo(464, 184);
       ctx.stroke();
+
+      // Metallic Silo with domed roof
+      ctx.fillStyle = '#90A4AE';
+      ctx.fillRect(514, 120, 22, 64);
+      ctx.fillStyle = '#CFD8DC';
+      ctx.beginPath();
+      ctx.arc(525, 120, 11, Math.PI, 0);
+      ctx.fill();
+
+      // Windmill tower & turning blades
+      ctx.fillStyle = '#4E342E';
+      ctx.beginPath();
+      ctx.moveTo(916, 195);
+      ctx.lineTo(924, 130);
+      ctx.lineTo(936, 130);
+      ctx.lineTo(944, 195);
+      ctx.closePath();
+      ctx.fill();
+      // Hub
+      ctx.fillStyle = '#FFC107';
+      ctx.beginPath();
+      ctx.arc(930, 130, 5, 0, Math.PI * 2);
+      ctx.fill();
+      // Blades
+      ctx.strokeStyle = '#FFF8E1';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(900, 100);
+      ctx.lineTo(960, 160);
+      ctx.moveTo(960, 100);
+      ctx.lineTo(900, 160);
+      ctx.stroke();
+
+      // Distant clustered apple tree clumps
+      ctx.fillStyle = '#388E3C';
+      for (const tx of [120, 150, 720, 760, 1080]) {
+        ctx.beginPath();
+        ctx.arc(tx, 210, 16, 0, Math.PI * 2);
+        ctx.arc(tx + 12, 204, 14, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       hillsCanvas.refresh();
     }
 
-    // 3. Near Farm Fence & Trees (1200 x 200)
+    // 3. Near Farm Fence, Sunflowers & Hedgerow (1200 x 200)
     const fenceCanvas = this.textures.createCanvas('farm-fence', 1200, 200);
     if (fenceCanvas) {
       const ctx = fenceCanvas.getContext();
-      // Wooden fence posts & rails
-      ctx.fillStyle = '#8D6E63';
-      ctx.strokeStyle = '#6D4C41';
-      ctx.lineWidth = 2;
 
-      // Rails
-      ctx.fillRect(0, 120, 1200, 10);
-      ctx.fillRect(0, 145, 1200, 10);
-
-      // Posts every 80px
-      for (let x = 20; x < 1200; x += 80) {
-        ctx.fillRect(x, 100, 14, 75);
-        ctx.strokeRect(x, 100, 14, 75);
+      // Low roadside hedgerow base
+      ctx.fillStyle = '#43A047';
+      for (let x = 0; x < 1200; x += 40) {
+        ctx.beginPath();
+        ctx.arc(x + 20, 165, 26, 0, Math.PI * 2);
+        ctx.fill();
       }
 
-      // Sunflowers along fence
-      for (let x = 60; x < 1200; x += 120) {
-        ctx.fillStyle = '#2E7D32';
-        ctx.fillRect(x + 4, 120, 4, 50);
-        // Blossom
-        ctx.fillStyle = '#FDD835';
+      // Wooden fence rails
+      ctx.fillStyle = '#8D6E63';
+      ctx.strokeStyle = '#5D4037';
+      ctx.lineWidth = 2.5;
+
+      ctx.fillRect(0, 118, 1200, 11);
+      ctx.strokeRect(0, 118, 1200, 11);
+      ctx.fillRect(0, 142, 1200, 11);
+      ctx.strokeRect(0, 142, 1200, 11);
+
+      // Posts with bevel tops every 75px
+      for (let x = 15; x < 1200; x += 75) {
+        // Shadow behind post
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.fillRect(x + 14, 98, 4, 80);
+
+        ctx.fillStyle = '#8D6E63';
+        ctx.fillRect(x, 96, 15, 80);
+        ctx.strokeRect(x, 96, 15, 80);
+
+        // Pointed post cap
+        ctx.fillStyle = '#A1887F';
         ctx.beginPath();
-        ctx.arc(x + 6, 118, 12, 0, Math.PI * 2);
+        ctx.moveTo(x - 1, 96);
+        ctx.lineTo(x + 7.5, 88);
+        ctx.lineTo(x + 16, 96);
+        ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = '#5D4037';
+        ctx.stroke();
+      }
+
+      // Golden Sunflowers along fence
+      for (let x = 50; x < 1200; x += 95) {
+        // Green stem & leaves
+        ctx.fillStyle = '#2E7D32';
+        ctx.fillRect(x + 4, 112, 4, 60);
         ctx.beginPath();
-        ctx.arc(x + 6, 118, 5, 0, Math.PI * 2);
+        ctx.ellipse(x + 12, 135, 8, 4, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Golden Petals
+        ctx.fillStyle = '#FDD835';
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+          const px = x + 6 + Math.cos(a) * 13;
+          const py = 110 + Math.sin(a) * 13;
+          ctx.beginPath();
+          ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Center seed disk
+        ctx.fillStyle = '#4E342E';
+        ctx.beginPath();
+        ctx.arc(x + 6, 110, 7.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#6D4C41';
+        ctx.beginPath();
+        ctx.arc(x + 5, 109, 3, 0, Math.PI * 2);
         ctx.fill();
       }
 
       fenceCanvas.refresh();
     }
 
-    // 4. Ground Dirt Track (1200 x 140)
-    const groundCanvas = this.textures.createCanvas('farm-ground', 1200, 140);
+    // 4. Isometric Perspective Farm Road (1200 x 160)
+    const groundCanvas = this.textures.createCanvas('farm-ground', 1200, 160);
     if (groundCanvas) {
       const ctx = groundCanvas.getContext();
-      // Lush grass top strip
-      ctx.fillStyle = '#4CAF50';
-      ctx.fillRect(0, 0, 1200, 22);
 
-      // Grass tufts pattern
+      // (A) Far Road Verge: light green grass buffer with perspective depth (y: 0 to 24)
+      ctx.fillStyle = '#81C784';
+      ctx.fillRect(0, 0, 1200, 12);
+      ctx.fillStyle = '#4CAF50';
+      ctx.fillRect(0, 12, 1200, 12);
+
+      // Fine grass tufts along the far edge
       ctx.fillStyle = '#2E7D32';
-      for (let x = 10; x < 1200; x += 30) {
+      for (let x = 6; x < 1200; x += 22) {
         ctx.beginPath();
-        ctx.moveTo(x, 22);
-        ctx.lineTo(x + 5, 10);
-        ctx.lineTo(x + 10, 22);
+        ctx.moveTo(x, 24);
+        ctx.lineTo(x + 4, 12);
+        ctx.lineTo(x + 8, 24);
         ctx.fill();
       }
 
-      // Rich Earthy Farm Track
-      const groundGrad = ctx.createLinearGradient(0, 22, 0, 140);
-      gradColor(groundGrad, 0, '#8D6E63');
-      gradColor(groundGrad, 0.4, '#795548');
-      gradColor(groundGrad, 1, '#4E342E');
-      ctx.fillStyle = groundGrad;
-      ctx.fillRect(0, 22, 1200, 118);
-
-      // Pebbles / track texture
-      ctx.fillStyle = '#A1887F';
-      for (let i = 0; i < 90; i++) {
-        const px = (i * 37) % 1200;
-        const py = 35 + ((i * 19) % 80);
+      // Tiny distant wildflowers (yellow, white, pink)
+      for (let i = 0; i < 40; i++) {
+        const wx = (i * 31) % 1200;
+        const wy = 6 + (i % 3) * 5;
+        ctx.fillStyle = i % 3 === 0 ? '#FFF59D' : (i % 3 === 1 ? '#FFFFFF' : '#F48FB1');
         ctx.beginPath();
-        ctx.arc(px, py, 2 + (i % 3), 0, Math.PI * 2);
+        ctx.arc(wx, wy, 2, 0, Math.PI * 2);
         ctx.fill();
+      }
+
+      // (B) Far Dirt Shoulder: compressed perspective earth (y: 24 to 45)
+      const shoulderGrad = ctx.createLinearGradient(0, 24, 0, 45);
+      gradColor(shoulderGrad, 0, '#A1887F');
+      gradColor(shoulderGrad, 1, '#8D6E63');
+      ctx.fillStyle = shoulderGrad;
+      ctx.fillRect(0, 24, 1200, 21);
+
+      // (C) Main Isometric Road Surface (y: 45 to 125) with deep earthen gradient
+      const roadGrad = ctx.createLinearGradient(0, 45, 0, 125);
+      gradColor(roadGrad, 0, '#795548');
+      gradColor(roadGrad, 0.45, '#6D4C41');
+      gradColor(roadGrad, 1, '#4E342E');
+      ctx.fillStyle = roadGrad;
+      ctx.fillRect(0, 45, 1200, 80);
+
+      // Angled perspective wheel ruts / tire paths (subtle depression shading)
+      ctx.fillStyle = 'rgba(62, 39, 35, 0.45)';
+      ctx.fillRect(0, 56, 1200, 10);
+      ctx.fillRect(0, 96, 1200, 14);
+
+      // Dashed perspective center-line country road markings (slanted slightly for 2.5D tilt)
+      ctx.fillStyle = 'rgba(255, 248, 225, 0.26)';
+      for (let x = 0; x < 1200; x += 64) {
+        ctx.beginPath();
+        ctx.moveTo(x, 78);
+        ctx.lineTo(x + 36, 76);
+        ctx.lineTo(x + 38, 80);
+        ctx.lineTo(x + 2, 82);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Realistic farm track pebbles and cobblestones with 3D light & shadow
+      for (let i = 0; i < 110; i++) {
+        const px = (i * 41) % 1200;
+        const py = 48 + ((i * 23) % 72);
+        const rad = 1.8 + (i % 3) * 0.8;
+
+        // Shadow under pebble
+        ctx.fillStyle = 'rgba(38, 24, 20, 0.55)';
+        ctx.beginPath();
+        ctx.ellipse(px + 1, py + 1.2, rad + 0.6, rad * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pebble body
+        ctx.fillStyle = (i % 2 === 0) ? '#BCAAA4' : '#8D6E63';
+        ctx.beginPath();
+        ctx.arc(px, py, rad, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pebble top highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.beginPath();
+        ctx.arc(px - 0.5, py - 0.5, rad * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // (D) Near Road Embankment (y: 125 to 160) - rich dark soil & bold lush foreground grass
+      ctx.fillStyle = '#3E2723';
+      ctx.fillRect(0, 125, 1200, 35);
+
+      // Overlapping bold foreground grass blades
+      ctx.fillStyle = '#2E7D32';
+      for (let x = 0; x < 1200; x += 16) {
+        ctx.beginPath();
+        ctx.moveTo(x, 145);
+        ctx.lineTo(x + 6, 122);
+        ctx.lineTo(x + 12, 145);
+        ctx.fill();
+
+        // Second blade leaning with speed
+        ctx.fillStyle = '#1B5E20';
+        ctx.beginPath();
+        ctx.moveTo(x + 4, 150);
+        ctx.lineTo(x + 14, 126);
+        ctx.lineTo(x + 18, 150);
+        ctx.fill();
+        ctx.fillStyle = '#2E7D32';
       }
 
       groundCanvas.refresh();
+    }
+
+    // 4b. Soft Radial Drop Shadow Texture (96 x 32) for Rabbit & Obstacles
+    const shadowCanvas = this.textures.createCanvas('shadow-oval', 96, 32);
+    if (shadowCanvas) {
+      const sCtx = shadowCanvas.getContext();
+      const cx = 48;
+      const cy = 16;
+      const sGrad = sCtx.createRadialGradient(cx, cy, 2, cx, cy, 44);
+      sGrad.addColorStop(0, 'rgba(18, 18, 18, 0.72)');
+      sGrad.addColorStop(0.35, 'rgba(24, 24, 24, 0.48)');
+      sGrad.addColorStop(0.7, 'rgba(30, 30, 30, 0.18)');
+      sGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      sCtx.fillStyle = sGrad;
+      sCtx.beginPath();
+      sCtx.ellipse(cx, cy, 46, 14, 0, 0, Math.PI * 2);
+      sCtx.fill();
+      shadowCanvas.refresh();
+    }
+
+    // 4c. Extreme Foreground Rush Verge (1200 x 70) - 1.35x Parallax speed
+    const vergeCanvas = this.textures.createCanvas('farm-verge-rush', 1200, 70);
+    if (vergeCanvas) {
+      const vCtx = vergeCanvas.getContext();
+
+      // Deep rich foreground turf
+      for (let x = 0; x < 1200; x += 28) {
+        // Broad grass cluster
+        vCtx.fillStyle = '#1B5E20';
+        vCtx.beginPath();
+        vCtx.moveTo(x, 70);
+        vCtx.lineTo(x + 10, 18);
+        vCtx.lineTo(x + 22, 70);
+        vCtx.fill();
+
+        vCtx.fillStyle = '#2E7D32';
+        vCtx.beginPath();
+        vCtx.moveTo(x + 8, 70);
+        vCtx.lineTo(x + 20, 10);
+        vCtx.lineTo(x + 30, 70);
+        vCtx.fill();
+
+        // Occasional bright yellow buttercup or white daisy
+        if (x % 84 === 0) {
+          vCtx.fillStyle = '#FFEB3B';
+          vCtx.beginPath();
+          vCtx.arc(x + 18, 16, 5, 0, Math.PI * 2);
+          vCtx.fill();
+          vCtx.fillStyle = '#FF9800';
+          vCtx.beginPath();
+          vCtx.arc(x + 18, 16, 2, 0, Math.PI * 2);
+          vCtx.fill();
+        }
+      }
+
+      vergeCanvas.refresh();
     }
 
     // 5. Hay Bale Obstacle (70 x 60)
