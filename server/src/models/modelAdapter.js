@@ -67,11 +67,22 @@ function createModelWrapper(collectionName, mongooseModel) {
 
   function matchesFilter(item, filter) {
     if (!filter || Object.keys(filter).length === 0) return true;
+    if (!item) return false;
     for (const key of Object.keys(filter)) {
       if (key === '_id') {
-        if (item._id?.toString() !== filter._id?.toString()) return false;
+        if (!item._id || item._id.toString() !== filter._id?.toString()) return false;
+      } else if (key === '$or' && Array.isArray(filter.$or)) {
+        const matched = filter.$or.some(subFilter => matchesFilter(item, subFilter));
+        if (!matched) return false;
+      } else if (key === 'referralCode') {
+        const target = String(filter.referralCode || '').trim().toUpperCase();
+        const val = item.referralCode ? String(item.referralCode).trim().toUpperCase() : '';
+        if (val !== target) return false;
+      } else if (key === 'email') {
+        const target = String(filter.email || '').trim().toLowerCase();
+        const val = item.email ? String(item.email).trim().toLowerCase() : '';
+        if (val !== target) return false;
       } else if (typeof filter[key] === 'object' && filter[key] !== null) {
-        // Simple equality check
         if (item[key]?.toString() !== filter[key]?.toString()) return false;
       } else {
         if (item[key] !== filter[key]) return false;

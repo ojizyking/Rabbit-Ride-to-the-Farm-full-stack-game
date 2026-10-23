@@ -1,56 +1,28 @@
 import Phaser from 'phaser';
 import { sounds } from '../audio';
 
-export interface PerspectiveEntity {
-  id: number;
-  sprite: Phaser.GameObjects.Sprite | Phaser.GameObjects.Container;
-  shadow?: Phaser.GameObjects.Sprite;
-  lane: number; // -1: Left, 0: Center, 1: Right, or -1.8 / 1.8 for roadside scenery
-  z: number;    // 0.0 at horizon, 1.0 at player, >1.0 past camera
-  yOffset: number; // Height above road surface (negative = higher)
-  type: 'obstacle_low' | 'obstacle_high' | 'carrot' | 'star' | 'crate' | 'balloon' | 'clover' | 'rainbow-pad' | 'magnet' | 'shield' | 'nitro' | 'barn' | 'billboard';
-  subType?: string;
-  value?: number;
-  cleared?: boolean;
-  baseScale: number;
-}
-
 export default class FarmRide extends Phaser.Scene {
-  // Parallax backdrop
   private sky!: Phaser.GameObjects.TileSprite;
   private hills!: Phaser.GameObjects.TileSprite;
-  private roadGraphics!: Phaser.GameObjects.Graphics;
-
-  // Track scrolling state
-  private trackScroll: number = 0;
-
-  // 3-Lane Player Stance & Physics
-  private currentLane: number = 0; // -1: Left, 0: Center, 1: Right
-  private targetLane: number = 0;
-  private laneX: number = 0;
-  private laneTargetX: number = 0;
+  private fence!: Phaser.GameObjects.TileSprite;
+  private ground!: Phaser.GameObjects.TileSprite;
+  private foregroundVerge!: Phaser.GameObjects.TileSprite;
+  private rabbitShadow!: Phaser.GameObjects.Sprite;
+  private roadTiltAngle: number = -1.8;
 
   private riderContainer!: Phaser.GameObjects.Container;
-  private chaseSprite!: Phaser.GameObjects.Sprite;
-  private rabbitShadow!: Phaser.GameObjects.Sprite;
-  private shieldBubbleSprite: Phaser.GameObjects.Sprite | null = null;
-  private boostParticles!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private bikeSprite!: Phaser.GameObjects.Sprite;
+  private rabbitSprite!: Phaser.GameObjects.Sprite;
 
-  // Jumping & Sliding (Subway Surfers core mechanics)
   private isGrounded: boolean = true;
   private jumpCount: number = 0;
   private maxJumps: number = 2;
-  private playerJumpOffset: number = 0;
-  private playerJumpVelocity: number = 0;
-  private gravity: number = 1800;
-  private jumpStrength: number = -720;
+  private velocityY: number = 0;
+  private gravity: number = 1600;
+  private jumpStrength: number = -650;
 
-  private isSliding: boolean = false;
-  private slideTimer: number = 0;
-
-  // Speed & Boost
-  private baseSpeed: number = 360;
-  private currentSpeed: number = 360;
+  private baseSpeed: number = 330;
+  private currentSpeed: number = 330;
   private isBoosting: boolean = false;
   private boostTimer: number = 0;
   private boostMeter: number = 100; // 0 - 100
@@ -59,7 +31,16 @@ export default class FarmRide extends Phaser.Scene {
   private airRotationTotal: number = 0;
   private currentAirAngle: number = 0;
   private isStuntFlipping: boolean = false;
-  private stuntFlipDirection: number = 1;
+  private stuntFlipDirection: number = 1; // 1 = frontflip, -1 = backflip
+
+  // 360-Degree Loop-de-Loop Stunt Track System
+  private isLooping360: boolean = false;
+  private loopAngle: number = 0;
+  private loopCenter: { x: number; y: number } = { x: 0, y: 0 };
+  private loopRadius: number = 115;
+  private loopAngularSpeed: number = 5.2; // radians per second
+  private activeLoopTrack: Phaser.GameObjects.Sprite | null = null;
+  private loopCollectibles: Phaser.GameObjects.Sprite[] = [];
 
   // Live session stats
   private coins: number = 0;
@@ -77,99 +58,66 @@ export default class FarmRide extends Phaser.Scene {
 
   // Power-Ups & Combos
   private hasShield: boolean = false;
+  private shieldBubbleSprite: Phaser.GameObjects.Sprite | null = null;
   private magnetTimer: number = 0;
   private comboStreak: number = 0;
   private comboTimer: number = 0;
 
-  // 2.5D Entities Array
-  private entities: PerspectiveEntity[] = [];
-  private nextEntityId: number = 1;
+  // Groups
+  private collectibles!: Phaser.GameObjects.Group;
+  private obstacles!: Phaser.GameObjects.Group;
+  private stuntTracks!: Phaser.GameObjects.Group;
+  private billboards!: Phaser.GameObjects.Group;
+  private sceneryProps!: Phaser.GameObjects.Group;
 
-  // Milestone Stations
+  // Pause State
+  private isPaused: boolean = false;
+
+  // Barn Checkpoint Station ("Pappy's Farm Barn")
   private nextBarnDistance: number = 500;
   private isAtBarn: boolean = false;
-  private barnApproaching: boolean = false;
+  private barnContainer: Phaser.GameObjects.Container | null = null;
+  private barnSignContainer: Phaser.GameObjects.Container | null = null;
+  private barnSignSpawned: boolean = false;
+  private barnStationSpawned: boolean = false;
+
+  // Dynamic Biomes & Road Variety
+  private currentBiome: string = 'meadow';
+  private spawnSceneryTimer: number = 0;
+  private spawnAnimalTimer: number = 0;
 
   private isAdWatching: boolean = false;
-  private billboardApproaching: boolean = false;
-
-  // Dynamic Biomes
-  private currentBiome: string = 'meadow';
+  private activeBillboard: Phaser.GameObjects.Container | null = null;
 
   // Timers
   private spawnItemTimer: number = 0;
   private spawnObstacleTimer: number = 0;
+  private spawnLoopTimer: number = 0;
+  private spawnRampTimer: number = 0;
   private billboardTimer: number = 0;
   private adCooldownTimer: number = 0;
   private statSyncTimer: number = 0;
 
-  // Pause State
-  private isPaused: boolean = false;
-  private isGameOver: boolean = false;
+  // Ground Y coordinate
+  private groundY: number = 480;
 
-  // Input Keys
+  // Keys
   private jumpKey!: Phaser.Input.Keyboard.Key;
   private jumpKeyW!: Phaser.Input.Keyboard.Key;
   private jumpKeyUp!: Phaser.Input.Keyboard.Key;
-  private slideKeyS!: Phaser.Input.Keyboard.Key;
-  private slideKeyDown!: Phaser.Input.Keyboard.Key;
   private boostKey!: Phaser.Input.Keyboard.Key;
   private keyA!: Phaser.Input.Keyboard.Key;
   private keyD!: Phaser.Input.Keyboard.Key;
   private keyLeft!: Phaser.Input.Keyboard.Key;
   private keyRight!: Phaser.Input.Keyboard.Key;
 
+  // Boost trail emitter
+  private boostParticles!: Phaser.GameObjects.Particles.ParticleEmitter;
+
+  private isGameOver: boolean = false;
+
   constructor() {
     super('FarmRide');
-  }
-
-  // =========================================================================
-  // 2.5D PERSPECTIVE PROJECTION EQUATIONS
-  // =========================================================================
-  private getHorizonY(): number {
-    return this.scale.height * 0.28;
-  }
-
-  private getRoadBottomY(): number {
-    return this.scale.height;
-  }
-
-  private getRoadTopWidth(): number {
-    return Math.min(130, this.scale.width * 0.16);
-  }
-
-  private getRoadBottomWidth(): number {
-    return Math.min(this.scale.width * 0.88, 760);
-  }
-
-  /**
-   * Projects a 3D track coordinate (z: depth, lane: -1/0/1, yOffset: altitude)
-   * into screen space (x, y, scale, laneWidth) using the 2.5D optical trick.
-   */
-  private project(z: number, lane: number, yOffset: number = 0) {
-    const w = this.scale.width;
-    const horizonY = this.getHorizonY();
-    const bottomY = this.getRoadBottomY();
-    const topW = this.getRoadTopWidth();
-    const bottomW = this.getRoadBottomWidth();
-    const cx = w * 0.5;
-
-    // Exponential perspective depth curve
-    const pz = Math.pow(Math.max(0, z), 1.85);
-
-    const groundY = horizonY + (bottomY - horizonY) * pz;
-    const roadWidth = topW + (bottomW - topW) * pz;
-    const laneWidth = roadWidth / 3;
-    const x = cx + lane * laneWidth;
-    const scale = 0.14 + (1.0 - 0.14) * pz;
-
-    return {
-      x,
-      y: groundY + yOffset * scale,
-      groundY,
-      scale,
-      laneWidth
-    };
   }
 
   create() {
@@ -184,6 +132,7 @@ export default class FarmRide extends Phaser.Scene {
     this.loopsCompleted = 0;
     this.boostMeter = 100;
     this.currentSpeed = this.baseSpeed;
+    this.isLooping360 = false;
     this.isStuntFlipping = false;
     this.airRotationTotal = 0;
     this.currentAirAngle = 0;
@@ -196,106 +145,107 @@ export default class FarmRide extends Phaser.Scene {
     this.comboStreak = 0;
     this.comboTimer = 0;
 
-    this.isPaused = false;
-    this.isAtBarn = false;
-    this.barnApproaching = false;
-    this.nextBarnDistance = 500;
-    this.isAdWatching = false;
-    this.billboardApproaching = false;
-    this.currentBiome = 'meadow';
-    this.adCooldownTimer = 0;
-    this.billboardTimer = 0;
-
-    // 3-Lane initialization (center lane = 0)
-    this.currentLane = 0;
-    this.targetLane = 0;
-    this.isSliding = false;
-    this.slideTimer = 0;
-    this.playerJumpOffset = 0;
-    this.playerJumpVelocity = 0;
-    this.isGrounded = true;
-    this.jumpCount = 0;
-
-    this.entities = [];
-    this.nextEntityId = 1;
-    this.trackScroll = 0;
-
     const width = this.scale.width;
     const height = this.scale.height;
-    const horizonY = this.getHorizonY();
+    this.groundY = height - 120;
 
-    // 1. Pastoral Sky & Sun Backdrop (Layer 0)
-    this.sky = this.add.tileSprite(0, 0, width, horizonY + 30, 'farm-sky').setOrigin(0, 0).setDepth(0);
+    // Background Parallax - 3 distinct depth layers + tilted isometric ground + foreground rush
+    this.sky = this.add.tileSprite(0, 0, width, height, 'farm-sky').setOrigin(0, 0).setDepth(0);
+    this.hills = this.add.tileSprite(0, height - 380, width, 300, 'farm-hills').setOrigin(0, 0).setDepth(1);
+    this.fence = this.add.tileSprite(0, height - 260, width, 200, 'farm-fence').setOrigin(0, 0).setDepth(2);
 
-    // 2. Distant Pastoral Farmland Ridge on Horizon (Layer 1)
-    this.hills = this.add.tileSprite(0, horizonY - 100, width, 140, 'farm-hills').setOrigin(0, 0).setDepth(1);
+    // Isometric Tilted Ground Roadbed (160px height) with perspective inclination
+    this.ground = this.add.tileSprite(-20, this.groundY - 10, width + 40, 160, 'farm-ground').setOrigin(0, 0);
+    this.ground.setAngle(this.roadTiltAngle);
+    this.ground.setDepth(3);
 
-    // 3. Dynamic 2.5D Perspective Roadbed Graphics (Layer 2)
-    this.roadGraphics = this.add.graphics().setDepth(2);
+    // Extreme Foreground Parallax Layer (rush past camera at 1.35x speed)
+    if (this.textures.exists('farm-verge-rush')) {
+      this.foregroundVerge = this.add.tileSprite(-10, height - 55, width + 20, 70, 'farm-verge-rush').setOrigin(0, 0);
+      this.foregroundVerge.setAngle(this.roadTiltAngle);
+      this.foregroundVerge.setDepth(20);
+    }
 
-    // 4. Player Positioning (z = 0.95 at bottom center)
-    const playerProj = this.project(0.95, 0);
-    this.laneX = playerProj.x;
-    this.laneTargetX = playerProj.x;
+    // Collectibles, Obstacles, Stunt Tracks, Billboards & Scenery Props
+    this.collectibles = this.add.group();
+    this.obstacles = this.add.group();
+    this.stuntTracks = this.add.group();
+    this.billboards = this.add.group();
+    this.sceneryProps = this.add.group();
 
-    // Grounded Drop Shadow under Rabbit (Layer 4)
+    this.isPaused = false;
+    this.isAtBarn = false;
+    this.nextBarnDistance = 500;
+    this.barnSignSpawned = false;
+    this.barnStationSpawned = false;
+    this.barnContainer = null;
+    this.barnSignContainer = null;
+    this.currentBiome = 'meadow';
+    this.spawnSceneryTimer = 0;
+    this.spawnAnimalTimer = 0;
+
+    // Determine equipped rabbit & bike textures from custom events or default
+    const rabbitTexture = (window as unknown as { currentEquippedRabbit?: string }).currentEquippedRabbit || 'rabbit-starter';
+    const bikeTexture = (window as unknown as { currentEquippedBike?: string }).currentEquippedBike || 'bike-starter';
+
+    // Soft Radial Drop Shadow under Rabbit (pinned to road plane)
     if (this.textures.exists('shadow-oval')) {
-      this.rabbitShadow = this.add.sprite(this.laneX, playerProj.groundY, 'shadow-oval');
-      this.rabbitShadow.setScale(1.1, 0.55);
+      this.rabbitShadow = this.add.sprite(180, this.groundY - 6, 'shadow-oval');
+      this.rabbitShadow.setScale(1.0, 0.55);
       this.rabbitShadow.setAlpha(0.65);
       this.rabbitShadow.setDepth(4);
     }
 
-    // 5. Rider Container (Layer 5)
-    this.riderContainer = this.add.container(this.laneX, playerProj.groundY - 32);
+    // Rider Container (Rabbit riding Bike) with matching isometric tilt
+    this.riderContainer = this.add.container(180, this.groundY - 35);
+    this.riderContainer.angle = this.roadTiltAngle;
     this.riderContainer.setDepth(5);
 
-    // Illustrated 2.5D Rear Chase View Rider
-    const chaseTexture = this.textures.exists('rider-chase-default') ? 'rider-chase-default' : 'rabbit-starter';
-    this.chaseSprite = this.add.sprite(0, 0, chaseTexture);
-    this.chaseSprite.setScale(1.0);
+    this.bikeSprite = this.add.sprite(0, 0, this.textures.exists(bikeTexture) ? bikeTexture : 'bike-starter');
+    this.bikeSprite.setScale(0.9);
+
+    this.rabbitSprite = this.add.sprite(2, -26, this.textures.exists(rabbitTexture) ? rabbitTexture : 'rabbit-starter');
+    this.rabbitSprite.setScale(0.72);
 
     // Aura bubble shield sprite
     if (this.textures.exists('shield-bubble')) {
       this.shieldBubbleSprite = this.add.sprite(0, -10, 'shield-bubble');
-      this.shieldBubbleSprite.setScale(1.0);
+      this.shieldBubbleSprite.setScale(0.95);
       this.shieldBubbleSprite.setVisible(false);
       this.riderContainer.add(this.shieldBubbleSprite);
     }
 
-    this.riderContainer.add(this.chaseSprite);
-    this.riderContainer.setSize(80, 90);
+    this.riderContainer.add([this.bikeSprite, this.rabbitSprite]);
+    this.riderContainer.setSize(100, 90);
 
     // Boost particle trail
     if (this.textures.exists('particle-flame')) {
       this.boostParticles = this.add.particles(0, 0, 'particle-flame', {
-        speed: { min: 80, max: 160 },
-        angle: { min: 70, max: 110 },
-        scale: { start: 0.9, end: 0 },
+        speed: { min: 100, max: 200 },
+        angle: { min: 170, max: 190 },
+        scale: { start: 0.8, end: 0 },
         blendMode: 'ADD',
-        lifespan: 250,
+        lifespan: 300,
         frequency: 25,
         emitting: false
       });
-      this.boostParticles.setDepth(4);
     }
 
-    // 6. Input Keys (Subway Surfers Style: A/D/Arrows for lanes, W/Space/Up for Jump, S/Down for Slide)
+    // Input Keys
     if (this.input.keyboard) {
       this.jumpKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
       this.jumpKeyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
       this.jumpKeyUp = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
-      this.slideKeyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
-      this.slideKeyDown = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
       this.boostKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
+      // Stunt Flip Keys
       this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
       this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
       this.keyLeft = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
       this.keyRight = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
     }
 
-    // 7. Mobile Touch & Swipe Gesture Handling on Canvas
+    // Mobile Touch & Swipe Gesture Handling on Canvas
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartTime = 0;
@@ -312,103 +262,99 @@ export default class FarmRide extends Phaser.Scene {
       const dt = this.time.now - touchStartTime;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Fast swipe gesture (distance > 24px within 350ms)
-      if (dist > 24 && dt < 350) {
-        if (Math.abs(dx) > Math.abs(dy)) {
-          // Horizontal Swipe -> 3-Lane Dodge!
-          if (dx < -20) {
-            this.handleMoveLeft();
-            return;
-          } else if (dx > 20) {
-            this.handleMoveRight();
-            return;
-          }
-        } else {
-          // Vertical Swipe -> Jump or Slide!
-          if (dy < -20) {
-            this.handleJump();
-            return;
-          } else if (dy > 20) {
-            this.handleSlide();
-            return;
-          }
+      // Fast swipe gesture (distance > 28px within 350ms)
+      if (dist > 28 && dt < 350) {
+        if (dy < -25 && Math.abs(dy) > Math.abs(dx)) {
+          // Swipe UP -> Jump / Double Jump!
+          this.handleJump();
+          return;
+        } else if (dx > 25 && Math.abs(dx) > Math.abs(dy)) {
+          // Swipe RIGHT -> Nitro Boost!
+          this.triggerBoost();
+          return;
         }
       }
 
-      // Tap on left/right half of screen to dodge, or center to jump
-      if (dist < 15 && dt < 250) {
-        if (touchStartX < width * 0.35) {
-          this.handleMoveLeft();
-        } else if (touchStartX > width * 0.65) {
-          this.handleMoveRight();
-        } else {
-          this.handleJump();
-        }
+      // Quick tap anywhere on screen:
+      // If grounded or has jump count remaining -> JUMP!
+      // If already mid-air at max jumps -> 360° Stunt Flip!
+      if (this.isGrounded || this.jumpCount < this.maxJumps) {
+        this.handleJump();
+      } else {
+        this.trigger360Flip();
       }
     });
 
-    // 8. External Window Event Triggers (from React UI buttons)
+    // Listen to React UI Jump button trigger (essential for mobile touch control!)
     const onExternalJump = () => this.handleJump();
-    const onExternalSlide = () => this.handleSlide();
-    const onExternalMoveLeft = () => this.handleMoveLeft();
-    const onExternalMoveRight = () => this.handleMoveRight();
-    const onExternalBoost = () => this.triggerBoost();
-    const onExternalFlip = () => this.trigger360Flip();
-    const onExternalAd = () => this.triggerBillboardAd();
-    const onExternalPause = () => this.handlePause();
-    const onExternalResume = () => this.handleResume();
+    window.addEventListener('game:jump', onExternalJump);
 
+    // Listen to React UI Boost button trigger
+    const onExternalBoost = () => this.triggerBoost();
+    window.addEventListener('game:trigger_boost', onExternalBoost);
+
+    // Listen to React UI 360 Flip button trigger
+    const onExternalFlip = () => this.trigger360Flip();
+    window.addEventListener('game:trigger_flip_360', onExternalFlip);
+
+    // Listen to React UI Billboard Ad trigger
+    const onExternalAd = () => this.triggerBillboardAd();
+    window.addEventListener('game:trigger_ad_view', onExternalAd);
+
+    // Listen to React UI Resume Ride after 30s Billboard Ad
     const onResumeRide = (e: Event) => {
       const customEvent = e as CustomEvent<{ earned?: boolean; value?: number }>;
       this.handleResumeRide(customEvent?.detail);
     };
+    window.addEventListener('game:resume_ride', onResumeRide);
 
+    // Listen to Game Pause & Resume triggers
+    const onExternalPause = () => this.handlePause();
+    window.addEventListener('game:pause', onExternalPause);
+
+    const onExternalResume = () => this.handleResume();
+    window.addEventListener('game:resume', onExternalResume);
+
+    // Listen to Barn Exit trigger from React modal
     const onExitBarn = (e: Event) => {
       const customEvent = e as CustomEvent<{ boost?: boolean }>;
       this.handleExitBarn(customEvent?.detail);
     };
-
-    window.addEventListener('game:jump', onExternalJump);
-    window.addEventListener('game:slide', onExternalSlide);
-    window.addEventListener('game:move_left', onExternalMoveLeft);
-    window.addEventListener('game:move_right', onExternalMoveRight);
-    window.addEventListener('game:trigger_boost', onExternalBoost);
-    window.addEventListener('game:trigger_flip_360', onExternalFlip);
-    window.addEventListener('game:trigger_ad_view', onExternalAd);
-    window.addEventListener('game:resume_ride', onResumeRide);
-    window.addEventListener('game:pause', onExternalPause);
-    window.addEventListener('game:resume', onExternalResume);
     window.addEventListener('game:exit_barn', onExitBarn);
 
-    // Responsive Resize Handler
+    // Dynamic Responsive Resize for mobile orientation changes
     const handleResize = (gameSize: Phaser.Structs.Size) => {
       const w = gameSize.width;
       const h = gameSize.height;
-      const horY = h * 0.28;
-      if (this.sky) this.sky.setSize(w, horY + 30);
+      this.groundY = h - 120;
+      if (this.sky) this.sky.setSize(w, h);
       if (this.hills) {
-        this.hills.setSize(w, 140);
-        this.hills.y = horY - 100;
+        this.hills.setSize(w, 300);
+        this.hills.y = h - 380;
       }
-      const p = this.project(0.95, this.currentLane);
-      this.laneX = p.x;
-      this.laneTargetX = p.x;
-      if (this.riderContainer) {
-        this.riderContainer.x = this.laneX;
-        this.riderContainer.y = p.groundY - 32 + this.playerJumpOffset;
+      if (this.fence) {
+        this.fence.setSize(w, 200);
+        this.fence.y = h - 260;
+      }
+      if (this.ground) {
+        this.ground.setSize(w + 40, 160);
+        this.ground.y = this.groundY - 10;
+      }
+      if (this.foregroundVerge) {
+        this.foregroundVerge.setSize(w + 20, 70);
+        this.foregroundVerge.y = h - 55;
       }
       if (this.rabbitShadow) {
-        this.rabbitShadow.x = this.laneX;
-        this.rabbitShadow.y = p.groundY;
+        this.rabbitShadow.y = this.groundY - 6;
+      }
+      if (this.isGrounded && this.riderContainer) {
+        this.riderContainer.y = this.groundY - 35;
       }
     };
     this.scale.on('resize', handleResize);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       window.removeEventListener('game:jump', onExternalJump);
-      window.removeEventListener('game:slide', onExternalSlide);
-      window.removeEventListener('game:move_left', onExternalMoveLeft);
-      window.removeEventListener('game:move_right', onExternalMoveRight);
       window.removeEventListener('game:trigger_boost', onExternalBoost);
       window.removeEventListener('game:trigger_flip_360', onExternalFlip);
       window.removeEventListener('game:trigger_ad_view', onExternalAd);
@@ -423,94 +369,37 @@ export default class FarmRide extends Phaser.Scene {
     window.dispatchEvent(new CustomEvent('game:ride_start'));
   }
 
-  // =========================================================================
-  // SUBWAY SURFERS / TEMPLE RUN 3-LANE CONTROLS
-  // =========================================================================
-  handleMoveLeft() {
-    if (this.isGameOver || this.isPaused || this.isAtBarn || this.isAdWatching) return;
-    if (this.targetLane > -1) {
-      this.targetLane--;
+  handleJump() {
+    if (this.isGameOver || this.isLooping360) return;
+    if (this.isGrounded || this.jumpCount < this.maxJumps) {
+      this.velocityY = this.jumpStrength;
+      this.isGrounded = false;
+      this.jumpCount++;
       sounds.playJump();
 
       // Mobile haptic feedback
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        try { navigator.vibrate(10); } catch { /* ignore */ }
+        try { navigator.vibrate(12); } catch { /* ignore */ }
       }
 
-      // Snappy banking lean tilt to the left
+      // Fun little bunny bike tilt
       this.tweens.add({
         targets: this.riderContainer,
-        angle: -16,
-        duration: 110,
+        angle: this.roadTiltAngle - 15,
+        duration: 150,
         yoyo: true,
-        ease: 'Quad.easeOut'
+        ease: 'Sine.easeOut'
       });
-    }
-  }
-
-  handleMoveRight() {
-    if (this.isGameOver || this.isPaused || this.isAtBarn || this.isAdWatching) return;
-    if (this.targetLane < 1) {
-      this.targetLane++;
-      sounds.playJump();
-
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        try { navigator.vibrate(10); } catch { /* ignore */ }
-      }
-
-      // Snappy banking lean tilt to the right
-      this.tweens.add({
-        targets: this.riderContainer,
-        angle: 16,
-        duration: 110,
-        yoyo: true,
-        ease: 'Quad.easeOut'
-      });
-    }
-  }
-
-  handleJump() {
-    if (this.isGameOver || this.isPaused || this.isAtBarn || this.isAdWatching) return;
-    if (this.isGrounded || this.jumpCount < this.maxJumps) {
-      this.playerJumpVelocity = this.jumpStrength;
-      this.isGrounded = false;
-      this.jumpCount++;
-      this.isSliding = false;
-      if (this.chaseSprite) this.chaseSprite.setScale(1.0, 1.0);
-
-      sounds.playJump();
-
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        try { navigator.vibrate(14); } catch { /* ignore */ }
-      }
-    }
-  }
-
-  handleSlide() {
-    if (this.isGameOver || this.isPaused || this.isAtBarn || this.isAdWatching) return;
-    if (this.isGrounded && !this.isSliding) {
-      this.isSliding = true;
-      this.slideTimer = 0.65; // 650ms slide duration
-
-      sounds.playBoost();
-
-      // Squash rider down to tuck under overhead obstacles!
-      if (this.chaseSprite) {
-        this.chaseSprite.setScale(1.12, 0.48);
-      }
-
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        try { navigator.vibrate([12, 20]); } catch { /* ignore */ }
-      }
     }
   }
 
   triggerBoost() {
-    if (this.isGameOver || this.boostMeter < 25 || this.isBoosting) return;
+    if (this.isGameOver || this.boostMeter < 25 || this.isBoosting || this.isLooping360) return;
     this.isBoosting = true;
     this.boostTimer = 3.5;
     sounds.playBoost();
 
+    // Mobile haptic feedback
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       try { navigator.vibrate([15, 30, 20]); } catch { /* ignore */ }
     }
@@ -519,44 +408,54 @@ export default class FarmRide extends Phaser.Scene {
       this.boostParticles.start();
     }
 
+    // Camera punch
     this.cameras.main.shake(200, 0.005);
   }
 
-  trigger360Flip() {
-    if (this.isGameOver || this.isGrounded) return;
+  trigger360Flip(direction: number = 1) {
+    if (this.isGameOver || this.isLooping360 || this.isGrounded) return;
     this.isStuntFlipping = true;
+    this.stuntFlipDirection = direction;
     sounds.playJump();
+
+    // Mobile haptic feedback
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(18); } catch { /* ignore */ }
+    }
   }
 
-  // =========================================================================
-  // 2.5D ROAD RENDERING & UPDATE LOOP
-  // =========================================================================
   update(time: number, delta: number) {
-    if (this.isGameOver || this.isPaused) return;
-
-    if (this.isAtBarn || this.isAdWatching) {
-      // Idle bob while parked at station
-      const p = this.project(0.95, this.currentLane);
-      this.riderContainer.y = p.groundY - 32 + Math.sin(time * 0.006) * 1.5;
+    if (this.isGameOver) return;
+    if (this.isPaused) return;
+    if (this.isAtBarn) {
+      // Parked inside the Barn Rest Stop: gentle idle breathing bob
+      this.riderContainer.y = this.groundY - 35 + Math.sin(time * 0.005) * 1.5;
       return;
     }
-
+    if (this.isAdWatching) {
+      // Park rider cleanly next to billboard with gentle breathing idle bob
+      this.riderContainer.y = this.groundY - 35 + Math.sin(time * 0.005) * 1.5;
+      return;
+    }
     const dt = delta / 1000;
 
-    // Check Inputs
-    if (this.keyA && Phaser.Input.Keyboard.JustDown(this.keyA)) this.handleMoveLeft();
-    if (this.keyLeft && Phaser.Input.Keyboard.JustDown(this.keyLeft)) this.handleMoveLeft();
-    if (this.keyD && Phaser.Input.Keyboard.JustDown(this.keyD)) this.handleMoveRight();
-    if (this.keyRight && Phaser.Input.Keyboard.JustDown(this.keyRight)) this.handleMoveRight();
+    // Dynamic Biome progression based on distance
+    this.updateBiome(time, dt);
 
+    // Keys Check
     if (this.jumpKey && Phaser.Input.Keyboard.JustDown(this.jumpKey)) this.handleJump();
     if (this.jumpKeyW && Phaser.Input.Keyboard.JustDown(this.jumpKeyW)) this.handleJump();
     if (this.jumpKeyUp && Phaser.Input.Keyboard.JustDown(this.jumpKeyUp)) this.handleJump();
-
-    if (this.slideKeyS && Phaser.Input.Keyboard.JustDown(this.slideKeyS)) this.handleSlide();
-    if (this.slideKeyDown && Phaser.Input.Keyboard.JustDown(this.slideKeyDown)) this.handleSlide();
-
     if (this.boostKey && Phaser.Input.Keyboard.JustDown(this.boostKey)) this.triggerBoost();
+
+    // Stunt Flip Key Inputs (A / Left = backflip, D / Right = frontflip)
+    if (!this.isGrounded && !this.isLooping360) {
+      if ((this.keyA && this.keyA.isDown) || (this.keyLeft && this.keyLeft.isDown)) {
+        this.trigger360Flip(-1);
+      } else if ((this.keyD && this.keyD.isDown) || (this.keyRight && this.keyRight.isDown)) {
+        this.trigger360Flip(1);
+      }
+    }
 
     // Boost Logic
     if (this.isBoosting) {
@@ -569,142 +468,470 @@ export default class FarmRide extends Phaser.Scene {
       }
     } else {
       this.currentSpeed = this.baseSpeed;
+      // Slowly recharge boost
       this.boostMeter = Math.min(100, this.boostMeter + (8 * dt));
     }
 
-    // Slide state timer decay
-    if (this.isSliding) {
-      this.slideTimer -= dt;
-      if (this.slideTimer <= 0) {
-        this.isSliding = false;
-        if (this.chaseSprite) this.chaseSprite.setScale(1.0, 1.0);
+    // Update boost particle position to rear wheel
+    if (this.boostParticles) {
+      this.boostParticles.setPosition(this.riderContainer.x - 45, this.riderContainer.y + 10);
+    }
+
+    // Parallax scrolling: 3 background layers + tilted roadbed + extreme foreground rush
+    this.sky.tilePositionX += this.currentSpeed * 0.06 * dt;
+    this.hills.tilePositionX += this.currentSpeed * 0.22 * dt;
+    this.fence.tilePositionX += this.currentSpeed * 0.62 * dt;
+    this.ground.tilePositionX += this.currentSpeed * 1.0 * dt;
+    if (this.foregroundVerge) {
+      this.foregroundVerge.tilePositionX += this.currentSpeed * 1.35 * dt;
+    }
+
+    // -------------------------------------------------------------
+    // 360-DEGREE LOOP-DE-LOOP EXECUTION
+    // -------------------------------------------------------------
+    if (this.isLooping360) {
+      // Advance along the circular 360 arc with centrifugal speed
+      this.loopAngle -= this.loopAngularSpeed * dt;
+
+      // Calculate 360° circular position
+      this.riderContainer.x = this.loopCenter.x + this.loopRadius * Math.cos(this.loopAngle);
+      this.riderContainer.y = this.loopCenter.y + this.loopRadius * Math.sin(this.loopAngle);
+
+      // Rotate bike tangent to the circle: perfectly 360° upside down at apex!
+      this.riderContainer.rotation = this.loopAngle + Math.PI * 0.5;
+
+      // Dynamic centrifugal camera tilt
+      const normalizedApex = Math.sin(this.loopAngle);
+      this.cameras.main.setAngle(normalizedApex * 8);
+
+      // Check if full 360 degrees circuit completed!
+      if (this.loopAngle <= -Math.PI * 1.5) {
+        this.complete360Loop();
       }
-    }
+    } else {
+      // Normal Ground / Aerial Riding
+      this.cameras.main.setAngle(0);
 
-    // Parallax sky & horizon shift
-    this.sky.tilePositionX += this.currentSpeed * 0.04 * dt;
-    this.hills.tilePositionX += this.currentSpeed * 0.12 * dt;
+      // Physics on Rider
+      this.velocityY += this.gravity * dt;
+      this.riderContainer.y += this.velocityY * dt;
 
-    // Advance 2.5D track forward
-    this.trackScroll = (this.trackScroll + (this.currentSpeed / 340) * dt) % 1.0;
+      // -------------------------------------------------------------
+      // DYNAMIC RABBIT DROP SHADOW (Altitude & Elevation Tracking)
+      // -------------------------------------------------------------
+      if (this.rabbitShadow) {
+        this.rabbitShadow.x = this.riderContainer.x;
+        this.rabbitShadow.y = this.groundY - 6;
 
-    // Render the 2.5D Subway Surfers style perspective road surface
-    this.render25DRoad();
+        if (this.isGrounded) {
+          this.rabbitShadow.setScale(1.0, 0.55);
+          this.rabbitShadow.setAlpha(0.65);
+        } else {
+          // Shrink scale and fade opacity dynamically with jump altitude
+          const jumpAltitude = Math.max(0, (this.groundY - 35) - this.riderContainer.y);
+          const shadowScaleX = Math.max(0.38, 1.0 - (jumpAltitude / 320) * 0.62);
+          const shadowScaleY = Math.max(0.20, 0.55 - (jumpAltitude / 320) * 0.35);
+          const shadowAlpha = Math.max(0.18, 0.65 - (jumpAltitude / 320) * 0.45);
 
-    // -------------------------------------------------------------
-    // PLAYER 3-LANE INTERPOLATION & JUMP PHYSICS
-    // -------------------------------------------------------------
-    const targetProj = this.project(0.95, this.targetLane);
-    this.laneTargetX = targetProj.x;
-    // Snappy, smooth horizontal slide between lanes
-    this.laneX = Phaser.Math.Linear(this.laneX, this.laneTargetX, Math.min(1, 18 * dt));
-    if (Math.abs(this.laneX - this.laneTargetX) < 1.5) {
-      this.currentLane = this.targetLane;
-    }
+          this.rabbitShadow.setScale(shadowScaleX, shadowScaleY);
+          this.rabbitShadow.setAlpha(shadowAlpha);
+        }
+      }
 
-    // Vertical Jump Physics
-    if (!this.isGrounded) {
-      this.playerJumpVelocity += this.gravity * dt;
-      this.playerJumpOffset += this.playerJumpVelocity * dt;
+      // -------------------------------------------------------------
+      // 360-DEGREE MID-AIR STUNT FLIP ROTATION
+      // -------------------------------------------------------------
+      if (!this.isGrounded) {
+        if (this.isStuntFlipping) {
+          const rotationStep = 540 * dt * this.stuntFlipDirection; // 540 deg/sec
+          this.currentAirAngle += rotationStep;
+          this.airRotationTotal += Math.abs(rotationStep);
+          this.riderContainer.angle = this.currentAirAngle;
+        }
+      }
 
-      if (this.playerJumpOffset >= 0) {
-        this.playerJumpOffset = 0;
-        this.playerJumpVelocity = 0;
+      // Ground Collision & Landing
+      if (this.riderContainer.y >= this.groundY - 35) {
+        this.riderContainer.y = this.groundY - 35;
+        this.velocityY = 0;
         this.isGrounded = true;
         this.jumpCount = 0;
 
-        // Touchdown squash impact on shadow
+        // Check if player landed a 360° (or 720°) stunt flip!
+        if (this.airRotationTotal >= 300) {
+          this.complete360AirFlip();
+        } else {
+          this.riderContainer.angle = this.roadTiltAngle;
+        }
+
+        // Squash & stretch tactile impact on shadow
         if (this.rabbitShadow) {
-          this.rabbitShadow.setScale(1.4, 0.4);
+          this.rabbitShadow.setScale(1.35, 0.40);
           this.tweens.add({
             targets: this.rabbitShadow,
-            scaleX: 1.1,
+            scaleX: 1.0,
             scaleY: 0.55,
-            duration: 120,
+            duration: 140,
             ease: 'Quad.easeOut'
           });
         }
+
+        this.airRotationTotal = 0;
+        this.currentAirAngle = 0;
+        this.isStuntFlipping = false;
+
+        // Gentle riding bob animation matching isometric road surface
+        this.riderContainer.y += Math.sin(time * 0.015) * 1.5;
       }
-    }
-
-    // Update Player Container & Shadow Position
-    const currentBaseGroundY = targetProj.groundY;
-    this.riderContainer.x = this.laneX;
-    this.riderContainer.y = currentBaseGroundY - 32 + this.playerJumpOffset;
-
-    if (this.rabbitShadow) {
-      this.rabbitShadow.x = this.laneX;
-      this.rabbitShadow.y = currentBaseGroundY;
-
-      if (this.isGrounded) {
-        this.rabbitShadow.setScale(1.1, 0.55);
-        this.rabbitShadow.setAlpha(0.65);
-      } else {
-        const alt = Math.abs(this.playerJumpOffset);
-        const sX = Math.max(0.45, 1.1 - (alt / 260) * 0.55);
-        const sY = Math.max(0.22, 0.55 - (alt / 260) * 0.28);
-        const a = Math.max(0.18, 0.65 - (alt / 260) * 0.45);
-        this.rabbitShadow.setScale(sX, sY);
-        this.rabbitShadow.setAlpha(a);
-      }
-    }
-
-    // Boost particles follow rear wheel
-    if (this.boostParticles) {
-      this.boostParticles.setPosition(this.riderContainer.x, this.riderContainer.y + 24);
-    }
-
-    // Shield wobble
-    if (this.shieldBubbleSprite && this.hasShield) {
-      this.shieldBubbleSprite.setVisible(true);
-      this.shieldBubbleSprite.setScale(1.0 + Math.sin(time * 0.008) * 0.06);
-    } else if (this.shieldBubbleSprite) {
-      this.shieldBubbleSprite.setVisible(false);
     }
 
     // Distance update
     this.distanceMeters += Math.round(this.currentSpeed * dt * 0.1);
 
-    // Dynamic Biome Progression
-    this.updateBiome();
-
-    // -------------------------------------------------------------
-    // 2.5D ENTITY UPDATE & COLLISION CHECK
-    // -------------------------------------------------------------
-    this.updatePerspectiveEntities(dt);
-
-    // Spawning Loops
+    // Spawn Timers
     this.spawnItemTimer += dt;
-    if (this.spawnItemTimer >= 1.25) {
+    if (this.spawnItemTimer >= 1.2) {
       this.spawnItemTimer = 0;
-      this.spawnRandomItemsWave();
+      this.spawnCollectible();
     }
 
-    if (this.distanceMeters > 150) {
+    // Dynamic obstacle pacing:
+    // 0 to 300m: pure runway with 0 obstacles!
+    // 300m+: starts at 8.5s spacing, gradually tuning down to 6.2s at 1500m+
+    if (this.distanceMeters > 300) {
       this.spawnObstacleTimer += dt;
-      const targetInterval = Math.max(2.6, 4.8 - (this.distanceMeters / 1500) * 1.5);
+      const targetInterval = Math.max(6.2, 8.5 - (this.distanceMeters / 1500) * 1.5);
       if (this.spawnObstacleTimer >= targetInterval) {
         this.spawnObstacleTimer = 0;
-        this.spawnObstacleWave();
+        this.spawnObstacle();
       }
     }
 
-    // Milestone: Barn Station every 500m
-    if (this.distanceMeters >= this.nextBarnDistance - 60 && !this.barnApproaching) {
-      this.barnApproaching = true;
-      this.spawnBarnTunnel();
+    // Spawn 360 Stunt Loop every 18 seconds
+    this.spawnLoopTimer += dt;
+    if (this.spawnLoopTimer >= 18) {
+      this.spawnLoopTimer = 0;
+      this.spawn360LoopTrack();
     }
 
-    // Milestone: Billboard Ad Opportunity
-    this.billboardTimer += dt;
-    if (this.billboardTimer >= 150 && this.adCooldownTimer <= 0 && !this.billboardApproaching) {
-      this.billboardTimer = 0;
-      this.billboardApproaching = true;
-      this.spawnBillboardBridge();
+    // Spawn Stunt Launch Ramp every 12 seconds
+    this.spawnRampTimer += dt;
+    if (this.spawnRampTimer >= 12) {
+      this.spawnRampTimer = 0;
+      this.spawnStuntRamp();
     }
 
+    // Decrement ad cooldown timer
     if (this.adCooldownTimer > 0) {
       this.adCooldownTimer -= dt;
+    }
+
+    // Barn Checkpoint Pacing (Every 500m milestone)
+    if (this.distanceMeters >= this.nextBarnDistance - 65 && !this.barnSignSpawned) {
+      this.barnSignSpawned = true;
+      this.spawnBarnSign();
+    }
+    if (this.distanceMeters >= this.nextBarnDistance - 25 && !this.barnStationSpawned) {
+      this.barnStationSpawned = true;
+      this.spawnBarnStation();
+    }
+
+    // Scenery Props Pacing (Sunflowers, apple trees, lanterns based on biome)
+    this.spawnSceneryTimer += dt;
+    if (this.spawnSceneryTimer >= 2.8) {
+      this.spawnSceneryTimer = 0;
+      this.spawnSceneryProp();
+    }
+
+    // Roadside Cheering Farm Animals Pacing
+    this.spawnAnimalTimer += dt;
+    if (this.spawnAnimalTimer >= 14.0) {
+      this.spawnAnimalTimer = 0;
+      this.spawnFriendlyAnimal();
+    }
+
+    // Roadside Animated Billboard Ad bonus opportunity (spawn at most once every 150s when not on cooldown)
+    this.billboardTimer += dt;
+    if (this.billboardTimer >= 150 && this.adCooldownTimer <= 0) {
+      this.billboardTimer = 0;
+      this.spawnBillboard();
+    }
+
+    // Move Barn Station and Check Entrance
+    if (this.barnContainer) {
+      this.barnContainer.x -= this.currentSpeed * dt;
+      if (!this.isAtBarn && Math.abs(this.riderContainer.x - (this.barnContainer.x - 30)) < 35 && this.isGrounded) {
+        this.enterBarnStation();
+      }
+    }
+
+    if (this.barnSignContainer) {
+      this.barnSignContainer.x -= this.currentSpeed * dt;
+      if (this.barnSignContainer.x < -180) {
+        this.barnSignContainer.destroy();
+        this.barnSignContainer = null;
+      }
+    }
+
+    // Move Scenery Props and Cheering Animals
+    const sceneryArr = this.sceneryProps.getChildren() as Phaser.GameObjects.Sprite[];
+    for (let i = sceneryArr.length - 1; i >= 0; i--) {
+      const prop = sceneryArr[i];
+      prop.x -= this.currentSpeed * dt;
+
+      // Perspective scaling: smaller in distance, larger in foreground
+      const baseScale = prop.getData('baseScale') || 0.95;
+      const baseY = prop.getData('baseY') || prop.y;
+      this.applyPerspectiveScale(prop, baseScale, baseY);
+
+      // Check cheering animal proximity
+      if (prop.getData('isAnimal') && !prop.getData('cheered')) {
+        if (Math.abs(this.riderContainer.x - prop.x) < 80) {
+          prop.setData('cheered', true);
+          this.tweens.add({
+            targets: prop,
+            y: prop.y - 18,
+            duration: 160,
+            yoyo: true,
+            repeat: 2
+          });
+          this.carrotsCollected += 2;
+          this.coins += 10;
+          sounds.playCollect('carrot');
+          this.showStuntText('🐮 ANIMAL CHEER! +2 Carrots 🥕');
+        }
+      }
+
+      if (prop.x < -250) {
+        prop.destroy();
+      }
+    }
+
+    const riderBounds = new Phaser.Geom.Rectangle(
+      this.riderContainer.x - 35,
+      this.riderContainer.y - 45,
+      70,
+      80
+    );
+
+    // Magnet Power-up Logic: smoothly pull nearby collectibles to rider
+    if (this.magnetTimer > 0) {
+      this.magnetTimer -= dt;
+      const rx = this.riderContainer.x;
+      const ry = this.riderContainer.y;
+      const collectiblesArr = this.collectibles.getChildren() as Phaser.GameObjects.Sprite[];
+      for (const item of collectiblesArr) {
+        const dist = Phaser.Math.Distance.Between(rx, ry, item.x, item.y);
+        if (dist < 380) {
+          item.x += (rx - item.x) * 10 * dt;
+          item.y += (ry - item.y) * 10 * dt;
+        }
+      }
+    }
+
+    // Combo streak decay timer
+    if (this.comboTimer > 0) {
+      this.comboTimer -= dt;
+      if (this.comboTimer <= 0) {
+        this.comboStreak = 0;
+      }
+    }
+
+    // Invulnerability blink effect
+    if (this.invincibleTimer > 0) {
+      this.invincibleTimer -= dt;
+      this.riderContainer.alpha = Math.floor(time / 100) % 2 === 0 ? 0.35 : 0.95;
+      if (this.invincibleTimer <= 0) {
+        this.riderContainer.alpha = 1.0;
+      }
+    }
+
+    // Shield bubble wobble animation
+    if (this.shieldBubbleSprite && this.hasShield) {
+      this.shieldBubbleSprite.setVisible(true);
+      this.shieldBubbleSprite.setScale(0.95 + Math.sin(time * 0.008) * 0.06);
+    } else if (this.shieldBubbleSprite) {
+      this.shieldBubbleSprite.setVisible(false);
+    }
+
+    // Move Stunt Tracks & Check 360 Loop Entrance
+    const stuntArr = this.stuntTracks.getChildren() as Phaser.GameObjects.Sprite[];
+    for (let i = stuntArr.length - 1; i >= 0; i--) {
+      const track = stuntArr[i];
+      track.x -= this.currentSpeed * dt;
+
+      const trackType = track.getData('type');
+
+      if (trackType === 'loop360' && !this.isLooping360) {
+        // Check if rider reaches the entrance ramp of the 360 loop
+        const loopEntranceX = track.x - 70;
+        if (Math.abs(this.riderContainer.x - loopEntranceX) < 25 && this.isGrounded) {
+          this.enter360Loop(track);
+        }
+      } else if (trackType === 'ramp') {
+        // Hit launch ramp -> catapult high into the air for 360 flips!
+        if (Phaser.Geom.Intersects.RectangleToRectangle(riderBounds, track.getBounds()) && this.isGrounded) {
+          this.velocityY = -850; // Super high launch
+          this.isGrounded = false;
+          sounds.playJump();
+          this.trigger360Flip(1);
+          track.destroy();
+        }
+      }
+
+      if (track.x < -400) {
+        track.destroy();
+      }
+    }
+
+    // Move Roadside Animated Billboards & Check Proximity
+    const billboardsArr = this.billboards.getChildren() as Phaser.GameObjects.Container[];
+    for (let i = billboardsArr.length - 1; i >= 0; i--) {
+      const bContainer = billboardsArr[i];
+      bContainer.x -= this.currentSpeed * dt;
+
+      // Animate marquee chasing bulbs between texture frames
+      const bSprite = bContainer.getByName('billboardSprite') as Phaser.GameObjects.Sprite;
+      if (bSprite) {
+        const isLit = Math.floor(time / 220) % 2 === 0;
+        bSprite.setTexture(isLit ? 'track-billboard-b' : 'track-billboard-a');
+      }
+
+      // Bob floating overhead neon indicator
+      const bBadge = bContainer.getByName('billboardBadge') as Phaser.GameObjects.Sprite;
+      if (bBadge) {
+        bBadge.y = -95 + Math.sin(time * 0.007) * 4;
+      }
+
+      // Check collision/encounter with rider
+      const isUsed = bContainer.getData('used');
+      if (!isUsed && !this.isAdWatching && this.adCooldownTimer <= 0 && Math.abs(this.riderContainer.x - bContainer.x) < 65 && this.isGrounded) {
+        bContainer.setData('used', true);
+        this.openBillboardAd(bContainer);
+      } else if (bContainer.x < -350 || (isUsed && bContainer.x < this.riderContainer.x - 80)) {
+        bContainer.destroy();
+      }
+    }
+
+    // Move Collectibles & Check Collision with Perspective Scaling
+    const collectiblesArr = this.collectibles.getChildren() as Phaser.GameObjects.Sprite[];
+    for (let i = collectiblesArr.length - 1; i >= 0; i--) {
+      const item = collectiblesArr[i];
+      item.x -= this.currentSpeed * dt;
+
+      // Perspective scaling: smaller in distance, full size at player
+      const baseScale = item.getData('baseScale') || 0.95;
+      const baseY = item.getData('baseY') || item.y;
+      this.applyPerspectiveScale(item, baseScale, baseY);
+
+      // Floating wave animation on top of perspective elevation
+      item.y += Math.sin(time * 0.005 + item.x * 0.02) * 0.8;
+
+      if (Phaser.Geom.Intersects.RectangleToRectangle(riderBounds, item.getBounds())) {
+        this.collectItem(item);
+      } else if (item.x < -100) {
+        item.destroy();
+      }
+    }
+
+    // Move Obstacles & Check Collision (with Perspective Scaling, Dynamic Shadows & Dynamic Hitbox)
+    const obstaclesArr = this.obstacles.getChildren() as Phaser.GameObjects.Sprite[];
+    for (let i = obstaclesArr.length - 1; i >= 0; i--) {
+      const obs = obstaclesArr[i];
+      obs.x -= this.currentSpeed * dt;
+
+      // Perspective scaling: small in distance, growing larger as it approaches
+      const baseScale = obs.getData('baseScale') || 0.9;
+      const baseY = obs.getData('baseY') || (this.groundY - 26);
+      this.applyPerspectiveScale(obs, baseScale, baseY);
+
+      // Attached grounded shadow update
+      const shadow = obs.getData('shadow') as Phaser.GameObjects.Sprite | undefined;
+      if (shadow) {
+        shadow.x = obs.x;
+        shadow.y = this.groundY - 6;
+        shadow.setScale(obs.scaleX * 0.72, obs.scaleY * 0.38);
+      }
+
+      // Road warning sign: passes harmlessly
+      if (obs.getData('isWarning')) {
+        if (obs.x < -100) this.destroyObstacle(obs);
+        continue;
+      }
+
+      // Dynamic scaled hitbox: scales with visual size so distant obstacles aren't hit prematurely
+      const currentScale = obs.scaleX;
+      const obsHitbox = new Phaser.Geom.Rectangle(
+        obs.x - (18 * currentScale),
+        obs.y - (12 * currentScale),
+        36 * currentScale,
+        34 * currentScale
+      );
+
+      const riderHitbox = new Phaser.Geom.Rectangle(
+        this.riderContainer.x - 20,
+        this.riderContainer.y - 25,
+        40,
+        50
+      );
+
+      if (Phaser.Geom.Intersects.RectangleToRectangle(riderHitbox, obsHitbox)) {
+        // 1. If boosting or looping -> Smash!
+        if (this.isBoosting || this.isLooping360) {
+          this.createSmashExplosion(obs.x, obs.y);
+          sounds.playCollect('crate');
+          this.destroyObstacle(obs);
+          continue;
+        }
+
+        // 2. If shield active -> Pop shield and save the player!
+        if (this.hasShield) {
+          this.hasShield = false;
+          if (this.shieldBubbleSprite) this.shieldBubbleSprite.setVisible(false);
+          this.createSmashExplosion(obs.x, obs.y);
+          sounds.playShieldBreak();
+          this.showStuntText('🛡️ SHIELD BROKE! (SAFE) 🛡️');
+          this.destroyObstacle(obs);
+          continue;
+        }
+
+        // 3. Mario-style Springboard Bounce if landing on top!
+        const riderFeetY = this.riderContainer.y + 20;
+        if (this.velocityY > 10 && riderFeetY < obs.y + 10) {
+          this.velocityY = -620; // High springboard bounce!
+          this.isGrounded = false;
+          this.coins += 25;
+          sounds.playJump();
+          sounds.playCollect('crate');
+          this.showStuntText('🥕 STOMP BOUNCE! +25 Coins 🥕');
+          this.createSmashExplosion(obs.x, obs.y);
+          this.destroyObstacle(obs);
+          continue;
+        }
+
+        // 4. Hit obstacle check with lives / invincibility grace
+        if (this.invincibleTimer > 0) {
+          // Currently in recovery grace period -> ignore
+          continue;
+        }
+
+        if (this.lives > 1) {
+          this.lives--;
+          this.invincibleTimer = 2.2;
+          this.cameras.main.shake(220, 0.012);
+          sounds.playCrash();
+          this.createSmashExplosion(obs.x, obs.y);
+          this.showStuntText(`⚠️ OOF! ${this.lives} HEARTS LEFT! ⚠️`);
+          this.destroyObstacle(obs);
+        } else {
+          // 0 lives left -> trigger game over
+          this.lives = 0;
+          this.triggerGameOver();
+          return;
+        }
+      } else if (obs.x < -100) {
+        this.destroyObstacle(obs);
+      }
     }
 
     // Periodic Stat Sync to React (every 0.2s)
@@ -734,406 +961,289 @@ export default class FarmRide extends Phaser.Scene {
     }
   }
 
-  // =========================================================================
-  // 2.5D ROAD SURFACE DRAWING (THE OUTRUN / SUBWAY SURFERS 2.5D TRICK)
-  // =========================================================================
-  private render25DRoad() {
-    const g = this.roadGraphics;
-    g.clear();
+  private enter360Loop(loopTrack: Phaser.GameObjects.Sprite) {
+    this.isLooping360 = true;
+    this.activeLoopTrack = loopTrack;
+    this.loopCenter = { x: loopTrack.x, y: loopTrack.y - 10 };
+    this.loopRadius = 110;
+    this.loopAngle = Math.PI * 0.5; // Start at bottom 6 o'clock position
+    this.isGrounded = false;
+    sounds.playBoost();
 
-    const w = this.scale.width;
-    const h = this.scale.height;
-    const horizonY = this.getHorizonY();
-
-    // 1. Pastoral Green Meadow Field Backdrop below horizon
-    g.fillStyle(0x388E3C, 1);
-    g.fillRect(0, horizonY, w, h - horizonY);
-
-    // 2. Perspective Roadbed Bands (18 Depth Slices)
-    const NUM_SEGMENTS = 18;
-    for (let i = NUM_SEGMENTS - 1; i >= 0; i--) {
-      // Depth slice coordinates
-      const z0 = Math.max(0, (i + this.trackScroll) / NUM_SEGMENTS);
-      const z1 = Math.min(1.2, (i + 1 + this.trackScroll) / NUM_SEGMENTS);
-
-      const p0 = this.project(z0, 0);
-      const p1 = this.project(z1, 0);
-
-      const halfW0 = (this.getRoadTopWidth() + (this.getRoadBottomWidth() - this.getRoadTopWidth()) * Math.pow(z0, 1.85)) * 0.5;
-      const halfW1 = (this.getRoadTopWidth() + (this.getRoadBottomWidth() - this.getRoadTopWidth()) * Math.pow(z1, 1.85)) * 0.5;
-      const cx = w * 0.5;
-
-      const isEven = i % 2 === 0;
-
-      // Roadside Verge Grass Curbs
-      const curbExtra0 = 24 * p0.scale;
-      const curbExtra1 = 24 * p1.scale;
-
-      g.fillStyle(isEven ? 0x2E7D32 : 0x43A047, 1);
-      g.fillPoints([
-        { x: cx - halfW0 - curbExtra0, y: p0.groundY },
-        { x: cx + halfW0 + curbExtra0, y: p0.groundY },
-        { x: cx + halfW1 + curbExtra1, y: p1.groundY },
-        { x: cx - halfW1 - curbExtra1, y: p1.groundY }
-      ], true);
-
-      // Main Earthen Track Surface (Alternating bands for forward motion)
-      g.fillStyle(isEven ? 0x6D4C41 : 0x795548, 1);
-      g.fillPoints([
-        { x: cx - halfW0, y: p0.groundY },
-        { x: cx + halfW0, y: p0.groundY },
-        { x: cx + halfW1, y: p1.groundY },
-        { x: cx - halfW1, y: p1.groundY }
-      ], true);
-
-      // Dashed White/Chalk Lane Dividers (between Left/Center and Center/Right)
-      if (isEven) {
-        const laneW0 = halfW0 * (2 / 3);
-        const laneW1 = halfW1 * (2 / 3);
-        const dashW0 = Math.max(2, 4 * p0.scale);
-        const dashW1 = Math.max(2, 4 * p1.scale);
-
-        g.fillStyle(0xFFFDE7, 0.45);
-        // Left divider
-        g.fillPoints([
-          { x: cx - laneW0 - dashW0, y: p0.groundY },
-          { x: cx - laneW0 + dashW0, y: p0.groundY },
-          { x: cx - laneW1 + dashW1, y: p1.groundY },
-          { x: cx - laneW1 - dashW1, y: p1.groundY }
-        ], true);
-        // Right divider
-        g.fillPoints([
-          { x: cx + laneW0 - dashW0, y: p0.groundY },
-          { x: cx + laneW0 + dashW0, y: p0.groundY },
-          { x: cx + laneW1 + dashW1, y: p1.groundY },
-          { x: cx + laneW1 - dashW1, y: p1.groundY }
-        ], true);
-      }
+    // Spawn bonus stars inside the 360 circle!
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 3) {
+      const sx = this.loopCenter.x + (this.loopRadius - 30) * Math.cos(angle);
+      const sy = this.loopCenter.y + (this.loopRadius - 30) * Math.sin(angle);
+      const star = this.add.sprite(sx, sy, 'item-star');
+      star.setData('type', 'star');
+      star.setData('value', 15);
+      this.collectibles.add(star);
     }
   }
 
-  // =========================================================================
-  // 2.5D ENTITY PROJECTION & COLLISION MANAGEMENT
-  // =========================================================================
-  private updatePerspectiveEntities(dt: number) {
-    const speedRatio = (this.currentSpeed / 460) * dt;
+  private complete360Loop() {
+    this.isLooping360 = false;
+    this.loopsCompleted++;
+    this.riderContainer.rotation = 0;
+    this.riderContainer.angle = this.roadTiltAngle;
+    this.riderContainer.x = 180;
+    this.riderContainer.y = this.groundY - 35;
+    this.isGrounded = true;
+    this.boostMeter = 100; // Refill nitro boost!
 
-    for (let i = this.entities.length - 1; i >= 0; i--) {
-      const e = this.entities[i];
-      e.z += speedRatio;
+    // Reward for completing 360 loop!
+    const loopBonus = 100;
+    this.coins += loopBonus;
+    sounds.playFlipStunt();
 
-      // Project entity onto 2.5D screen coordinates
-      const proj = this.project(e.z, e.lane, e.yOffset);
-      e.sprite.setPosition(proj.x, proj.y);
-      e.sprite.setScale(proj.scale * e.baseScale);
-      e.sprite.setDepth(10 + Math.floor(e.z * 100));
+    // Spawn celebratory floating text
+    this.showStuntText('⚡ 360° LOOP MASTER! +100 Coins (10 ₦) ⚡');
 
-      // Grounded shadow update
-      if (e.shadow) {
-        e.shadow.setPosition(proj.x, proj.groundY);
-        e.shadow.setScale(proj.scale * e.baseScale * 0.75, proj.scale * e.baseScale * 0.35);
-        e.shadow.setDepth(9 + Math.floor(e.z * 100));
-      }
+    // Burst particles
+    this.createSmashExplosion(this.riderContainer.x, this.riderContainer.y - 20);
 
-      // Magnet attraction for collectibles
-      if (this.magnetTimer > 0 && e.type !== 'obstacle_low' && e.type !== 'obstacle_high' && e.type !== 'barn' && e.type !== 'billboard') {
-        if (e.z > 0.4) {
-          e.lane = Phaser.Math.Linear(e.lane, this.currentLane, Math.min(1, 10 * dt));
-        }
-      }
-
-      // -------------------------------------------------------------
-      // COLLISION DETECTION AT PLAYER PLANE (z ~ 0.90 to 1.04)
-      // -------------------------------------------------------------
-      if (e.z >= 0.88 && e.z <= 1.04 && !e.cleared) {
-        // Milestone: Barn Station Entryway
-        if (e.type === 'barn') {
-          e.cleared = true;
-          this.enterBarnStation();
-          continue;
-        }
-
-        // Milestone: Billboard Bridge
-        if (e.type === 'billboard') {
-          e.cleared = true;
-          this.openBillboardAd();
-          continue;
-        }
-
-        // Lane match check (tolerance of 0.45 lanes)
-        if (Math.abs(e.lane - this.currentLane) < 0.55) {
-          // 1. Low Obstacle (Hay bale / Hurdle)
-          if (e.type === 'obstacle_low') {
-            // Did player jump cleanly over?
-            if (this.playerJumpOffset < -28) {
-              e.cleared = true;
-              this.coins += 15;
-              sounds.playJump();
-              sounds.playCollect('crate');
-              this.showStuntText('⚡ HURDLE CLEARED! +15 Coins ⚡');
-              continue;
-            }
-
-            // Did player have boost or loop?
-            if (this.isBoosting) {
-              e.cleared = true;
-              this.createSmashExplosion(proj.x, proj.y);
-              sounds.playCollect('crate');
-              this.removeEntityAt(i);
-              continue;
-            }
-
-            // Shield save?
-            if (this.hasShield) {
-              e.cleared = true;
-              this.hasShield = false;
-              if (this.shieldBubbleSprite) this.shieldBubbleSprite.setVisible(false);
-              this.createSmashExplosion(proj.x, proj.y);
-              sounds.playShieldBreak();
-              this.showStuntText('🛡️ SHIELD BROKE! (SAFE) 🛡️');
-              this.removeEntityAt(i);
-              continue;
-            }
-
-            // Crash check
-            e.cleared = true;
-            this.handlePlayerHit(proj.x, proj.y);
-            this.removeEntityAt(i);
-            continue;
-          }
-
-          // 2. High Obstacle (Overhead Timber Arch)
-          if (e.type === 'obstacle_high') {
-            // Did player duck / slide cleanly under?
-            if (this.isSliding) {
-              e.cleared = true;
-              this.coins += 20;
-              sounds.playBoost();
-              this.showStuntText('▼ SLICK SLIDE! +20 Coins ▼');
-              continue;
-            }
-
-            if (this.hasShield) {
-              e.cleared = true;
-              this.hasShield = false;
-              if (this.shieldBubbleSprite) this.shieldBubbleSprite.setVisible(false);
-              this.createSmashExplosion(proj.x, proj.y);
-              sounds.playShieldBreak();
-              this.showStuntText('🛡️ SHIELD BROKE! (SAFE) 🛡️');
-              this.removeEntityAt(i);
-              continue;
-            }
-
-            e.cleared = true;
-            this.handlePlayerHit(proj.x, proj.y);
-            this.removeEntityAt(i);
-            continue;
-          }
-
-          // 3. Collectibles & Power-ups
-          e.cleared = true;
-          this.collectPerspectiveItem(e, proj.x, proj.y);
-          this.removeEntityAt(i);
-          continue;
-        }
-      }
-
-      // Past camera -> clean up
-      if (e.z > 1.25) {
-        this.removeEntityAt(i);
-      }
-    }
+    // Sync with backend
+    window.dispatchEvent(
+      new CustomEvent('game:collect', {
+        detail: { type: 'crate', value: loopBonus }
+      })
+    );
   }
 
-  private removeEntityAt(index: number) {
-    if (index >= 0 && index < this.entities.length) {
-      const e = this.entities[index];
-      if (e.shadow) e.shadow.destroy();
-      e.sprite.destroy();
-      this.entities.splice(index, 1);
-    }
+  private complete360AirFlip() {
+    this.flipsCompleted++;
+    const bonus = 50;
+    this.coins += bonus;
+    this.boostMeter = Math.min(100, this.boostMeter + 50);
+    this.riderContainer.angle = this.roadTiltAngle;
+
+    sounds.playFlipStunt();
+    this.showStuntText('★ 360° STUNT FLIP! +50 Coins (5 ₦) ★');
+    this.createCollectBurst(this.riderContainer.x, this.riderContainer.y - 20, 'star');
+
+    window.dispatchEvent(
+      new CustomEvent('game:collect', {
+        detail: { type: 'star', value: bonus }
+      })
+    );
   }
 
-  // =========================================================================
-  // SPAWNING: SUBWAY SURFERS STYLE 3-LANE WAVES
-  // =========================================================================
-  private spawnRandomItemsWave() {
-    const lane = (Math.floor(Math.random() * 3) - 1); // -1, 0, 1
+  private showStuntText(msg: string) {
+    const txt = this.add.text(this.riderContainer.x + 30, this.riderContainer.y - 80, msg, {
+      fontFamily: 'Fredoka, sans-serif',
+      fontSize: '20px',
+      color: '#FFC93C',
+      stroke: '#E65100',
+      strokeThickness: 4,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: txt,
+      y: txt.y - 60,
+      scale: 1.2,
+      alpha: 0,
+      duration: 1400,
+      ease: 'Power2',
+      onComplete: () => txt.destroy()
+    });
+  }
+
+  private spawn360LoopTrack() {
+    const width = this.scale.width;
+    // Spawn 360-degree loop track sitting on the ground
+    const loopY = this.groundY - 120;
+    const loop = this.add.sprite(width + 200, loopY, 'track-loop-360');
+    loop.setData('type', 'loop360');
+    loop.setDepth(1);
+    this.stuntTracks.add(loop);
+  }
+
+  private spawnStuntRamp() {
+    const width = this.scale.width;
+    const ramp = this.add.sprite(width + 100, this.groundY - 30, 'ramp-stunt');
+    ramp.setData('type', 'ramp');
+    ramp.setDepth(1);
+    this.stuntTracks.add(ramp);
+  }
+
+  private spawnCollectible() {
+    const width = this.scale.width;
     const rand = Math.random();
-
-    let type: PerspectiveEntity['type'] = 'carrot';
     let texture = 'item-carrot';
+    let type = 'carrot';
     let value = 10;
-    let yOffset = 0;
+    let spawnY = this.groundY - 50;
 
-    if (rand < 0.28) {
-      type = 'star';
+    if (rand < 0.26) {
       texture = 'item-star';
+      type = 'star';
       value = 5;
-    } else if (rand < 0.55) {
-      type = 'carrot';
+      spawnY = this.groundY - (Math.random() > 0.5 ? 90 : 50);
+    } else if (rand < 0.52) {
       texture = 'item-carrot';
+      type = 'carrot';
       value = 10;
-    } else if (rand < 0.68) {
-      type = 'balloon';
+      spawnY = this.groundY - 50;
+    } else if (rand < 0.64) {
+      // 🎈 Floating Carrot Balloon (High aerial pickup)
       texture = 'item-balloon';
+      type = 'balloon';
       value = 20;
-      yOffset = -35;
-    } else if (rand < 0.78) {
-      type = 'crate';
+      spawnY = this.groundY - 140;
+    } else if (rand < 0.74) {
       texture = 'item-crate';
-      value = 50;
-    } else if (rand < 0.86) {
-      type = 'magnet';
+      type = 'crate';
+      value = 50 + Math.floor(Math.random() * 150);
+      spawnY = this.groundY - 45;
+    } else if (rand < 0.82) {
+      // 🌈 Rainbow Speed Pad
+      texture = 'item-rainbow-pad';
+      type = 'rainbow-pad';
+      value = 15;
+      spawnY = this.groundY - 10;
+    } else if (rand < 0.88) {
+      // 🧲 Magnet Power-up
       texture = 'item-magnet';
+      type = 'magnet';
       value = 25;
-    } else if (rand < 0.92) {
-      type = 'shield';
+      spawnY = this.groundY - 60;
+    } else if (rand < 0.94) {
+      // 🛡️ Shield Power-up
       texture = 'item-shield';
+      type = 'shield';
       value = 25;
-    } else if (rand < 0.96) {
-      type = 'clover';
+      spawnY = this.groundY - 60;
+    } else if (rand < 0.97) {
+      // 🍀 Rare Lucky 4-Leaf Clover
       texture = 'item-clover';
+      type = 'clover';
       value = 50;
+      spawnY = this.groundY - 65;
     } else {
-      type = 'nitro';
+      // ⚡ Super Nitro Rocket
       texture = 'item-nitro';
+      type = 'nitro';
       value = 50;
+      spawnY = this.groundY - 60;
     }
 
-    this.createPerspectiveEntity({
-      lane,
-      z: 0.05,
-      yOffset,
-      type,
-      texture,
-      baseScale: 0.95,
-      value
-    });
+    const sprite = this.add.sprite(width + 50, spawnY, texture);
+    sprite.setData('type', type);
+    sprite.setData('value', value);
+    sprite.setData('baseScale', 0.95);
+    sprite.setData('baseY', spawnY);
+    sprite.setDepth(3.5);
+    this.collectibles.add(sprite);
   }
 
-  private spawnObstacleWave() {
-    const pattern = Math.floor(Math.random() * 4);
+  private spawnObstacle() {
+    const width = this.scale.width;
 
-    if (pattern === 0) {
-      // Single Lane Hurdle
-      const lane = Math.floor(Math.random() * 3) - 1;
-      this.createPerspectiveEntity({
-        lane,
-        z: 0.04,
-        yOffset: 0,
-        type: 'obstacle_low',
-        texture: 'obstacle-hurdle-front',
-        baseScale: 1.0,
-        hasShadow: true
-      });
-    } else if (pattern === 1) {
-      // Golden Round Hay Bale
-      const lane = Math.floor(Math.random() * 3) - 1;
-      this.createPerspectiveEntity({
-        lane,
-        z: 0.04,
-        yOffset: 0,
-        type: 'obstacle_low',
-        texture: 'obstacle-hay-front',
-        baseScale: 0.95,
-        hasShadow: true
-      });
-    } else if (pattern === 2) {
-      // Overhead Timber Arch (Duck / Slide required!)
-      const lane = Math.floor(Math.random() * 3) - 1;
-      this.createPerspectiveEntity({
-        lane,
-        z: 0.04,
-        yOffset: 0,
-        type: 'obstacle_high',
-        texture: 'obstacle-arch-overhead',
-        baseScale: 1.05
-      });
-    } else {
-      // Double Blockade: 2 lanes blocked, 1 safe lane!
-      const safeLane = Math.floor(Math.random() * 3) - 1;
-      for (const l of [-1, 0, 1]) {
-        if (l !== safeLane) {
-          this.createPerspectiveEntity({
-            lane: l,
-            z: 0.04,
-            yOffset: 0,
-            type: 'obstacle_low',
-            texture: 'obstacle-hay-front',
-            baseScale: 0.95,
-            hasShadow: true
-          });
-        }
-      }
-    }
-  }
+    // Spawn road warning sign 220px in front of the hay bale so player can anticipate jump!
+    const warnSign = this.add.sprite(width + 40, this.groundY - 26, 'obstacle-warning');
+    warnSign.setScale(0.85);
+    warnSign.setData('isWarning', true);
+    warnSign.setData('baseScale', 0.85);
+    warnSign.setData('baseY', this.groundY - 26);
+    warnSign.setDepth(3.5);
+    this.obstacles.add(warnSign);
 
-  private spawnBarnTunnel() {
-    this.createPerspectiveEntity({
-      lane: 0,
-      z: 0.03,
-      yOffset: -30,
-      type: 'barn',
-      texture: 'barn-station-tunnel',
-      baseScale: 1.15
-    });
-  }
+    // Spawn hay bale
+    const sprite = this.add.sprite(width + 260, this.groundY - 26, 'obstacle-hay');
+    sprite.setScale(0.9);
+    sprite.setData('baseScale', 0.9);
+    sprite.setData('baseY', this.groundY - 26);
+    sprite.setDepth(3.5);
 
-  private spawnBillboardBridge() {
-    this.createPerspectiveEntity({
-      lane: 0,
-      z: 0.03,
-      yOffset: -40,
-      type: 'billboard',
-      texture: 'billboard-bridge-front',
-      baseScale: 1.15
-    });
-  }
-
-  private createPerspectiveEntity(cfg: {
-    lane: number;
-    z: number;
-    yOffset: number;
-    type: PerspectiveEntity['type'];
-    texture: string;
-    baseScale: number;
-    value?: number;
-    hasShadow?: boolean;
-  }) {
-    const proj = this.project(cfg.z, cfg.lane, cfg.yOffset);
-    const sprite = this.add.sprite(proj.x, proj.y, this.textures.exists(cfg.texture) ? cfg.texture : 'item-carrot');
-    sprite.setScale(proj.scale * cfg.baseScale);
-    sprite.setDepth(10);
-
-    let shadow: Phaser.GameObjects.Sprite | undefined = undefined;
-    if (cfg.hasShadow && this.textures.exists('shadow-oval')) {
-      shadow = this.add.sprite(proj.x, proj.groundY, 'shadow-oval');
-      shadow.setScale(proj.scale * cfg.baseScale * 0.75, proj.scale * cfg.baseScale * 0.35);
+    // Obstacle drop shadow on road surface
+    if (this.textures.exists('shadow-oval')) {
+      const shadow = this.add.sprite(sprite.x, this.groundY - 6, 'shadow-oval');
+      shadow.setScale(0.65, 0.35);
       shadow.setAlpha(0.5);
-      shadow.setDepth(9);
+      shadow.setDepth(2.5);
+      sprite.setData('shadow', shadow);
     }
 
-    this.entities.push({
-      id: this.nextEntityId++,
-      sprite,
-      shadow,
-      lane: cfg.lane,
-      z: cfg.z,
-      yOffset: cfg.yOffset,
-      type: cfg.type,
-      value: cfg.value || 10,
-      baseScale: cfg.baseScale
-    });
+    this.obstacles.add(sprite);
   }
 
-  // =========================================================================
-  // ITEM COLLECTION & CRASH HANDLING
-  // =========================================================================
-  private collectPerspectiveItem(e: PerspectiveEntity, x: number, y: number) {
-    const type = e.type;
-    const value = e.value || 10;
+  private spawnBillboard() {
+    const width = this.scale.width;
+    const container = this.add.container(width + 160, this.groundY - 80);
 
+    const sprite = this.add.sprite(0, 0, 'track-billboard-a');
+    sprite.setName('billboardSprite');
+    sprite.setScale(0.95);
+
+    const badge = this.add.sprite(0, -95, 'billboard-badge');
+    badge.setName('billboardBadge');
+    badge.setScale(0.9);
+
+    container.add([sprite, badge]);
+    container.setSize(220, 160);
+
+    this.billboards.add(container);
+  }
+
+  private openBillboardAd(billboardContainer?: Phaser.GameObjects.Container) {
+    if (this.isAdWatching || this.isGameOver || this.adCooldownTimer > 0) return;
+    this.isAdWatching = true;
+    if (billboardContainer) {
+      billboardContainer.setData('used', true);
+    }
+    this.activeBillboard = billboardContainer || null;
+    this.currentSpeed = 0;
+    this.velocityY = 0;
+    this.isGrounded = true;
+    this.riderContainer.y = this.groundY - 35;
+    this.riderContainer.angle = this.roadTiltAngle;
+
+    sounds.playCollect('star');
+
+    // Notify React to open the 30-second animated billboard modal!
+    window.dispatchEvent(
+      new CustomEvent('game:open_billboard_ad', {
+        detail: {
+          value: 100,
+          sponsor: 'Carrot Fuel & Paystack Payouts'
+        }
+      })
+    );
+  }
+
+  private triggerBillboardAd() {
+    this.openBillboardAd();
+  }
+
+  private handleResumeRide(detail?: { earned?: boolean; value?: number }) {
+    this.isAdWatching = false;
+    this.adCooldownTimer = 90; // 90-second cooldown so ad never repeats
+    this.currentSpeed = this.baseSpeed * 1.4;
+    this.isBoosting = true;
+    this.boostTimer = 2.5;
+
+    if (detail?.earned) {
+      const reward = detail.value || 100;
+      this.coins += reward;
+      this.adsViewed += 1;
+      this.createCollectBurst(this.riderContainer.x, this.riderContainer.y, 'crate');
+    }
+
+    if (this.activeBillboard) {
+      // Immediately destroy billboard container so it cannot ever re-trigger
+      this.activeBillboard.destroy();
+      this.activeBillboard = null;
+    }
+
+    sounds.playBoost();
+  }
+
+  private collectItem(item: Phaser.GameObjects.Sprite) {
+    const type = item.getData('type') || 'carrot';
+    const value = item.getData('value') || 10;
+
+    // Power-up specific activations
     if (type === 'magnet') {
       sounds.playPowerup();
       this.magnetTimer = 8.0;
@@ -1158,16 +1268,36 @@ export default class FarmRide extends Phaser.Scene {
       sounds.playPowerup();
       this.magnetTimer = 12.0;
       this.showStuntText('🍀 LUCKY 4-LEAF CLOVER! 12s MAGNET FRENZY 🍀');
+    } else if (type === 'rainbow-pad') {
+      sounds.playBoost();
+      this.isBoosting = true;
+      this.boostTimer = 3.0;
+      this.boostMeter = 100;
+      if (this.boostParticles) this.boostParticles.start();
+      this.cameras.main.shake(180, 0.006);
+      this.showStuntText('🌈 RAINBOW SUPER SPEED! 🌈');
     } else {
+      // Carrot, star, or crate: advance combo streak and pitch
       this.comboStreak++;
       this.comboTimer = 2.8;
-      sounds.playCollect(type === 'star' ? 'star' : (type === 'crate' ? 'crate' : 'carrot'), this.comboStreak);
+      sounds.playCollect(type, this.comboStreak);
     }
 
     let multiplier = 1.0;
-    if (this.comboStreak >= 20) multiplier = 2.0;
-    else if (this.comboStreak >= 10) multiplier = 1.5;
-    else if (this.comboStreak >= 5) multiplier = 1.2;
+    if (this.comboStreak >= 20) {
+      multiplier = 2.0;
+      if (this.comboStreak % 5 === 0) {
+        this.showStuntText(`🔥 ULTRA COMBO x${this.comboStreak}! (2.0x COINS) 🔥`);
+      }
+    } else if (this.comboStreak >= 10) {
+      multiplier = 1.5;
+      if (this.comboStreak === 10) {
+        this.showStuntText('⚡ SUPER COMBO x10! (1.5x COINS) ⚡');
+      }
+    } else if (this.comboStreak === 5) {
+      multiplier = 1.2;
+      this.showStuntText('🥕 COMBO x5! (1.2x COINS) 🥕');
+    }
 
     const earned = Math.round(value * multiplier);
     this.coins += earned;
@@ -1175,63 +1305,17 @@ export default class FarmRide extends Phaser.Scene {
     if (type === 'star') this.starsCollected++;
     else if (type === 'carrot') this.carrotsCollected++;
     else if (type === 'crate') this.cratesCollected++;
+    else if (type === 'ad') this.adsViewed++;
 
-    this.createCollectBurst(x, y, type);
+    this.createCollectBurst(item.x, item.y, type);
 
     window.dispatchEvent(
       new CustomEvent('game:collect', {
         detail: { type, value: earned }
       })
     );
-  }
 
-  private handlePlayerHit(x: number, y: number) {
-    if (this.invincibleTimer > 0) return;
-
-    if (this.lives > 1) {
-      this.lives--;
-      this.invincibleTimer = 2.2;
-      this.cameras.main.shake(220, 0.014);
-      sounds.playCrash();
-      this.createSmashExplosion(x, y);
-      this.showStuntText(`⚠️ OOF! ${this.lives} HEARTS LEFT! ⚠️`);
-
-      // Recovery blink
-      this.tweens.add({
-        targets: this.riderContainer,
-        alpha: 0.4,
-        duration: 120,
-        yoyo: true,
-        repeat: 8,
-        onComplete: () => {
-          this.riderContainer.alpha = 1.0;
-        }
-      });
-    } else {
-      this.lives = 0;
-      this.triggerGameOver();
-    }
-  }
-
-  private showStuntText(msg: string) {
-    const txt = this.add.text(this.riderContainer.x, this.riderContainer.y - 65, msg, {
-      fontFamily: 'Fredoka, sans-serif',
-      fontSize: '20px',
-      color: '#FFC93C',
-      stroke: '#E65100',
-      strokeThickness: 4,
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(200);
-
-    this.tweens.add({
-      targets: txt,
-      y: txt.y - 50,
-      scale: 1.15,
-      alpha: 0,
-      duration: 1300,
-      ease: 'Power2',
-      onComplete: () => txt.destroy()
-    });
+    item.destroy();
   }
 
   private createCollectBurst(x: number, y: number, type: string) {
@@ -1239,40 +1323,40 @@ export default class FarmRide extends Phaser.Scene {
     if (!this.textures.exists(pTexture)) return;
 
     const emitter = this.add.particles(x, y, pTexture, {
-      speed: { min: 80, max: 220 },
+      speed: { min: 80, max: 240 },
       angle: { min: 0, max: 360 },
       scale: { start: 0.9, end: 0 },
-      lifespan: 380,
-      quantity: 12,
+      lifespan: 400,
+      quantity: type === 'crate' ? 24 : 10,
       emitting: false
     });
     emitter.explode();
-    this.time.delayedCall(400, () => emitter.destroy());
+    this.time.delayedCall(450, () => emitter.destroy());
   }
 
   private createSmashExplosion(x: number, y: number) {
     if (!this.textures.exists('particle-flame')) return;
     const emitter = this.add.particles(x, y, 'particle-flame', {
-      speed: { min: 120, max: 280 },
+      speed: { min: 120, max: 300 },
       angle: { min: 0, max: 360 },
       scale: { start: 1.2, end: 0 },
-      lifespan: 450,
-      quantity: 24,
+      lifespan: 500,
+      quantity: 30,
       emitting: false
     });
     emitter.explode();
-    this.time.delayedCall(500, () => emitter.destroy());
+    this.time.delayedCall(550, () => emitter.destroy());
   }
 
   private triggerGameOver() {
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.isLooping360) return;
     this.isGameOver = true;
     sounds.playCrash();
 
     this.tweens.add({
       targets: this.riderContainer,
-      angle: 90,
-      y: this.riderContainer.y + 15,
+      angle: 120,
+      y: this.riderContainer.y + 20,
       duration: 350,
       ease: 'Bounce.easeOut'
     });
@@ -1291,26 +1375,55 @@ export default class FarmRide extends Phaser.Scene {
     });
   }
 
-  // =========================================================================
-  // MILESTONES: BARN CHECKPOINT & BILLBOARD AD BRIDGE
-  // =========================================================================
+  // ─── Pause & Resume Handlers ─────────────────────────────────────────────
+  private handlePause() {
+    this.isPaused = true;
+    if (this.boostParticles) this.boostParticles.stop();
+    this.tweens.pauseAll();
+  }
+
+  private handleResume() {
+    this.isPaused = false;
+    this.tweens.resumeAll();
+  }
+
+  // ─── Barn Station Handlers ───────────────────────────────────────────────
+  private spawnBarnSign() {
+    const width = this.scale.width;
+    const sign = this.add.container(width + 80, this.groundY - 50);
+    const sprite = this.add.sprite(0, 0, 'barn-sign');
+    sign.add(sprite);
+    this.barnSignContainer = sign;
+  }
+
+  private spawnBarnStation() {
+    const width = this.scale.width;
+    const barn = this.add.container(width + 180, this.groundY - 80);
+    const sprite = this.add.sprite(0, 0, 'barn-station');
+    barn.add(sprite);
+    this.barnContainer = barn;
+  }
+
   private enterBarnStation() {
     this.isAtBarn = true;
     this.currentSpeed = 0;
-    this.playerJumpOffset = 0;
-    this.playerJumpVelocity = 0;
+    this.velocityY = 0;
     this.isGrounded = true;
-    this.boostMeter = 100;
+    this.riderContainer.y = this.groundY - 35;
+    this.riderContainer.angle = this.roadTiltAngle;
+    this.boostMeter = 100; // Restore stamina!
 
     sounds.playPowerup();
     sounds.playCollect('crate');
 
+    // Milestone bonus reward!
     const milestoneBonus = 50;
     this.coins += milestoneBonus;
     this.carrotsCollected += 10;
 
     this.showStuntText('🌾 BARN CHECKPOINT! +50 Coins 🥕');
 
+    // Dispatch event to React UI to open the Barn Refresh Modal
     window.dispatchEvent(
       new CustomEvent('game:enter_barn', {
         detail: {
@@ -1326,77 +1439,38 @@ export default class FarmRide extends Phaser.Scene {
 
   private handleExitBarn(detail?: { boost?: boolean }) {
     this.isAtBarn = false;
-    this.barnApproaching = false;
     this.nextBarnDistance += 600;
+    this.barnSignSpawned = false;
+    this.barnStationSpawned = false;
 
+    // Super Nitro Boost exit launch!
     this.currentSpeed = this.baseSpeed * 2.2;
     this.isBoosting = true;
-    this.boostTimer = 5.0;
+    this.boostTimer = 5.0; // 5-second turbo boost!
     this.boostMeter = 100;
 
     sounds.playBoost();
     if (this.boostParticles) this.boostParticles.start();
     this.cameras.main.shake(250, 0.008);
     this.showStuntText('🚀 TURBO BARN LAUNCH! (5s BOOST) 🚀');
-  }
 
-  private openBillboardAd() {
-    if (this.isAdWatching || this.isGameOver || this.adCooldownTimer > 0) return;
-    this.isAdWatching = true;
-    this.currentSpeed = 0;
-    this.playerJumpOffset = 0;
-    this.playerJumpVelocity = 0;
-    this.isGrounded = true;
-
-    sounds.playCollect('star');
-
-    window.dispatchEvent(
-      new CustomEvent('game:open_billboard_ad', {
-        detail: {
-          value: 100,
-          sponsor: 'Carrot Fuel & Paystack Payouts'
+    // Slide barn away
+    if (this.barnContainer) {
+      this.tweens.add({
+        targets: this.barnContainer,
+        x: -400,
+        duration: 800,
+        ease: 'Quad.easeIn',
+        onComplete: () => {
+          this.barnContainer?.destroy();
+          this.barnContainer = null;
         }
-      })
-    );
-  }
-
-  private triggerBillboardAd() {
-    this.openBillboardAd();
-  }
-
-  private handleResumeRide(detail?: { earned?: boolean; value?: number }) {
-    this.isAdWatching = false;
-    this.billboardApproaching = false;
-    this.adCooldownTimer = 90;
-    this.currentSpeed = this.baseSpeed * 1.4;
-    this.isBoosting = true;
-    this.boostTimer = 2.5;
-
-    if (detail?.earned) {
-      const reward = detail.value || 100;
-      this.coins += reward;
-      this.adsViewed += 1;
-      this.createCollectBurst(this.riderContainer.x, this.riderContainer.y, 'crate');
+      });
     }
-
-    sounds.playBoost();
   }
 
-  // =========================================================================
-  // PAUSE & BIOME HANDLERS
-  // =========================================================================
-  private handlePause() {
-    this.isPaused = true;
-    if (this.boostParticles) this.boostParticles.stop();
-    this.tweens.pauseAll();
-  }
-
-  private handleResume() {
-    this.isPaused = false;
-    this.tweens.resumeAll();
-  }
-
-  private updateBiome() {
+  // ─── Dynamic Biomes & Roadside Scenery ────────────────────────────────────
+  private updateBiome(time: number, dt: number) {
     let newBiome = 'meadow';
     if (this.distanceMeters >= 1800) newBiome = 'golden';
     else if (this.distanceMeters >= 1300) newBiome = 'twilight';
@@ -1409,22 +1483,107 @@ export default class FarmRide extends Phaser.Scene {
         new CustomEvent('game:biome_change', { detail: { biome: newBiome } })
       );
 
+      // Smoothly tint parallax scenery based on biome
       if (newBiome === 'sunflower') {
         this.sky.setTint(0xFFE082);
         this.hills.setTint(0xFFD54F);
+        if (this.foregroundVerge) this.foregroundVerge.setTint(0xFFE082);
       } else if (newBiome === 'orchard') {
         this.sky.setTint(0xFFAB91);
         this.hills.setTint(0xAED581);
+        if (this.foregroundVerge) this.foregroundVerge.setTint(0xC5E1A5);
       } else if (newBiome === 'twilight') {
         this.sky.setTint(0x9575CD);
         this.hills.setTint(0x7E57C2);
+        if (this.foregroundVerge) this.foregroundVerge.setTint(0x7986CB);
       } else if (newBiome === 'golden') {
         this.sky.setTint(0xFFF176);
         this.hills.setTint(0x81C784);
+        if (this.foregroundVerge) this.foregroundVerge.setTint(0xFFEE58);
       } else {
         this.sky.clearTint();
         this.hills.clearTint();
+        if (this.foregroundVerge) this.foregroundVerge.clearTint();
       }
     }
+  }
+
+  private spawnSceneryProp() {
+    const width = this.scale.width;
+    let texture = 'prop-sunflower';
+    let y = this.groundY - 55;
+
+    if (this.currentBiome === 'sunflower') {
+      texture = 'prop-sunflower';
+      y = this.groundY - 50;
+    } else if (this.currentBiome === 'orchard') {
+      texture = 'prop-appletree';
+      y = this.groundY - 65;
+    } else if (this.currentBiome === 'twilight') {
+      texture = 'prop-lantern';
+      y = this.groundY - 50;
+    } else {
+      // Meadow: alternating sunflower or haybale
+      texture = Math.random() > 0.5 ? 'prop-sunflower' : 'item-haybale';
+      y = this.groundY - 30;
+    }
+
+    if (this.textures.exists(texture)) {
+      const prop = this.add.sprite(width + 60, y, texture);
+      prop.setData('baseScale', 0.95);
+      prop.setData('baseY', y);
+      prop.setDepth(2.8);
+      this.sceneryProps.add(prop);
+    }
+  }
+
+  private spawnFriendlyAnimal() {
+    const width = this.scale.width;
+    const isCow = Math.random() > 0.5;
+    const texture = isCow ? 'prop-cow' : 'prop-sheep';
+
+    if (this.textures.exists(texture)) {
+      const animal = this.add.sprite(width + 80, this.groundY - 35, texture);
+      animal.setData('isAnimal', true);
+      animal.setData('cheered', false);
+      animal.setData('baseScale', 0.9);
+      animal.setData('baseY', this.groundY - 35);
+      animal.setDepth(2.8);
+      this.sceneryProps.add(animal);
+    }
+  }
+
+  // ─── Perspective Scaling & Obstacle Shadow Helper Methods ─────────────────
+  private applyPerspectiveScale(
+    sprite: Phaser.GameObjects.Sprite | Phaser.GameObjects.Container,
+    baseScale: number = 1.0,
+    baseY: number
+  ) {
+    const playerX = this.riderContainer.x;
+    const spawnX = this.scale.width + 160;
+
+    if (sprite.x >= playerX) {
+      // Distance progress: 0.0 at playerX, 1.0 at spawnX
+      const factor = Math.min(1, Math.max(0, (sprite.x - playerX) / (spawnX - playerX)));
+      // Distant scale is 0.65x of baseScale, growing smoothly to 1.00x at player position
+      const scale = baseScale * (1.0 - factor * 0.35);
+      sprite.setScale(scale);
+      // Perspective Y inclination: far objects sit slightly higher on the tilted roadbed
+      sprite.y = baseY - factor * 14;
+    } else {
+      // Past the player: rushes into extreme foreground
+      const pastFactor = Math.min(1, (playerX - sprite.x) / 320);
+      const scale = baseScale * (1.0 + pastFactor * 0.18);
+      sprite.setScale(scale);
+      sprite.y = baseY + pastFactor * 8;
+    }
+  }
+
+  private destroyObstacle(obs: Phaser.GameObjects.Sprite) {
+    const shadow = obs.getData('shadow') as Phaser.GameObjects.Sprite | undefined;
+    if (shadow) {
+      shadow.destroy();
+    }
+    obs.destroy();
   }
 }

@@ -549,29 +549,6 @@
     box-shadow: 0 4px 14px rgba(245, 127, 23, 0.45);
     gap: 1px;
   }
-
-  /* Dodge Steer Buttons (Left / Right) */
-  .touch-btn.steer-btn {
-    width: 52px;
-    height: 52px;
-    background: linear-gradient(135deg, #1565C0 0%, #1E88E5 100%);
-    border: 2px solid #90CAF9;
-    color: #FFFFFF;
-    box-shadow: 0 4px 14px rgba(21, 101, 192, 0.45);
-    gap: 1px;
-  }
-
-  /* Duck / Slide Button */
-  .touch-btn.slide-btn {
-    width: 58px;
-    height: 58px;
-    background: linear-gradient(135deg, #D84315 0%, #F4511E 100%);
-    border: 2.5px solid #FFAB91;
-    color: #FFFFFF;
-    box-shadow: 0 4px 14px rgba(216, 67, 21, 0.45);
-    gap: 1px;
-    margin-right: 0.4rem;
-  }
   .touch-btn-label {
     font-size: 0.62rem;
     font-weight: 800;

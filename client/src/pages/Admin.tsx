@@ -124,6 +124,11 @@ export const Admin: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
 
+  // Live Stream Mode State (live: 3s polling, standard: 10s, manual: off)
+  const [streamMode, setStreamMode] = useState<'live' | 'standard' | 'manual'>('live');
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+
   // Overview & Telemetry State
   const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
@@ -195,6 +200,7 @@ export const Admin: React.FC = () => {
       ]);
       if (ovRes.data.success) setOverview(ovRes.data.stats);
       if (telRes.data.success) setTelemetry(telRes.data.telemetry);
+      setLastSyncTime(new Date());
     } catch (err: any) {
       if (err.response?.status === 403) {
         setErrorMsg('Access denied: You must have an administrator account to view this page.');
@@ -204,10 +210,10 @@ export const Admin: React.FC = () => {
     }
   }, []);
 
-  // Fetch Users
-  const fetchUsers = useCallback(async () => {
+  // Fetch Users (supports silent background refresh)
+  const fetchUsers = useCallback(async (isBg = false) => {
     try {
-      setLoading(true);
+      if (!isBg) setLoading(true);
       const res = await api.get('/admin/users', {
         params: {
           search: usersSearch,
@@ -220,95 +226,134 @@ export const Admin: React.FC = () => {
       if (res.data.success) {
         setUsersList(res.data.users);
         setUsersTotalPages(res.data.totalPages || 1);
+        setLastSyncTime(new Date());
       }
     } catch (err) {
       console.error('Error fetching users:', err);
     } finally {
-      setLoading(false);
+      if (!isBg) setLoading(false);
     }
   }, [usersSearch, usersRoleFilter, usersTierFilter, usersPage]);
 
-  // Fetch Withdrawals Queue
-  const fetchWithdrawals = useCallback(async () => {
+  // Fetch Withdrawals Queue (supports silent background refresh)
+  const fetchWithdrawals = useCallback(async (isBg = false) => {
     try {
-      setLoading(true);
+      if (!isBg) setLoading(true);
       const [wRes, txRes] = await Promise.all([
         api.get('/admin/withdrawals', { params: { status: withdrawalStatusFilter } }),
         api.get('/admin/transactions', { params: { type: txTypeFilter, limit: 30 } })
       ]);
       if (wRes.data.success) setWithdrawals(wRes.data.withdrawals);
       if (txRes.data.success) setTransactions(txRes.data.transactions);
+      setLastSyncTime(new Date());
     } catch (err) {
       console.error('Error fetching financials:', err);
     } finally {
-      setLoading(false);
+      if (!isBg) setLoading(false);
     }
   }, [withdrawalStatusFilter, txTypeFilter]);
 
-  // Fetch Game Stats
-  const fetchGameStats = useCallback(async () => {
+  // Fetch Game Stats (supports silent background refresh)
+  const fetchGameStats = useCallback(async (isBg = false) => {
     try {
-      setLoading(true);
+      if (!isBg) setLoading(true);
       const res = await api.get('/admin/game-stats');
-      if (res.data.success) setGameStats(res.data.stats);
+      if (res.data.success) {
+        setGameStats(res.data.stats);
+        setLastSyncTime(new Date());
+      }
     } catch (err) {
       console.error('Error fetching game stats:', err);
     } finally {
-      setLoading(false);
+      if (!isBg) setLoading(false);
     }
   }, []);
 
-  // Fetch Referrals
-  const fetchReferrals = useCallback(async () => {
+  // Fetch Referrals (supports silent background refresh)
+  const fetchReferrals = useCallback(async (isBg = false) => {
     try {
-      setLoading(true);
+      if (!isBg) setLoading(true);
       const res = await api.get('/admin/referrals');
-      if (res.data.success) setReferralStats(res.data);
+      if (res.data.success) {
+        setReferralStats(res.data);
+        setLastSyncTime(new Date());
+      }
     } catch (err) {
       console.error('Error fetching referrals:', err);
     } finally {
-      setLoading(false);
+      if (!isBg) setLoading(false);
     }
   }, []);
 
   // Fetch System Config
-  const fetchSystemConfig = useCallback(async () => {
+  const fetchSystemConfig = useCallback(async (isBg = false) => {
     try {
-      setLoading(true);
+      if (!isBg) setLoading(true);
       const res = await api.get('/admin/config');
-      if (res.data.success) setSystemConfig(res.data.config);
+      if (res.data.success) {
+        setSystemConfig(res.data.config);
+        setLastSyncTime(new Date());
+      }
     } catch (err) {
       console.error('Error fetching config:', err);
     } finally {
-      setLoading(false);
+      if (!isBg) setLoading(false);
     }
   }, []);
 
-  // Initial load and periodic polling for Overview tab
-  useEffect(() => {
-    fetchOverviewAndTelemetry();
+  // Force Sync All Endpoints Concurrently
+  const forceSyncAll = useCallback(async () => {
+    setIsSyncingAll(true);
+    setErrorMsg(null);
+    try {
+      await Promise.allSettled([
+        fetchOverviewAndTelemetry(),
+        fetchUsers(true),
+        fetchWithdrawals(true),
+        fetchGameStats(true),
+        fetchReferrals(true),
+        fetchSystemConfig(true)
+      ]);
+      setLastSyncTime(new Date());
+      setActionSuccessMsg('⚡ All mission control endpoints synced with live database!');
+      setTimeout(() => setActionSuccessMsg(null), 3000);
+    } catch (err) {
+      console.error('Error in forceSyncAll:', err);
+    } finally {
+      setIsSyncingAll(false);
+    }
+  }, [fetchOverviewAndTelemetry, fetchUsers, fetchWithdrawals, fetchGameStats, fetchReferrals, fetchSystemConfig]);
 
-    // 10-second polling for live hit stats
-    const interval = setInterval(() => {
-      if (activeTab === 'overview') {
-        fetchOverviewAndTelemetry();
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [activeTab, fetchOverviewAndTelemetry]);
-
-  // Tab switch loader
+  // Real-Time Dynamic Polling Engine
   useEffect(() => {
     setErrorMsg(null);
     setActionSuccessMsg(null);
 
-    if (activeTab === 'users') fetchUsers();
+    // Initial fetch on tab switch
+    if (activeTab === 'overview') fetchOverviewAndTelemetry();
+    else if (activeTab === 'users') fetchUsers();
     else if (activeTab === 'withdrawals') fetchWithdrawals();
     else if (activeTab === 'game') fetchGameStats();
     else if (activeTab === 'referrals') fetchReferrals();
     else if (activeTab === 'settings') fetchSystemConfig();
-  }, [activeTab, fetchUsers, fetchWithdrawals, fetchGameStats, fetchReferrals, fetchSystemConfig]);
+
+    if (streamMode === 'manual') return;
+
+    // Fast polling in Live Mode (3s) or Standard Mode (10s)
+    const intervalMs = streamMode === 'live' ? 3000 : 10000;
+    const interval = setInterval(() => {
+      // Keep overview and live telemetry hits fresh
+      fetchOverviewAndTelemetry();
+
+      // Refresh currently open tab in background without table flickering
+      if (activeTab === 'users') fetchUsers(true);
+      else if (activeTab === 'withdrawals') fetchWithdrawals(true);
+      else if (activeTab === 'game') fetchGameStats(true);
+      else if (activeTab === 'referrals') fetchReferrals(true);
+    }, intervalMs);
+
+    return () => clearInterval(interval);
+  }, [activeTab, streamMode, fetchOverviewAndTelemetry, fetchUsers, fetchWithdrawals, fetchGameStats, fetchReferrals, fetchSystemConfig]);
 
   // Handle Save User Modal
   const handleSaveUser = async () => {
@@ -423,11 +468,90 @@ export const Admin: React.FC = () => {
         </div>
 
         <div className="admin-top-actions">
-          <div className="live-pulse-badge">
-            <span className="live-dot" />
-            <span>LIVE TELEMETRY</span>
+          {/* Live Stream Mode Switcher */}
+          <div className="admin-stream-selector" style={{ display: 'inline-flex', gap: '4px', background: 'rgba(255, 255, 255, 0.06)', padding: '3px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
+            <button
+              onClick={() => setStreamMode('live')}
+              title="Stream live updates every 3 seconds"
+              style={{
+                background: streamMode === 'live' ? '#10B981' : 'transparent',
+                color: streamMode === 'live' ? '#FFFFFF' : '#94A3B8',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: streamMode === 'live' ? '#FFF' : '#10B981', display: 'inline-block' }} />
+              LIVE 3s
+            </button>
+
+            <button
+              onClick={() => setStreamMode('standard')}
+              title="Poll every 10 seconds"
+              style={{
+                background: streamMode === 'standard' ? '#3B82F6' : 'transparent',
+                color: streamMode === 'standard' ? '#FFFFFF' : '#94A3B8',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              10s
+            </button>
+
+            <button
+              onClick={() => setStreamMode('manual')}
+              title="Pause automatic background polling"
+              style={{
+                background: streamMode === 'manual' ? '#64748B' : 'transparent',
+                color: streamMode === 'manual' ? '#FFFFFF' : '#94A3B8',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Paused
+            </button>
           </div>
 
+          {/* Master Force Sync All Endpoints */}
+          <button
+            onClick={forceSyncAll}
+            disabled={isSyncingAll}
+            className="btn-admin-sync-all"
+            title="Force sync all 5 admin endpoints immediately with latest server data"
+            style={{
+              background: 'linear-gradient(135deg, #FF7A00 0%, #FF9E00 100%)',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '10px',
+              padding: '6px 14px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: isSyncingAll ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 12px rgba(255, 122, 0, 0.35)'
+            }}
+          >
+            <Zap size={16} fill="#FFF" className={isSyncingAll ? 'spin' : ''} />
+            <span>{isSyncingAll ? 'Syncing...' : 'Sync All'}</span>
+          </button>
+
+          {/* Refresh Current Tab */}
           <button
             onClick={() => {
               if (activeTab === 'overview') fetchOverviewAndTelemetry();
@@ -438,7 +562,7 @@ export const Admin: React.FC = () => {
               else if (activeTab === 'settings') fetchSystemConfig();
             }}
             className="btn-admin-refresh"
-            title="Refresh current view"
+            title="Refresh current tab view"
           >
             <RefreshCw size={16} className={loading ? 'spin' : ''} />
             <span>Refresh</span>
@@ -768,12 +892,39 @@ export const Admin: React.FC = () => {
               </thead>
               <tbody>
                 {usersList.length > 0 ? (
-                  usersList.map(u => (
-                    <tr key={u._id}>
-                      <td>
-                        <div style={{ fontWeight: 700 }}>{u.email}</div>
-                        {u.firstName && <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{u.firstName}</div>}
-                      </td>
+                  usersList.map(u => {
+                    const activeSession = telemetry?.online?.activeUsers?.find(
+                      s => s.id === u._id || s.email?.toLowerCase() === u.email?.toLowerCase()
+                    );
+                    const isOnline = Boolean(activeSession);
+                    const isRiding = activeSession?.activity === 'riding';
+
+                    return (
+                      <tr key={u._id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 700 }}>{u.email}</span>
+                            {isOnline && (
+                              <span style={{
+                                background: isRiding ? 'rgba(255, 122, 0, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                                color: isRiding ? '#FF9E00' : '#34D399',
+                                border: `1px solid ${isRiding ? '#FF9E00' : '#34D399'}`,
+                                borderRadius: '6px',
+                                padding: '1px 6px',
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                letterSpacing: '0.4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isRiding ? '#FF9E00' : '#34D399' }} />
+                                {isRiding ? '🎮 RIDING' : '🟢 ONLINE'}
+                              </span>
+                            )}
+                          </div>
+                          {u.firstName && <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{u.firstName}</div>}
+                        </td>
                       <td style={{ fontWeight: 700, color: '#34D399' }}>
                         ₦{(u.balanceNaira || 0).toLocaleString()}
                       </td>
@@ -820,8 +971,8 @@ export const Admin: React.FC = () => {
                         </button>
                       </td>
                     </tr>
-                  ))
-                ) : (
+                  );
+                })) : (
                   <tr>
                     <td colSpan={9} style={{ textAlign: 'center', padding: '3rem', color: '#94A3B8' }}>
                       No players matched the search criteria.

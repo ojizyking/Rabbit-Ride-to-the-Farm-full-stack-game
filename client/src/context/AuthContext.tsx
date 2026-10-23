@@ -371,18 +371,8 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return { success: false, message: res?.data?.message || 'Failed to update code' };
     } catch (err: unknown) {
       const e = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
-      if (e.response?.status === 409 || e.response?.status === 400) {
-        return { success: false, message: e.response.data?.message || 'Referral code unavailable. Try another!' };
-      }
-      // Graceful optimistic fallback for offline or proxy issues
-      const clean = code.trim().toUpperCase();
-      setUser((prev) => {
-        if (!prev) return null;
-        const updated = { ...prev, referralCode: clean };
-        localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
-        return updated;
-      });
-      return { success: true, message: 'Referral code customized successfully!', referralCode: clean };
+      const msg = e.response?.data?.message || e.message || 'Unable to save referral code to server. Please try again.';
+      return { success: false, message: msg };
     }
   };
 

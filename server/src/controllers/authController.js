@@ -100,17 +100,31 @@ async function processReferralReward(newUserId, newUserEmail, referralCode) {
 
   // Log transaction for referrer
   try {
-    const tx = new Transaction({
+    await Transaction.create({
       userId: referrer._id,
       type: 'referral',
       amount: 100,
       description: `Referral Bonus: Invited ${newUserEmail}`,
       status: 'completed'
     });
-    await tx.save();
   } catch (err) {
-    console.warn('Referral tx logging error:', err);
+    console.warn('Referral tx logging error (referrer):', err);
   }
+
+  // Log transaction for referee
+  try {
+    await Transaction.create({
+      userId: newUserId,
+      type: 'referral',
+      amount: 50,
+      description: `Welcome Bonus: Invited by ${referrer.referralCode || cleanCode}`,
+      status: 'completed'
+    });
+  } catch (err) {
+    console.warn('Referral tx logging error (referee):', err);
+  }
+
+  console.log(`🎉 Referral credited! Referrer: ${referrer.email} (+₦100), Referee: ${newUserEmail} (+₦50)`);
 
   return { referrerBonus: 100, refereeBonus: 50, referrerId: referrer._id };
 }
@@ -471,16 +485,25 @@ exports.customizeReferralCode = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
 
-    const user = await User.findById(currentUserId);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+    const updatedUser = await User.findByIdAndUpdate(
+      currentUserId,
+      { $set: { referralCode: cleanCode } },
+      { new: true }
+    );
+    if (!updatedUser) return res.status(404).json({ success: false, message: 'User not found.' });
 
-    user.referralCode = cleanCode;
-    await user.save();
+    // Also update in-memory session
+    if (req.user) req.user.referralCode = cleanCode;
 
     return res.json({
       success: true,
       message: 'Referral code customized successfully!',
-      referralCode: cleanCode
+      referralCode: cleanCode,
+      user: {
+        id: updatedUser._id,
+        email: updatedUser.email,
+        referralCode: cleanCode
+      }
     });
   } catch (err) {
     console.error('customizeReferralCode error:', err.stack || err);
