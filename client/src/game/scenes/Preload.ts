@@ -1527,6 +1527,367 @@ export default class Preload extends Phaser.Scene {
 
       sheepCanvas.refresh();
     }
+
+    // =========================================================================
+    // 2.5D SUBWAY SURFERS / TEMPLE RUN STYLE PERSPECTIVE TEXTURES
+    // =========================================================================
+
+    // 1. Rear-Chase Bunny Rider on Bicycle (90 x 100)
+    const chaseRiderCanvas = this.textures.createCanvas('rider-chase-default', 90, 100);
+    if (chaseRiderCanvas) {
+      const ctx = chaseRiderCanvas.getContext();
+      const cx = 45;
+
+      // Handlebars ahead (silver/yellow)
+      ctx.strokeStyle = '#ECEFF1';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - 28, 42);
+      ctx.lineTo(cx + 28, 42);
+      ctx.stroke();
+      // Handlebar rubber grips
+      ctx.fillStyle = '#263238';
+      ctx.fillRect(cx - 30, 39, 7, 6);
+      ctx.fillRect(cx + 23, 39, 7, 6);
+
+      // Bicycle Frame Struts & Chainstay
+      ctx.strokeStyle = '#FFC93C';
+      ctx.lineWidth = 4.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, 65);
+      ctx.lineTo(cx - 14, 86);
+      ctx.moveTo(cx, 65);
+      ctx.lineTo(cx + 14, 86);
+      ctx.stroke();
+
+      // Rear Bicycle Tire & Rim (viewed from behind)
+      ctx.fillStyle = '#263238';
+      ctx.beginPath();
+      ctx.ellipse(cx, 84, 7, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#FFC93C';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Left & Right Pedals
+      ctx.fillStyle = '#37474F';
+      ctx.fillRect(cx - 22, 78, 9, 4);
+      ctx.fillRect(cx + 13, 84, 9, 4);
+
+      // Bicycle Saddle
+      ctx.fillStyle = '#3E2723';
+      ctx.beginPath();
+      ctx.ellipse(cx, 63, 13, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Fluffy White Bunny Tail on saddle
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(cx, 60, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bunny Torso (Orange cycling jersey / backpack with cream straps)
+      ctx.fillStyle = '#FF7A00';
+      ctx.beginPath();
+      ctx.ellipse(cx, 48, 17, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#D84315';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Backpack pocket & reflective yellow strip
+      ctx.fillStyle = '#FFB300';
+      ctx.fillRect(cx - 10, 44, 20, 10);
+      ctx.fillStyle = '#FFEB3B';
+      ctx.fillRect(cx - 8, 48, 16, 3);
+
+      // Bunny Paws on handlebars
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(cx - 22, 42, 5, 0, Math.PI * 2);
+      ctx.arc(cx + 22, 42, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bunny Head (viewed from rear)
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.ellipse(cx, 30, 16, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Green Aerodynamic Cycling Helmet
+      ctx.fillStyle = '#2D8A4E';
+      ctx.beginPath();
+      ctx.ellipse(cx, 24, 18, 11, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#1B5E20';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Helmet ventilation slots
+      ctx.fillStyle = '#1B5E20';
+      ctx.fillRect(cx - 10, 18, 4, 6);
+      ctx.fillRect(cx - 2, 16, 4, 7);
+      ctx.fillRect(cx + 6, 18, 4, 6);
+
+      // Bunny Ears Swaying in the Wind
+      const drawEar = (ex: number, angle: number) => {
+        ctx.save();
+        ctx.translate(ex, 18);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.ellipse(0, -14, 5.5, 15, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#CFD8DC';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Pink inner ear
+        ctx.fillStyle = '#FF80AB';
+        ctx.beginPath();
+        ctx.ellipse(0, -14, 3, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      };
+      drawEar(cx - 7, -0.15);
+      drawEar(cx + 7, 0.15);
+
+      chaseRiderCanvas.refresh();
+    }
+
+    // 2. Front-Facing Golden Round Hay Bale Obstacle (76 x 60)
+    const frontHayCanvas = this.textures.createCanvas('obstacle-hay-front', 76, 60);
+    if (frontHayCanvas) {
+      const ctx = frontHayCanvas.getContext();
+      const cx = 38;
+      const cy = 30;
+
+      // Wooden skid / pallet base
+      ctx.fillStyle = '#5D4037';
+      ctx.fillRect(8, 52, 60, 6);
+      ctx.fillStyle = '#795548';
+      ctx.fillRect(10, 48, 56, 4);
+
+      // Main circular hay bale face
+      ctx.fillStyle = '#FDD835';
+      ctx.beginPath();
+      ctx.arc(cx, cy - 2, 26, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#F57F17';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Concentric golden straw spirals
+      ctx.strokeStyle = '#FBC02D';
+      ctx.lineWidth = 2;
+      for (const r of [8, 14, 20]) {
+        ctx.beginPath();
+        ctx.arc(cx, cy - 2, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Red twine binding cross
+      ctx.strokeStyle = '#D84315';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - 24, cy - 2);
+      ctx.lineTo(cx + 24, cy - 2);
+      ctx.moveTo(cx, cy - 26);
+      ctx.lineTo(cx, cy + 22);
+      ctx.stroke();
+
+      frontHayCanvas.refresh();
+    }
+
+    // 3. Front-Facing Wooden Jump Hurdle Barrier (88 x 55)
+    const hurdleCanvas = this.textures.createCanvas('obstacle-hurdle-front', 88, 55);
+    if (hurdleCanvas) {
+      const ctx = hurdleCanvas.getContext();
+
+      // Upright wooden posts
+      ctx.fillStyle = '#6D4C41';
+      ctx.fillRect(8, 10, 10, 45);
+      ctx.fillRect(70, 10, 10, 45);
+
+      // Post bases
+      ctx.fillStyle = '#4E342E';
+      ctx.fillRect(4, 50, 18, 5);
+      ctx.fillRect(66, 50, 18, 5);
+
+      // Crossbars with Hazard Warning Red/White Stripes
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(6, 16, 76, 14);
+      ctx.fillRect(6, 34, 76, 10);
+      ctx.strokeStyle = '#3E2723';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(6, 16, 76, 14);
+      ctx.strokeRect(6, 34, 76, 10);
+
+      // Diagonal Red Hazard Stripes
+      ctx.fillStyle = '#E53935';
+      for (let x = 12; x < 80; x += 16) {
+        ctx.beginPath();
+        ctx.moveTo(x, 16);
+        ctx.lineTo(x + 8, 16);
+        ctx.lineTo(x + 2, 30);
+        ctx.lineTo(x - 6, 30);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      hurdleCanvas.refresh();
+    }
+
+    // 4. Overhead Rustic Timber Arch / Rafter (120 x 70) - Requires Duck / Slide!
+    const archCanvas = this.textures.createCanvas('obstacle-arch-overhead', 120, 70);
+    if (archCanvas) {
+      const ctx = archCanvas.getContext();
+
+      // Tall wooden upright side poles
+      ctx.fillStyle = '#5D4037';
+      ctx.fillRect(6, 0, 10, 70);
+      ctx.fillRect(104, 0, 10, 70);
+
+      // Heavy crossbeam timber at top
+      ctx.fillStyle = '#795548';
+      ctx.fillRect(0, 0, 120, 22);
+      ctx.strokeStyle = '#3E2723';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(0, 0, 120, 22);
+
+      // Hanging low barrier beam (clearance only 24px off ground -> must duck!)
+      ctx.fillStyle = '#D84315';
+      ctx.fillRect(16, 22, 88, 18);
+      ctx.strokeStyle = '#BF360C';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(16, 22, 88, 18);
+
+      // Hanging Chains
+      ctx.strokeStyle = '#90A4AE';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(24, 18);
+      ctx.lineTo(24, 24);
+      ctx.moveTo(96, 18);
+      ctx.lineTo(96, 24);
+      ctx.stroke();
+
+      // "DUCK / SLIDE" Caution Banner
+      ctx.fillStyle = '#FFEB3B';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('▼ SLIDE / DUCK ▼', 60, 35);
+
+      archCanvas.refresh();
+    }
+
+    // 5. Giant Milestone Farm Barn Tunnel Facade (260 x 190)
+    const barnTunnelCanvas = this.textures.createCanvas('barn-station-tunnel', 260, 190);
+    if (barnTunnelCanvas) {
+      const ctx = barnTunnelCanvas.getContext();
+      const cx = 130;
+
+      // Red Barn Walls
+      ctx.fillStyle = '#C62828';
+      ctx.beginPath();
+      ctx.moveTo(20, 190);
+      ctx.lineTo(20, 85);
+      ctx.lineTo(cx, 15);
+      ctx.lineTo(240, 85);
+      ctx.lineTo(240, 190);
+      ctx.closePath();
+      ctx.fill();
+
+      // White Trim Gambrel Roof
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(12, 90);
+      ctx.lineTo(cx, 12);
+      ctx.lineTo(248, 90);
+      ctx.stroke();
+
+      // Weathercock atop roof
+      ctx.fillStyle = '#FFC107';
+      ctx.beginPath();
+      ctx.arc(cx, 10, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Grand Open Barn Door Entryway (illuminated warm golden road inside!)
+      const doorGrad = ctx.createLinearGradient(0, 75, 0, 190);
+      doorGrad.addColorStop(0, '#FFE082');
+      doorGrad.addColorStop(0.4, '#FFD54F');
+      doorGrad.addColorStop(1, '#FFF9C4');
+      ctx.fillStyle = doorGrad;
+      ctx.beginPath();
+      ctx.roundRect(cx - 60, 75, 120, 115, [24, 24, 0, 0]);
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Overhead Station Banner
+      ctx.fillStyle = '#2E7D32';
+      ctx.beginPath();
+      ctx.roundRect(cx - 75, 52, 150, 24, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#FFC93C';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 11px Fredoka, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🌾 PAPPY\'S FARM BARN 🌾', cx, 68);
+
+      barnTunnelCanvas.refresh();
+    }
+
+    // 6. 3-Lane Overhead Sponsor Billboard Highway Bridge (280 x 85)
+    const billboardBridgeCanvas = this.textures.createCanvas('billboard-bridge-front', 280, 85);
+    if (billboardBridgeCanvas) {
+      const ctx = billboardBridgeCanvas.getContext();
+
+      // Steel truss gantry legs
+      ctx.strokeStyle = '#546E7A';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(15, 85);
+      ctx.lineTo(15, 20);
+      ctx.moveTo(265, 85);
+      ctx.lineTo(265, 20);
+      ctx.stroke();
+
+      // Horizontal Overhead Display Box
+      ctx.fillStyle = '#1A1429';
+      ctx.beginPath();
+      ctx.roundRect(10, 8, 260, 52, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#FFC93C';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Glowing Neon Marquee Chasing Dots
+      ctx.fillStyle = '#FFEB3B';
+      for (let x = 18; x <= 262; x += 14) {
+        ctx.beginPath();
+        ctx.arc(x, 14, 2.5, 0, Math.PI * 2);
+        ctx.arc(x, 54, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Banner text
+      ctx.fillStyle = '#00E676';
+      ctx.font = 'bold 13px Fredoka, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚡ SPONSOR AD REWARD +₦10 ⚡', 140, 36);
+
+      ctx.fillStyle = '#FFC93C';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('Ride Through To Claim Bonus!', 140, 50);
+
+      billboardBridgeCanvas.refresh();
+    }
   }
 }
 

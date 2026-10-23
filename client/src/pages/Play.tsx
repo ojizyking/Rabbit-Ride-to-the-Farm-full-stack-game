@@ -6,7 +6,7 @@ import { sounds } from '../game/audio';
 import { bgm, SOUNDTRACKS, YOUTUBE_PRESETS, MusicSourceType } from '../game/bgm';
 import api from '../lib/api';
 import {
-  Zap, Trophy, Coins, Volume2, VolumeX, ArrowLeft, ArrowUp, RotateCcw, RotateCw,
+  Zap, Trophy, Coins, Volume2, VolumeX, ArrowLeft, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RotateCcw, RotateCw,
   ShoppingCart, Wallet, AlertCircle, Tv, CheckCircle2, Sparkles, PlayCircle, Heart, X,
   Pause, Play as PlayIcon, Music, Sliders, ExternalLink
 } from 'lucide-react';
@@ -423,6 +423,18 @@ export const Play: React.FC = () => {
     window.dispatchEvent(new CustomEvent('game:jump'));
   };
 
+  const handleTriggerSlide = () => {
+    window.dispatchEvent(new CustomEvent('game:slide'));
+  };
+
+  const handleTriggerMoveLeft = () => {
+    window.dispatchEvent(new CustomEvent('game:move_left'));
+  };
+
+  const handleTriggerMoveRight = () => {
+    window.dispatchEvent(new CustomEvent('game:move_right'));
+  };
+
   const handleTogglePause = () => {
     if (gameOverData || isBillboardOpen || isBarnOpen) return;
     setIsPaused((prev) => {
@@ -679,19 +691,19 @@ export const Play: React.FC = () => {
       {/* CONTROLS HINT BAR (desktop only) */}
       <div className="game-controls-hint">
         <span>
-          <span className="key-badge">SPACE</span> / <span className="key-badge">W</span> / <span className="key-badge">TAP</span> Jump
+          <span className="key-badge">A</span> / <span className="key-badge">D</span> or <span className="key-badge">←</span> <span className="key-badge">→</span> Dodge Lanes
         </span>
         <span>•</span>
         <span>
-          <span className="key-badge">A</span> / <span className="key-badge">D</span> / <span className="key-badge">FLIP</span> 360° Stunt
+          <span className="key-badge">W</span> / <span className="key-badge">SPACE</span> / <span className="key-badge">↑</span> Jump
+        </span>
+        <span>•</span>
+        <span>
+          <span className="key-badge">S</span> / <span className="key-badge">↓</span> Duck &amp; Slide
         </span>
         <span>•</span>
         <span>
           <span className="key-badge">SHIFT</span> Nitro Boost
-        </span>
-        <span>•</span>
-        <span>
-          <span className="key-badge">TV</span> 30s Billboard Ad
         </span>
         <span>•</span>
         <span>
@@ -705,6 +717,28 @@ export const Play: React.FC = () => {
       {/* MOBILE ON-SCREEN TOUCH CONTROLS */}
       <div className="touch-controls" aria-hidden="true">
         <div className="touch-controls-left">
+          {/* Dodge Left Button */}
+          <button
+            className="touch-btn steer-btn"
+            onTouchStart={(e) => { e.preventDefault(); handleTriggerMoveLeft(); }}
+            onClick={handleTriggerMoveLeft}
+            title="Dodge Left"
+          >
+            <ChevronLeft size={24} strokeWidth={3} />
+            <span className="touch-btn-label">LEFT</span>
+          </button>
+
+          {/* Dodge Right Button */}
+          <button
+            className="touch-btn steer-btn"
+            onTouchStart={(e) => { e.preventDefault(); handleTriggerMoveRight(); }}
+            onClick={handleTriggerMoveRight}
+            title="Dodge Right"
+          >
+            <ChevronRight size={24} strokeWidth={3} />
+            <span className="touch-btn-label">RIGHT</span>
+          </button>
+
           {/* Nitro Boost Button with Glow & Ready State */}
           <button
             className={`touch-btn boost-btn ${stats.boostMeter >= 25 && !stats.isBoosting ? 'ready' : ''} ${stats.isBoosting ? 'boosting' : ''}`}
@@ -716,20 +750,20 @@ export const Play: React.FC = () => {
             <Zap size={22} fill="#FFF" />
             <span className="touch-btn-label">{stats.isBoosting ? 'TURBO' : 'BOOST'}</span>
           </button>
-
-          {/* 360 Stunt Flip Button */}
-          <button
-            className="touch-btn flip-btn"
-            onTouchStart={(e) => { e.preventDefault(); handleTriggerFlip(); }}
-            onClick={handleTriggerFlip}
-            title="360° Flip Stunt"
-          >
-            <RotateCw size={20} />
-            <span className="touch-btn-label">FLIP</span>
-          </button>
         </div>
 
         <div className="touch-controls-right">
+          {/* Duck / Slide Button */}
+          <button
+            className="touch-btn slide-btn"
+            onTouchStart={(e) => { e.preventDefault(); handleTriggerSlide(); }}
+            onClick={handleTriggerSlide}
+            title="Duck & Slide Under Arches"
+          >
+            <ArrowDown size={24} strokeWidth={3} />
+            <span className="touch-btn-label">SLIDE</span>
+          </button>
+
           {/* Big Tactile Jump Button */}
           <button
             className="touch-btn jump-btn"
@@ -738,7 +772,7 @@ export const Play: React.FC = () => {
               handleTriggerJump();
             }}
             onClick={handleTriggerJump}
-            title="Tap to Jump / Double Jump"
+            title="Tap to Jump"
           >
             <ArrowUp size={30} strokeWidth={3.5} />
             <span className="touch-jump-text">JUMP</span>
