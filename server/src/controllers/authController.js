@@ -368,9 +368,10 @@ exports.clerkSync = async (req, res) => {
     const guestBonus = Math.max(0, Number(guestBalance) || 0);
 
     if (!user) {
+      // Brand-new Clerk user: award ₦50 welcome bonus + any guest coins earned before sign-up
       const userReferralCode = await getUniqueReferralCode(firstName || cleanEmail);
       const playerId = generatePlayerId();
-      let startingBal = 50 + guestBonus;
+      const startingBal = 50 + guestBonus; // guest bonus ONLY for new accounts
 
       user = new User({
         playerId,
@@ -400,14 +401,13 @@ exports.clerkSync = async (req, res) => {
       }
 
       await user.save();
+      console.log(`[ClerkSync] New user: ${cleanEmail}, starting balance: ₦${user.balanceNaira}`);
     } else {
-      // Update existing user with Clerk ID and avatar
+      // Returning user — NEVER modify balance from guestBonus (prevents balance inheritance)
       user.clerkId = clerkId;
       if (firstName && !user.firstName) user.firstName = firstName;
-      if (avatarUrl && !user.avatarUrl) user.avatarUrl = avatarUrl;
-      if (guestBonus > 0) {
-        user.balanceNaira = Math.round((user.balanceNaira + guestBonus) * 100) / 100;
-      }
+      if (avatarUrl) user.avatarUrl = avatarUrl; // always refresh avatar
+      // guestBonus is intentionally ignored for returning users
       if (!user.referralCode) {
         user.referralCode = await getUniqueReferralCode(user.firstName || user.email);
       }
@@ -416,7 +416,9 @@ exports.clerkSync = async (req, res) => {
       }
       if (!user.currentRabbitId && defaultRabbit) user.currentRabbitId = defaultRabbit._id;
       if (!user.currentBikeId && defaultBike) user.currentBikeId = defaultBike._id;
+      user.lastSeenAt = new Date();
       await user.save();
+      console.log(`[ClerkSync] Returning user: ${cleanEmail}, balance: ₦${user.balanceNaira}`);
     }
 
     const populatedUser = await User.findById(user._id)

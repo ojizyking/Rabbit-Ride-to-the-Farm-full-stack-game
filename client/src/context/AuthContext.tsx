@@ -297,33 +297,37 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const currentToken = localStorage.getItem('rabbit_token');
     if (!currentToken) { setIsLoading(false); return; }
 
+    // Only offline_ tokens may restore from local cache — real JWTs always hit the server
     if (currentToken.startsWith('offline_')) {
       const saved = localStorage.getItem('rabbit_offline_user');
-      try { setUser(saved ? JSON.parse(saved) : createLocalUser('farmer@rabbitride.com')); }
-      catch { setUser(createLocalUser('farmer@rabbitride.com')); }
+      try { setUser(saved ? JSON.parse(saved) : null); }
+      catch { setUser(null); }
       setIsLoading(false);
       return;
     }
 
     try {
       const res = await api.get('/auth/me');
-      if (res.data.success) {
+      if (res.data.success && res.data.user) {
         setUser(res.data.user);
-        // Cache the server's authoritative balance
+        // Cache the server's authoritative balance (scoped by user id)
         cacheServerBalance(res.data.user.balanceNaira);
+        localStorage.setItem(`rabbit_offline_user_${res.data.user.id}`, JSON.stringify(res.data.user));
         // Sync any pending offline rides
         syncOfflineRides(updateBalance);
       }
     } catch (err: unknown) {
       const e = err as { response?: { status?: number } };
       if (e.response?.status === 401) {
+        // Token rejected by server — clear everything, force re-login
         localStorage.removeItem('rabbit_token');
+        localStorage.removeItem('rabbit_last_server_balance');
+        localStorage.removeItem('rabbit_offline_user');
         setToken(null);
         setUser(null);
-      } else {
-        const saved = localStorage.getItem('rabbit_offline_user');
-        if (saved) { try { setUser(JSON.parse(saved)); } catch { /* ignore */ } }
       }
+      // For network errors (no response): show nothing — do NOT restore a stale profile
+      // The user stays on the loading screen until the server is reachable
     } finally {
       setIsLoading(false);
     }
@@ -332,10 +336,13 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   const logout = () => {
+    const currentUserId = user?.id;
     localStorage.removeItem('rabbit_token');
     localStorage.removeItem('rabbit_offline_user');
     localStorage.removeItem('rabbit_last_server_balance');
     localStorage.removeItem('rabbit_guest_balance');
+    // Clear scoped user cache to prevent balance bleed to next login
+    if (currentUserId) localStorage.removeItem(`rabbit_offline_user_${currentUserId}`);
     setToken(null);
     setUser(null);
   };

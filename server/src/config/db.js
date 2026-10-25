@@ -159,21 +159,33 @@ async function backfillPlayerIds() {
 
 async function connectDB() {
   const primaryUri = process.env.MONGO_URI || 'mongodb://localhost:27017/rabbit_farm';
+  const isAtlas = primaryUri.includes('mongodb+srv');
+  const isRemote = isAtlas || !primaryUri.includes('localhost');
+
   try {
-    console.log(`Connecting to MongoDB...`);
-    const isRemote = primaryUri.includes('mongodb+srv') || !primaryUri.includes('localhost');
+    console.log(`[DB] Connecting to ${isAtlas ? 'MongoDB Atlas' : 'MongoDB'}...`);
     await mongoose.connect(primaryUri, {
-      serverSelectionTimeoutMS: isRemote ? 10000 : 2500
+      serverSelectionTimeoutMS: isAtlas ? 15000 : 2500,
+      retryWrites: true,
+      w: 'majority',
+      appName: 'RabbitRideFarm'
     });
-    console.log('MongoDB connected successfully via Mongoose.');
+    console.log(`[DB] ✅ MongoDB ${isAtlas ? 'Atlas' : 'local'} connected successfully.`);
     await seedInitialShop();
     await backfillPlayerIds();
   } catch (err) {
-    console.log('------------------------------------------------------------');
-    console.log('ℹ️  No external MongoDB daemon running at ' + primaryUri);
-    console.log('⚡ Initializing High-Speed JSON-backed Memory Database!');
-    console.log('✅ Server is 100% operational with full persistent state.');
-    console.log('------------------------------------------------------------');
+    if (isRemote) {
+      // Atlas / remote connection failure — this is a real problem, log clearly
+      console.error('[DB] ❌ MongoDB connection FAILED:', err.message);
+      console.error('[DB] ⚠️  Falling back to in-memory JSON store. All data will be lost on restart!');
+      console.error('[DB] 💡 Ensure MONGO_URI is set correctly in Railway environment variables.');
+    } else {
+      // Local dev fallback — expected when no local MongoDB daemon is running
+      console.log('------------------------------------------------------------');
+      console.log('ℹ️  No local MongoDB found — using JSON-backed memory store.');
+      console.log('✅ Server is operational. Set MONGO_URI for persistent storage.');
+      console.log('------------------------------------------------------------');
+    }
     await seedInitialShop();
     await backfillPlayerIds();
   }
