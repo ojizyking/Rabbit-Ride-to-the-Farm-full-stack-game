@@ -28,19 +28,23 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
 
   // Map equipped rabbit name or id to asset key
   const getRabbitTextureKey = (): string => {
-    const name = user?.currentRabbit?.name || '';
-    if (name.includes('Red Hoodie')) return 'rabbit-red-hoodie';
-    if (name.includes('Blue Aviator')) return 'rabbit-blue-aviator';
-    if (name.includes('Farmer')) return 'rabbit-farmer-hat';
-    if (name.includes('Ninja')) return 'rabbit-ninja';
+    const raw = user?.currentRabbit;
+    const id = typeof raw === 'object' ? (raw?._id || '') : (raw || '');
+    const name = (typeof raw === 'object' ? raw?.name : '') || '';
+    if (id === 'rab_002' || name.includes('Red Hoodie')) return 'rabbit-red-hoodie';
+    if (id === 'rab_003' || name.includes('Blue Aviator')) return 'rabbit-blue-aviator';
+    if (id === 'rab_004' || name.includes('Farmer')) return 'rabbit-farmer-hat';
+    if (id === 'rab_005' || name.includes('Ninja')) return 'rabbit-ninja';
     return 'rabbit-starter';
   };
 
   const getBikeTextureKey = (): string => {
-    const name = user?.currentBike?.name || '';
-    if (name.includes('Blue Basket')) return 'bike-blue-basket';
-    if (name.includes('Green Bloom')) return 'bike-green-bloom';
-    if (name.includes('Turbo Gold')) return 'bike-turbo-gold';
+    const raw = user?.currentBike;
+    const id = typeof raw === 'object' ? (raw?._id || '') : (raw || '');
+    const name = (typeof raw === 'object' ? raw?.name : '') || '';
+    if (id === 'bike_002' || name.includes('Blue Basket')) return 'bike-blue-basket';
+    if (id === 'bike_003' || name.includes('Green Bloom')) return 'bike-green-bloom';
+    if (id === 'bike_004' || name.includes('Turbo Gold') || name.includes('Turbo Golden')) return 'bike-turbo-gold';
     return 'bike-starter';
   };
 

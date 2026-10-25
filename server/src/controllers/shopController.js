@@ -23,6 +23,14 @@ exports.getBicycles = async (req, res) => {
   }
 };
 
+function getItemId(item) {
+  if (!item) return '';
+  if (typeof item === 'object') {
+    return (item._id || item.id || '').toString();
+  }
+  return item.toString();
+}
+
 exports.buyOrEquip = async (req, res) => {
   try {
     const { itemType, itemId } = req.body;
@@ -31,6 +39,14 @@ exports.buyOrEquip = async (req, res) => {
     }
 
     const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    if (!Array.isArray(user.ownedRabbits)) user.ownedRabbits = [];
+    if (!Array.isArray(user.ownedBikes)) user.ownedBikes = [];
+
+    const targetId = itemId.toString();
 
     if (itemType === 'rabbit') {
       const rabbit = await Rabbit.findById(itemId);
@@ -38,12 +54,12 @@ exports.buyOrEquip = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Rabbit not found.' });
       }
 
-      const isOwned = user.ownedRabbits.some(id => id.toString() === rabbit._id.toString()) || rabbit.priceNaira === 0;
+      const isOwned = user.ownedRabbits.some(id => getItemId(id) === targetId) || rabbit.priceNaira === 0;
 
       if (isOwned) {
         // Equip
         user.currentRabbitId = rabbit._id;
-        if (!user.ownedRabbits.some(id => id.toString() === rabbit._id.toString())) {
+        if (!user.ownedRabbits.some(id => getItemId(id) === targetId)) {
           user.ownedRabbits.push(rabbit._id);
         }
         await user.save();
@@ -65,8 +81,10 @@ exports.buyOrEquip = async (req, res) => {
         });
       }
 
-      user.balanceNaira -= rabbit.priceNaira;
-      user.ownedRabbits.push(rabbit._id);
+      user.balanceNaira = Math.round((user.balanceNaira - rabbit.priceNaira) * 100) / 100;
+      if (!user.ownedRabbits.some(id => getItemId(id) === targetId)) {
+        user.ownedRabbits.push(rabbit._id);
+      }
       user.currentRabbitId = rabbit._id;
       await user.save();
 
@@ -93,12 +111,12 @@ exports.buyOrEquip = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Bicycle not found.' });
       }
 
-      const isOwned = user.ownedBikes.some(id => id.toString() === bike._id.toString()) || bike.priceNaira === 0;
+      const isOwned = user.ownedBikes.some(id => getItemId(id) === targetId) || bike.priceNaira === 0;
 
       if (isOwned) {
         // Equip
         user.currentBikeId = bike._id;
-        if (!user.ownedBikes.some(id => id.toString() === bike._id.toString())) {
+        if (!user.ownedBikes.some(id => getItemId(id) === targetId)) {
           user.ownedBikes.push(bike._id);
         }
         await user.save();
@@ -120,8 +138,10 @@ exports.buyOrEquip = async (req, res) => {
         });
       }
 
-      user.balanceNaira -= bike.priceNaira;
-      user.ownedBikes.push(bike._id);
+      user.balanceNaira = Math.round((user.balanceNaira - bike.priceNaira) * 100) / 100;
+      if (!user.ownedBikes.some(id => getItemId(id) === targetId)) {
+        user.ownedBikes.push(bike._id);
+      }
       user.currentBikeId = bike._id;
       await user.save();
 
