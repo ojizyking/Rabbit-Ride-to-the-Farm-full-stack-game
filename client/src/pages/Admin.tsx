@@ -116,7 +116,7 @@ interface AdminTransaction {
 }
 
 export const Admin: React.FC = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, isLoading, openAuthModal, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -436,8 +436,43 @@ export const Admin: React.FC = () => {
     }
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="admin-container" style={{ textAlign: 'center', paddingTop: '8rem' }}>
+        <div style={{ color: '#94A3B8', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+          <RefreshCw className="spin" size={24} />
+          <span>Verifying administrator credentials…</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Not logged in
+  if (!user) {
+    return (
+      <div className="admin-container" style={{ textAlign: 'center', paddingTop: '5rem' }}>
+        <div className="admin-panel" style={{ maxWidth: '540px', margin: '0 auto', textAlign: 'center' }}>
+          <ShieldCheck size={54} color="#3B82F6" style={{ margin: '0 auto 1.25rem' }} />
+          <h2 style={{ fontSize: '1.6rem', marginBottom: '0.75rem' }}>Administrator Sign In Required</h2>
+          <p style={{ color: '#94A3B8', lineHeight: 1.6, marginBottom: '2rem' }}>
+            Please sign in with your administrator account to access Mission Control.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <button onClick={() => openAuthModal('login')} className="btn-primary">
+              Sign In as Admin
+            </button>
+            <button onClick={() => navigate('/')} className="btn-secondary" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', padding: '0.75rem 1.5rem', borderRadius: '12px' }}>
+              Return Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // If user is not admin
-  if (user && user.role !== 'admin') {
+  if (user.role !== 'admin') {
     return (
       <div className="admin-container" style={{ textAlign: 'center', paddingTop: '5rem' }}>
         <div className="admin-panel" style={{ maxWidth: '540px', margin: '0 auto', textAlign: 'center' }}>
@@ -447,7 +482,7 @@ export const Admin: React.FC = () => {
             You are signed in as <strong>{user.email}</strong>, but this account does not have administrator privileges.
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button onClick={() => navigate('/dashboard')} className="btn-primary">
+            <button onClick={() => navigate('/')} className="btn-primary">
               Return to Player Dashboard
             </button>
           </div>

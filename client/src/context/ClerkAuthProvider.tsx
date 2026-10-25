@@ -159,15 +159,11 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return;
       }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      if (e.response?.data?.message) throw err;
-      const localUser = createLocalUser(email);
-      const mockToken = 'offline_' + btoa(JSON.stringify({ email, time: Date.now() }));
-      localStorage.setItem('rabbit_token', mockToken);
-      localStorage.setItem('rabbit_offline_user', JSON.stringify(localUser));
-      setToken(mockToken);
-      setUser(localUser);
-      setAuthModalOpen(false);
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      if (e.response?.data?.message) {
+        throw new Error(e.response.data.message);
+      }
+      throw new Error(e.message || 'Cannot connect to game server. Please ensure the backend is running.');
     }
   };
 
@@ -185,28 +181,37 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return;
       }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      if (e.response?.data?.message) throw err;
-      const localUser = createLocalUser(email);
-      const mockToken = 'offline_' + btoa(JSON.stringify({ email, time: Date.now() }));
-      localStorage.setItem('rabbit_token', mockToken);
-      localStorage.setItem('rabbit_offline_user', JSON.stringify(localUser));
-      setToken(mockToken);
-      setUser(localUser);
-      setAuthModalOpen(false);
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      if (e.response?.data?.message) {
+        throw new Error(e.response.data.message);
+      }
+      throw new Error(e.message || 'Cannot connect to game server to register account. Please check your connection.');
     }
   };
 
   const quickDemoLogin = async () => {
-    try { await login('rider@rabbitride.com', 'Ride2Farm!'); }
-    catch { await register('rider@rabbitride.com', 'Ride2Farm!'); }
+    try {
+      await login('rider@rabbitride.com', 'Ride2Farm!');
+    } catch {
+      try {
+        await register('rider@rabbitride.com', 'Ride2Farm!');
+      } catch {
+        const localUser = createLocalUser('rider@rabbitride.com');
+        const mockToken = 'offline_' + btoa(JSON.stringify({ email: 'rider@rabbitride.com', time: Date.now() }));
+        localStorage.setItem('rabbit_token', mockToken);
+        localStorage.setItem('rabbit_offline_user', JSON.stringify(localUser));
+        setToken(mockToken);
+        setUser(localUser);
+        setAuthModalOpen(false);
+      }
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('rabbit_token');
     localStorage.removeItem('rabbit_offline_user');
-    // Note: We do NOT clear rabbit_last_server_balance or rabbit_offline_rides on logout
-    // so offline earnings survive and will sync on next login
+    localStorage.removeItem('rabbit_last_server_balance');
+    localStorage.removeItem('rabbit_guest_balance');
     setToken(null);
     setUser(null);
     setIsClerkUser(false);

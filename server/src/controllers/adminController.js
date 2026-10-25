@@ -50,10 +50,12 @@ exports.getOverview = async (req, res) => {
     }
 
     // Rides stats
+    const allRides = await Ride.find();
     let totalRidesCount = 0;
     for (const u of allUsers) {
       totalRidesCount += (u.totalRides || 0);
     }
+    totalRidesCount = Math.max(totalRidesCount, allRides.length);
 
     return res.json({
       success: true,
@@ -416,19 +418,23 @@ exports.getTransactions = async (req, res) => {
  */
 exports.getGameStats = async (req, res) => {
   try {
-    const rides = await Ride.find().sort({ distanceTraveled: -1 });
+    const rides = await Ride.find();
     let totalCarrots = 0;
     let totalDistance = 0;
-    let totalBalloons = 0;
-    let totalClovers = 0;
-    let totalBarns = 0;
 
     for (const r of rides) {
-      totalCarrots += (r.carrotsCollected || 0);
-      totalDistance += (r.distanceTraveled || 0);
+      totalCarrots += (r.carrots || r.carrotsCollected || 0);
+      const distMeters = (r.distanceKm !== undefined ? r.distanceKm * 1000 : 0) || (r.distanceTraveled || 0);
+      totalDistance += distMeters;
     }
 
-    const topRides = rides.slice(0, 10);
+    const sortedRides = [...rides].sort((a, b) => {
+      const distA = (a.distanceKm !== undefined ? a.distanceKm * 1000 : 0) || (a.distanceTraveled || 0);
+      const distB = (b.distanceKm !== undefined ? b.distanceKm * 1000 : 0) || (b.distanceTraveled || 0);
+      return distB - distA;
+    });
+
+    const topRides = sortedRides.slice(0, 10);
 
     return res.json({
       success: true,

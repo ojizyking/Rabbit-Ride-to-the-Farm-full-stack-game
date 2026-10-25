@@ -8,6 +8,7 @@
     "server": "npm run dev --prefix server",
     "client": "npm run dev --prefix client",
     "dev": "npm run server",
+    "postinstall": "npm install --prefix server && npm install --prefix client",
     "make-admin": "node server/src/scripts/makeAdmin.js"
   },
   "keywords": [

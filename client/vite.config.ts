@@ -20,7 +20,13 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
-      host: true
+      host: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:5000',
+          changeOrigin: true
+        }
+      }
     },
     build: {
       // Increase warning limit slightly for Phaser which is a large bundle

@@ -28,6 +28,7 @@ export const AuthModal: React.FC = () => {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
       setError(
         e.response?.data?.message ||
+        e.message ||
         (authMode === 'login' ? 'Invalid email or password.' : 'Registration failed. Try again.')
       );
     } finally {
@@ -41,8 +42,8 @@ export const AuthModal: React.FC = () => {
     try {
       await quickDemoLogin();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setError(e.response?.data?.message || 'Demo login failed.');
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(e.response?.data?.message || e.message || 'Demo login failed.');
     } finally {
       setLoading(false);
     }
