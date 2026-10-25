@@ -97,8 +97,8 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
       // Optimistic background API call to /api/game/collect
       try {
         const res = await api.post('/game/collect', { type, value });
-        // Cache the updated server balance from collect response
-        if (res.data?.success && res.data.newBalance !== undefined) {
+        // Only cache balance if user is still logged in (guard against post-logout resolution)
+        if (res.data?.success && res.data.newBalance !== undefined && user) {
           cacheServerBalance(res.data.newBalance);
         }
       } catch (err) {
@@ -122,9 +122,10 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
       try {
         const res = await api.post('/game/end-ride', details);
         if (res.data.success) {
-          if (res.data.newBalance !== undefined) {
+          // Only update UI/cache if user is still logged in — guard against
+          // in-flight calls resolving after logout (the root cause of balance bleed)
+          if (res.data.newBalance !== undefined && user) {
             updateBalance(res.data.newBalance);
-            // Cache the server's authoritative balance — prevents ₦50 reset on next login
             cacheServerBalance(res.data.newBalance);
           }
           if (onRideEnd) {

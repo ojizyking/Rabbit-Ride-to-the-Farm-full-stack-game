@@ -24,10 +24,13 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateBalance = (newBalance: number) => {
     setUser((prev) => {
-      if (!prev) { localStorage.setItem('rabbit_guest_balance', String(newBalance)); return null; }
+      // ⚠️ ROOT CAUSE GUARD: if user is null (logged out), an in-flight API call
+      // (end-ride, collect) is resolving late. Do NOT write the old user's balance
+      // to localStorage — that would poison the next user's session.
+      if (!prev) return null;
       const updated = { ...prev, balanceNaira: newBalance };
       if (!isClerkUser) localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
-      // Always cache the latest balance to prevent ₦50 resets
+      // Only cache balance when a real user is active
       localStorage.setItem('rabbit_last_server_balance', String(newBalance));
       return updated;
     });
@@ -210,14 +213,17 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const logout = () => {
     const currentUserId = user?.id;
+    // Clear ALL balance/auth traces atomically so no in-flight call can restore them
     localStorage.removeItem('rabbit_token');
     localStorage.removeItem('rabbit_offline_user');
     localStorage.removeItem('rabbit_last_server_balance');
     localStorage.removeItem('rabbit_guest_balance');
+    localStorage.removeItem('rabbit_offline_transactions');
     // Clear scoped user cache to prevent balance bleed to next login
     if (currentUserId) localStorage.removeItem(`rabbit_offline_user_${currentUserId}`);
-    setToken(null);
+    // Set user to null FIRST — this is what clears the balance from the UI immediately
     setUser(null);
+    setToken(null);
     setIsClerkUser(false);
     setClerkSynced(false);
     clearClerkTokenGetter();

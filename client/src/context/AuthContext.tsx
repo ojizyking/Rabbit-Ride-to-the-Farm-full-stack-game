@@ -282,10 +282,13 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const updateBalance = (newBalance: number) => {
     setUser((prev) => {
-      if (!prev) { localStorage.setItem('rabbit_guest_balance', String(newBalance)); return null; }
+      // ⚠️ ROOT CAUSE GUARD: if user is null (logged out), an in-flight API call
+      // is resolving late. Do NOT write the old user's balance to localStorage —
+      // that would poison the next user's session via createLocalUser().
+      if (!prev) return null;
       const updated = { ...prev, balanceNaira: newBalance };
       localStorage.setItem('rabbit_offline_user', JSON.stringify(updated));
-      // Also cache as last known server balance to prevent ₦50 resets
+      // Only cache balance when a real user is active
       localStorage.setItem('rabbit_last_server_balance', String(newBalance));
       return updated;
     });
@@ -337,14 +340,17 @@ export const LegacyAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const logout = () => {
     const currentUserId = user?.id;
+    // Clear ALL balance/auth traces atomically so no in-flight call can restore them
     localStorage.removeItem('rabbit_token');
     localStorage.removeItem('rabbit_offline_user');
     localStorage.removeItem('rabbit_last_server_balance');
     localStorage.removeItem('rabbit_guest_balance');
+    localStorage.removeItem('rabbit_offline_transactions');
     // Clear scoped user cache to prevent balance bleed to next login
     if (currentUserId) localStorage.removeItem(`rabbit_offline_user_${currentUserId}`);
-    setToken(null);
+    // Set user null FIRST — this immediately clears balance from the UI
     setUser(null);
+    setToken(null);
   };
 
   const customizeReferralCode = async (code: string) => {

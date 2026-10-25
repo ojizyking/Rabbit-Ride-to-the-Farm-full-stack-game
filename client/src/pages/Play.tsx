@@ -318,9 +318,10 @@ export const Play: React.FC = () => {
       }
 
       // Persist ad view & credit 100 coins directly to backend if online
+      // Guard: only cache/update if user is still logged in (post-logout in-flight protection)
       api.post('/game/collect', { type: 'ad', value: 100 })
         .then((res) => {
-          if (res.data?.newBalance !== undefined) {
+          if (res.data?.newBalance !== undefined && user) {
             updateBalance(res.data.newBalance);
             cacheServerBalance(res.data.newBalance);
           }
