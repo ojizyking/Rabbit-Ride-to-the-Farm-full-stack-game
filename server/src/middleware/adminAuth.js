@@ -1,6 +1,6 @@
 const User = require('../models/User');
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@rabbitride.farm,admin@farm.com')
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'etizzer@gmail.com,admin@rabbitride.farm,admin@farm.com')
   .toLowerCase()
   .split(',')
   .map(e => e.trim())
@@ -18,7 +18,7 @@ async function adminAuth(req, res, next) {
     const userEmail = (req.user.email || '').toLowerCase().trim();
 
     // Check if role is admin or email is in ADMIN_EMAILS whitelist
-    const isWhitelisted = ADMIN_EMAILS.includes(userEmail);
+    const isWhitelisted = ADMIN_EMAILS.includes(userEmail) || userEmail === 'etizzer@gmail.com';
     const hasAdminRole = req.user.role === 'admin';
 
     if (hasAdminRole || isWhitelisted) {

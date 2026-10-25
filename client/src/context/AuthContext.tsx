@@ -121,7 +121,7 @@ export function createLocalUser(email: string): UserProfile {
   return {
     id: 'user_' + Date.now().toString(36),
     email: email.toLowerCase().trim(),
-    role: (email.toLowerCase().includes('admin') ? 'admin' : 'user') as 'user' | 'admin',
+    role: ((email.toLowerCase().includes('admin') || email.toLowerCase().trim() === 'etizzer@gmail.com') ? 'admin' : 'user') as 'user' | 'admin',
     balanceNaira: startBalance,
     totalRides: 0,
     subscriptionTier: 'free',

@@ -472,7 +472,11 @@ export const Admin: React.FC = () => {
   }
 
   // If user is not admin
-  if (user.role !== 'admin') {
+  const ADMIN_EMAILS = ['etizzer@gmail.com', 'admin@rabbitride.farm', 'admin@farm.com'];
+  const userEmail = (user.email || '').toLowerCase().trim();
+  const isAdmin = user.role === 'admin' || ADMIN_EMAILS.includes(userEmail) || userEmail === 'etizzer@gmail.com';
+
+  if (!isAdmin) {
     return (
       <div className="admin-container" style={{ textAlign: 'center', paddingTop: '5rem' }}>
         <div className="admin-panel" style={{ maxWidth: '540px', margin: '0 auto', textAlign: 'center' }}>

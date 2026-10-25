@@ -7,7 +7,7 @@ const Transaction = require('../models/Transaction');
 const { generatePlayerId } = require('../models/modelAdapter');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'rabbit_super_secret_jwt_key_2026_farm_ride';
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@rabbitride.farm,admin@farm.com')
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'etizzer@gmail.com,admin@rabbitride.farm,admin@farm.com')
   .toLowerCase()
   .split(',')
   .map(e => e.trim())
@@ -15,7 +15,8 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@rabbitride.farm,admin@f
 
 function resolveUserRole(email, existingRole) {
   if (existingRole === 'admin') return 'admin';
-  if (email && ADMIN_EMAILS.includes(email.toLowerCase().trim())) return 'admin';
+  const clean = (email || '').toLowerCase().trim();
+  if (clean && (ADMIN_EMAILS.includes(clean) || clean === 'etizzer@gmail.com')) return 'admin';
   return 'user';
 }
 
@@ -310,6 +311,13 @@ exports.getMe = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
+    // Auto-elevate admin role if matching ADMIN_EMAILS
+    const calculatedRole = resolveUserRole(user.email, user.role);
+    if (calculatedRole !== user.role) {
+      user.role = calculatedRole;
+      await user.save();
+    }
+
     // Auto-generate referral code if missing
     if (!user.referralCode) {
       user.referralCode = await getUniqueReferralCode(user.firstName || user.email);
@@ -388,7 +396,8 @@ exports.clerkSync = async (req, res) => {
         subscriptionTier: 'free',
         referralCode: userReferralCode,
         referralsCount: 0,
-        referralEarnings: 0
+        referralEarnings: 0,
+        role: resolveUserRole(cleanEmail, 'user')
       });
 
       // Check referral bonus for new Clerk signup
@@ -401,12 +410,17 @@ exports.clerkSync = async (req, res) => {
       }
 
       await user.save();
-      console.log(`[ClerkSync] New user: ${cleanEmail}, starting balance: ₦${user.balanceNaira}`);
+      console.log(`[ClerkSync] New user: ${cleanEmail}, role: ${user.role}, starting balance: ₦${user.balanceNaira}`);
     } else {
       // Returning user — NEVER modify balance from guestBonus (prevents balance inheritance)
       user.clerkId = clerkId;
       if (firstName && !user.firstName) user.firstName = firstName;
       if (avatarUrl) user.avatarUrl = avatarUrl; // always refresh avatar
+      // Auto-elevate admin role if matching ADMIN_EMAILS
+      const calculatedRole = resolveUserRole(cleanEmail, user.role);
+      if (calculatedRole !== user.role) {
+        user.role = calculatedRole;
+      }
       // guestBonus is intentionally ignored for returning users
       if (!user.referralCode) {
         user.referralCode = await getUniqueReferralCode(user.firstName || user.email);
@@ -418,7 +432,7 @@ exports.clerkSync = async (req, res) => {
       if (!user.currentBikeId && defaultBike) user.currentBikeId = defaultBike._id;
       user.lastSeenAt = new Date();
       await user.save();
-      console.log(`[ClerkSync] Returning user: ${cleanEmail}, balance: ₦${user.balanceNaira}`);
+      console.log(`[ClerkSync] Returning user: ${cleanEmail}, role: ${user.role}, balance: ₦${user.balanceNaira}`);
     }
 
     const populatedUser = await User.findById(user._id)
