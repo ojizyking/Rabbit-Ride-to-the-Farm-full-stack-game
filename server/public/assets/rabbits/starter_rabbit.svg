@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <radialGradient id="whiteFur" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="85%" stop-color="#F5F5F5" />
+      <stop offset="100%" stop-color="#E0E0E0" />
+    </radialGradient>
+    <radialGradient id="greenHelmet" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#4CAF50" />
+      <stop offset="100%" stop-color="#1B5E20" />
+    </radialGradient>
+  </defs>
+
+  <circle cx="80" cy="80" r="76" fill="#E8F5E9" stroke="#A5D6A7" stroke-width="2" />
+
+  <!-- Ears with Pink Centers -->
+  <g transform="rotate(-10 60 30)">
+    <path d="M 50 35 C 40 4 56 -6 66 16 C 68 25 64 35 50 35 Z" fill="url(#whiteFur)" stroke="#333" stroke-width="2" />
+    <path d="M 52 28 C 46 10 54 4 60 16 Z" fill="#FF80AB" />
+  </g>
+  <g transform="rotate(10 100 30)">
+    <path d="M 110 35 C 120 4 104 -6 94 16 C 92 25 96 35 110 35 Z" fill="url(#whiteFur)" stroke="#333" stroke-width="2" />
+    <path d="M 108 28 C 114 10 106 4 100 16 Z" fill="#FF80AB" />
+  </g>
+
+  <!-- Green Helmet -->
+  <path d="M 46 62 C 44 32 116 32 114 62 C 114 66 46 66 46 62 Z" fill="url(#greenHelmet)" stroke="#1B5E20" stroke-width="2.5" />
+  <!-- Helmet vents & strap -->
+  <ellipse cx="65" cy="46" rx="5" ry="3" fill="#1B5E20" />
+  <ellipse cx="95" cy="46" rx="5" ry="3" fill="#1B5E20" />
+  <path d="M 48 64 Q 56 82 66 84" stroke="#37474F" stroke-width="2" fill="none" />
+  <path d="M 112 64 Q 104 82 94 84" stroke="#37474F" stroke-width="2" fill="none" />
+
+  <!-- Rabbit Head -->
+  <ellipse cx="80" cy="78" rx="28" ry="24" fill="url(#whiteFur)" stroke="#333" stroke-width="2" />
+
+  <!-- Blush Cheeks -->
+  <ellipse cx="64" cy="84" rx="4.5" ry="3" fill="#FF8A80" opacity="0.6" />
+  <ellipse cx="96" cy="84" rx="4.5" ry="3" fill="#FF8A80" opacity="0.6" />
+
+  <!-- Eyes -->
+  <ellipse cx="71" cy="74" rx="4.5" ry="5.5" fill="#222" />
+  <circle cx="69.5" cy="72" r="2" fill="#FFFFFF" />
+  <ellipse cx="89" cy="74" rx="4.5" ry="5.5" fill="#222" />
+  <circle cx="87.5" cy="72" r="2" fill="#FFFFFF" />
+
+  <!-- Nose & Smile -->
+  <polygon points="80,80 76,76 84,76" fill="#FF5252" />
+  <path d="M 76 83 Q 80 87 84 83" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round" />
+
+  <!-- Orange Shirt & Orange Backpack -->
+  <path d="M 45 106 C 40 120 40 148 40 155 L 120 155 C 120 148 120 120 115 106 C 102 112 58 112 45 106 Z" fill="#FF7A00" stroke="#D84315" stroke-width="2.5" />
+  <!-- Collar -->
+  <polygon points="80,118 68,106 92,106" fill="#FFE082" />
+</svg>

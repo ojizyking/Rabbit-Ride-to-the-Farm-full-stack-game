@@ -1,0 +1,53 @@
+{
+  "name": "Rabbit Ride to the Farm",
+  "short_name": "Rabbit Ride",
+  "description": "Hop on, ride the farm dirt track, perform flips, collect carrots & coins, and cash out real rewards!",
+  "start_url": "/",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "background_color": "#E8F5E9",
+  "theme_color": "#2D8A4E",
+  "orientation": "any",
+  "categories": ["games", "entertainment", "sports"],
+  "icons": [
+    {
+      "src": "/assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Hop On & Ride",
+      "short_name": "Ride",
+      "url": "/play",
+      "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Farm Wallet",
+      "short_name": "Wallet",
+      "url": "/wallet",
+      "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Farm Shop",
+      "short_name": "Shop",
+      "url": "/shop",
+      "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

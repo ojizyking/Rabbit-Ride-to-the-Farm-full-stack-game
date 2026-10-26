@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 70" width="70" height="70">
+  <defs>
+    <radialGradient id="crateWood" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#D7CCC8" />
+      <stop offset="50%" stop-color="#A1887F" />
+      <stop offset="100%" stop-color="#5D4037" />
+    </radialGradient>
+    <radialGradient id="goldPlate" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FFF59D" />
+      <stop offset="70%" stop-color="#FBC02D" />
+      <stop offset="100%" stop-color="#F57F17" />
+    </radialGradient>
+    <filter id="crateGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#FFB300" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#crateGlow)">
+    <!-- Main Crate Box -->
+    <rect x="8" y="10" width="54" height="52" rx="6" fill="url(#crateWood)" stroke="#3E2723" stroke-width="2.5" />
+
+    <!-- Corner metal reinforcement brackets -->
+    <polygon points="8,10 20,10 8,22" fill="#78909C" stroke="#37474F" stroke-width="1.5" />
+    <polygon points="62,10 50,10 62,22" fill="#78909C" stroke="#37474F" stroke-width="1.5" />
+    <polygon points="8,62 20,62 8,50" fill="#78909C" stroke="#37474F" stroke-width="1.5" />
+    <polygon points="62,62 50,62 62,50" fill="#78909C" stroke="#37474F" stroke-width="1.5" />
+
+    <!-- Diagonal cross brace -->
+    <line x1="14" y1="16" x2="56" y2="56" stroke="#4E342E" stroke-width="3" />
+    <line x1="56" y1="16" x2="14" y2="56" stroke="#4E342E" stroke-width="3" />
+
+    <!-- Golden Ribbon and Seal in center -->
+    <rect x="30" y="10" width="10" height="52" fill="url(#goldPlate)" stroke="#E65100" stroke-width="1.5" />
+    <circle cx="35" cy="36" r="12" fill="url(#goldPlate)" stroke="#E65100" stroke-width="2" />
+    <!-- Star Emblem on lock -->
+    <polygon points="35,27 37,33 43,33 38,37 40,43 35,39 30,43 32,37 27,33 33,33" fill="#D84315" />
+    <!-- Question mark or sparkles -->
+    <circle cx="35" cy="35" r="1.5" fill="#FFF" />
+  </g>
+</svg>

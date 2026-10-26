@@ -90,17 +90,34 @@ app.get(['/health', '/api/health'], (req, res) => {
   });
 });
 
-// Serve frontend static build if dist exists
-const clientDistPath = path.join(__dirname, '../../client/dist');
-if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
+// Serve frontend static build (checks server/public first, then client/dist)
+const possibleDistPaths = [
+  path.join(__dirname, '../public'),
+  path.join(__dirname, '../../client/dist')
+];
+const clientDistPath = possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html')));
+
+if (clientDistPath) {
+  console.log(`[Static] Serving frontend from: ${clientDistPath}`);
+  app.use(express.static(clientDistPath, {
+    maxAge: '1d',
+    setHeaders: (res, filePath) => {
+      // Don't cache index.html so code updates are immediately picked up
+      if (filePath.endsWith('index.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    }
+  }));
+
+  // SPA fallback for all non-API web routes (e.g. /admin, /play, /shop, etc.)
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api')) {
-      return res.status(404).json({ success: false, message: 'Endpoint not found' });
+      return res.status(404).json({ success: false, message: 'API endpoint not found' });
     }
     res.sendFile(path.join(clientDistPath, 'index.html'));
   });
 } else {
+  console.warn('[Static] No frontend build found. Running in API-only mode.');
   app.get('/', (req, res) => {
     res.json({
       status: 'online',

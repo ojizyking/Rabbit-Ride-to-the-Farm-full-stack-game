@@ -1,5 +1,5 @@
 [build]
-  watchPatterns = ["src/**"]
+  watchPatterns = ["src/**", "public/**"]
 
 [deploy]
   startCommand = "npm start"

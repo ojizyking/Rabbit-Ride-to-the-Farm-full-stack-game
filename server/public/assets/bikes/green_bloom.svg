@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120">
+  <defs>
+    <radialGradient id="greenFrame" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#4CAF50" />
+      <stop offset="100%" stop-color="#2E7D32" />
+    </radialGradient>
+  </defs>
+
+  <!-- Rear Wheel -->
+  <circle cx="35" cy="80" r="28" fill="none" stroke="#212121" stroke-width="6" />
+  <circle cx="35" cy="80" r="23" fill="none" stroke="#81C784" stroke-width="2" />
+  <circle cx="35" cy="80" r="6" fill="#424242" />
+  <line x1="35" y1="55" x2="35" y2="105" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="10" y1="80" x2="60" y2="80" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="17" y1="62" x2="53" y2="98" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="17" y1="98" x2="53" y2="62" stroke="#B0BEC5" stroke-width="1.2" />
+
+  <!-- Front Wheel -->
+  <circle cx="125" cy="80" r="28" fill="none" stroke="#212121" stroke-width="6" />
+  <circle cx="125" cy="80" r="23" fill="none" stroke="#81C784" stroke-width="2" />
+  <circle cx="125" cy="80" r="6" fill="#424242" />
+  <line x1="125" y1="55" x2="125" y2="105" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="100" y1="80" x2="150" y2="80" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="107" y1="62" x2="143" y2="98" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="107" y1="98" x2="143" y2="62" stroke="#B0BEC5" stroke-width="1.2" />
+
+  <!-- Rear Rack -->
+  <line x1="28" y1="52" x2="52" y2="52" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" />
+  <line x1="35" y1="80" x2="32" y2="52" stroke="#2E7D32" stroke-width="2.5" />
+  <line x1="35" y1="80" x2="48" y2="52" stroke="#2E7D32" stroke-width="2.5" />
+
+  <!-- Frame - Vibrant Green -->
+  <path d="M 35 80 L 68 76 L 100 48 L 58 48 Z" fill="none" stroke="url(#greenFrame)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+  <line x1="68" y1="76" x2="125" y2="80" stroke="url(#greenFrame)" stroke-width="4.5" stroke-linecap="round" />
+  <line x1="100" y1="48" x2="125" y2="80" stroke="url(#greenFrame)" stroke-width="5" stroke-linecap="round" />
+
+  <!-- Pedals -->
+  <circle cx="68" cy="76" r="9" fill="#37474F" stroke="#90A4AE" stroke-width="2" />
+  <line x1="62" y1="70" x2="74" y2="82" stroke="#ECEFF1" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Seat -->
+  <line x1="58" y1="48" x2="58" y2="36" stroke="#455A64" stroke-width="4" stroke-linecap="round" />
+  <path d="M 48 36 Q 60 32 72 36 Q 66 40 52 40 Z" fill="#5D4037" stroke="#3E2723" stroke-width="1.5" />
+
+  <!-- Handlebars -->
+  <line x1="100" y1="48" x2="104" y2="28" stroke="url(#greenFrame)" stroke-width="4.5" stroke-linecap="round" />
+  <path d="M 94 28 L 106 26 L 102 22" fill="none" stroke="#37474F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Front Wicker Basket with Bloom Carrots & Flowers -->
+  <polygon points="108,24 130,24 126,38 112,38" fill="#D7CCC8" stroke="#8D6E63" stroke-width="1.5" />
+  <!-- Carrots sticking out -->
+  <polygon points="113,24 116,14 118,24" fill="#FF7A00" />
+  <path d="M 116 14 L 115 10" stroke="#388E3C" stroke-width="1.5" />
+  <polygon points="118,24 121,12 124,24" fill="#FF7A00" />
+  <path d="M 121 12 L 121 8" stroke="#388E3C" stroke-width="1.5" />
+  <polygon points="123,24 126,16 128,24" fill="#FF7A00" />
+  <path d="M 126 16 L 128 11" stroke="#388E3C" stroke-width="1.5" />
+  <!-- Blossoms -->
+  <circle cx="112" cy="20" r="3.5" fill="#FF4081" />
+  <circle cx="112" cy="20" r="1.5" fill="#FFEB3B" />
+  <circle cx="128" cy="21" r="3.5" fill="#FF9800" />
+  <circle cx="128" cy="21" r="1.5" fill="#FFF" />
+</svg>

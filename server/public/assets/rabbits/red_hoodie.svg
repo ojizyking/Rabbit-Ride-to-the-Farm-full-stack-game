@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <radialGradient id="hoodGrad" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FF5252" />
+      <stop offset="100%" stop-color="#C62828" />
+    </radialGradient>
+    <radialGradient id="furGrad" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFCC80" />
+      <stop offset="100%" stop-color="#D78A42" />
+    </radialGradient>
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-opacity="0.18" />
+    </filter>
+  </defs>
+
+  <!-- Background glow -->
+  <circle cx="80" cy="80" r="76" fill="#FFF8E1" stroke="#FFE082" stroke-width="2" />
+
+  <!-- Rabbit Ears sticking out of hoodie -->
+  <!-- Left Ear -->
+  <g transform="rotate(-15 60 45)">
+    <path d="M 50 45 C 38 10 54 2 64 25 C 68 35 62 48 50 45 Z" fill="url(#furGrad)" stroke="#8D4C15" stroke-width="2.5" />
+    <path d="M 52 38 C 45 18 53 10 59 26 C 61 32 58 40 52 38 Z" fill="#FFA726" opacity="0.6" />
+  </g>
+  <!-- Right Ear -->
+  <g transform="rotate(15 100 45)">
+    <path d="M 110 45 C 122 10 106 2 96 25 C 92 35 98 48 110 45 Z" fill="url(#furGrad)" stroke="#8D4C15" stroke-width="2.5" />
+    <path d="M 108 38 C 115 18 107 10 101 26 C 99 32 102 40 108 38 Z" fill="#FFA726" opacity="0.6" />
+  </g>
+
+  <!-- Red Hoodie Head Covering -->
+  <path d="M 40 70 C 35 36 125 36 120 70 C 120 95 105 106 80 106 C 55 106 40 95 40 70 Z" fill="url(#hoodGrad)" stroke="#8E0000" stroke-width="3" filter="url(#cardShadow)" />
+  
+  <!-- Hoodie Drawstrings / trim -->
+  <circle cx="58" cy="48" r="3" fill="#FFE0B2" />
+  <circle cx="102" cy="48" r="3" fill="#FFE0B2" />
+
+  <!-- Rabbit Face Oval Inside Hood -->
+  <ellipse cx="80" cy="74" rx="30" ry="26" fill="url(#furGrad)" stroke="#8D4C15" stroke-width="2" />
+
+  <!-- Cheeks Cream Patches -->
+  <ellipse cx="70" cy="78" rx="14" ry="11" fill="#FFE0B2" />
+  <ellipse cx="90" cy="78" rx="14" ry="11" fill="#FFE0B2" />
+  <ellipse cx="64" cy="80" rx="4" ry="2.5" fill="#FF8A80" opacity="0.7" />
+  <ellipse cx="96" cy="80" rx="4" ry="2.5" fill="#FF8A80" opacity="0.7" />
+
+  <!-- Eyes -->
+  <ellipse cx="70" cy="68" rx="4.5" ry="5.5" fill="#2E1C0C" />
+  <circle cx="68.5" cy="66" r="2" fill="#FFFFFF" />
+  <circle cx="72" cy="70" r="0.8" fill="#FFFFFF" />
+
+  <ellipse cx="90" cy="68" rx="4.5" ry="5.5" fill="#2E1C0C" />
+  <circle cx="88.5" cy="66" r="2" fill="#FFFFFF" />
+  <circle cx="92" cy="70" r="0.8" fill="#FFFFFF" />
+
+  <!-- Eyebrows -->
+  <path d="M 65 60 Q 70 58 75 61" stroke="#8D4C15" stroke-width="2" fill="none" stroke-linecap="round" />
+  <path d="M 95 60 Q 90 58 85 61" stroke="#8D4C15" stroke-width="2" fill="none" stroke-linecap="round" />
+
+  <!-- Cute Nose -->
+  <polygon points="80,75 76,71 84,71" fill="#E91E63" />
+
+  <!-- Smiling Mouth -->
+  <path d="M 76 77 Q 80 81 84 77" stroke="#6D3305" stroke-width="2" fill="none" stroke-linecap="round" />
+
+  <!-- Red Hoodie Body & Zipper -->
+  <path d="M 45 104 C 40 120 40 148 40 155 L 120 155 C 120 148 120 120 115 104 C 102 112 58 112 45 104 Z" fill="url(#hoodGrad)" stroke="#8E0000" stroke-width="3" />
+  <!-- White Zipper line & pull -->
+  <line x1="80" y1="106" x2="80" y2="155" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="4,2" />
+  <rect x="77" y="112" width="6" height="10" rx="2" fill="#CFD8DC" stroke="#455A64" stroke-width="1.5" />
+</svg>

@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <radialGradient id="strawHat" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FFF9C4" />
+      <stop offset="70%" stop-color="#FBC02D" />
+      <stop offset="100%" stop-color="#F57F17" />
+    </radialGradient>
+    <radialGradient id="overallsGrad" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#3F51B5" />
+      <stop offset="100%" stop-color="#1A237E" />
+    </radialGradient>
+    <radialGradient id="farmerFur" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFE0B2" />
+      <stop offset="100%" stop-color="#FFA726" />
+    </radialGradient>
+  </defs>
+
+  <circle cx="80" cy="80" r="76" fill="#F1F8E9" stroke="#AED581" stroke-width="2" />
+
+  <!-- Ears sticking up behind/through hat -->
+  <g transform="rotate(-15 60 30)">
+    <path d="M 50 35 C 38 4 54 -4 64 16 C 67 24 62 34 50 35 Z" fill="url(#farmerFur)" stroke="#E65100" stroke-width="2" />
+    <path d="M 52 28 C 46 12 53 6 59 18 Z" fill="#FFCC80" />
+  </g>
+  <g transform="rotate(15 100 30)">
+    <path d="M 110 35 C 122 4 106 -4 96 16 C 93 24 98 34 110 35 Z" fill="url(#farmerFur)" stroke="#E65100" stroke-width="2" />
+    <path d="M 108 28 C 114 12 107 6 101 18 Z" fill="#FFCC80" />
+  </g>
+
+  <!-- Wide Straw Hat Brim -->
+  <ellipse cx="80" cy="54" rx="55" ry="16" fill="url(#strawHat)" stroke="#8D6E63" stroke-width="2.5" />
+  <!-- Straw Hat Crown -->
+  <path d="M 55 52 C 55 30 105 30 105 52 Z" fill="url(#strawHat)" stroke="#8D6E63" stroke-width="2" />
+  <!-- Green Ribbon band on hat -->
+  <path d="M 56 50 Q 80 54 104 50 Q 104 54 80 58 Q 56 54 56 50 Z" fill="#2E7D32" />
+
+  <!-- Rabbit Face Under Hat -->
+  <ellipse cx="80" cy="78" rx="28" ry="24" fill="url(#farmerFur)" stroke="#E65100" stroke-width="2" />
+
+  <!-- Cream Cheeks -->
+  <ellipse cx="70" cy="84" rx="14" ry="11" fill="#FFF3E0" />
+  <ellipse cx="90" cy="84" rx="14" ry="11" fill="#FFF3E0" />
+  <ellipse cx="64" cy="84" rx="4" ry="2.5" fill="#FF8A80" opacity="0.6" />
+  <ellipse cx="96" cy="84" rx="4" ry="2.5" fill="#FF8A80" opacity="0.6" />
+
+  <!-- Eyes -->
+  <ellipse cx="71" cy="74" rx="4.5" ry="5.5" fill="#3E2723" />
+  <circle cx="69.5" cy="72" r="2" fill="#FFFFFF" />
+  <ellipse cx="89" cy="74" rx="4.5" ry="5.5" fill="#3E2723" />
+  <circle cx="87.5" cy="72" r="2" fill="#FFFFFF" />
+
+  <!-- Nose & Smile -->
+  <polygon points="80,80 76,76 84,76" fill="#D81B60" />
+  <path d="M 76 83 Q 80 87 84 83" stroke="#5D4037" stroke-width="2" fill="none" stroke-linecap="round" />
+
+  <!-- Red Spotted Bandana / Neckerchief -->
+  <polygon points="80,108 65,96 95,96" fill="#E53935" stroke="#B71C1C" stroke-width="1.5" />
+  <circle cx="78" cy="100" r="1.5" fill="#FFF" />
+  <circle cx="84" cy="98" r="1.5" fill="#FFF" />
+  <circle cx="74" cy="98" r="1.5" fill="#FFF" />
+
+  <!-- Denim Overalls Body -->
+  <path d="M 45 106 C 40 120 40 148 40 155 L 120 155 C 120 148 120 120 115 106 C 102 112 58 112 45 106 Z" fill="url(#overallsGrad)" stroke="#0D47A1" stroke-width="2.5" />
+  <!-- Overalls Straps & Brass Buttons -->
+  <rect x="52" y="104" width="10" height="51" fill="#283593" />
+  <circle cx="57" cy="116" r="3.5" fill="#FFD54F" stroke="#FF8F00" stroke-width="1" />
+  <rect x="98" y="104" width="10" height="51" fill="#283593" />
+  <circle cx="103" cy="116" r="3.5" fill="#FFD54F" stroke="#FF8F00" stroke-width="1" />
+
+  <!-- Bunny Paw holding a green farm sprout leaf -->
+  <ellipse cx="118" cy="96" rx="6" ry="7" fill="#FFE0B2" stroke="#E65100" stroke-width="1.5" />
+  <path d="M 118 92 C 122 84 134 82 130 92 C 126 95 120 94 118 92 Z" fill="#4CAF50" stroke="#1B5E20" stroke-width="1" />
+  <path d="M 118 92 C 114 84 104 84 108 92 Z" fill="#81C784" stroke="#1B5E20" stroke-width="1" />
+</svg>

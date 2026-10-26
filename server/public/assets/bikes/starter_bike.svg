@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120">
+  <defs>
+    <radialGradient id="wheelGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="65%" stop-color="#212121" />
+      <stop offset="100%" stop-color="#424242" />
+    </radialGradient>
+  </defs>
+
+  <!-- Rear Wheel -->
+  <circle cx="35" cy="80" r="28" fill="none" stroke="url(#wheelGrad)" stroke-width="6" />
+  <circle cx="35" cy="80" r="23" fill="none" stroke="#FFC93C" stroke-width="2" />
+  <circle cx="35" cy="80" r="6" fill="#424242" />
+  <!-- Spokes -->
+  <line x1="35" y1="55" x2="35" y2="105" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="10" y1="80" x2="60" y2="80" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="17" y1="62" x2="53" y2="98" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="17" y1="98" x2="53" y2="62" stroke="#B0BEC5" stroke-width="1.2" />
+
+  <!-- Front Wheel -->
+  <circle cx="125" cy="80" r="28" fill="none" stroke="url(#wheelGrad)" stroke-width="6" />
+  <circle cx="125" cy="80" r="23" fill="none" stroke="#FFC93C" stroke-width="2" />
+  <circle cx="125" cy="80" r="6" fill="#424242" />
+  <!-- Spokes -->
+  <line x1="125" y1="55" x2="125" y2="105" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="100" y1="80" x2="150" y2="80" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="107" y1="62" x2="143" y2="98" stroke="#B0BEC5" stroke-width="1.2" />
+  <line x1="107" y1="98" x2="143" y2="62" stroke="#B0BEC5" stroke-width="1.2" />
+
+  <!-- Bike Frame - Yellow -->
+  <path d="M 35 80 L 70 76 L 100 45 L 60 45 Z" fill="none" stroke="#FFC93C" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+  <line x1="70" y1="76" x2="125" y2="80" stroke="#FFC93C" stroke-width="4.5" stroke-linecap="round" />
+  <line x1="100" y1="45" x2="125" y2="80" stroke="#FFC93C" stroke-width="5" stroke-linecap="round" />
+  
+  <!-- Pedal Sprocket -->
+  <circle cx="70" cy="76" r="9" fill="#37474F" stroke="#90A4AE" stroke-width="2" />
+  <line x1="64" y1="70" x2="76" y2="82" stroke="#ECEFF1" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Seat Post & Saddle -->
+  <line x1="60" y1="45" x2="60" y2="34" stroke="#455A64" stroke-width="4" stroke-linecap="round" />
+  <path d="M 50 34 Q 62 30 74 34 Q 68 37 54 37 Z" fill="#3E2723" stroke="#271610" stroke-width="2" />
+
+  <!-- Fork, Handlebars & Grips -->
+  <line x1="100" y1="45" x2="104" y2="28" stroke="#FFC93C" stroke-width="4.5" stroke-linecap="round" />
+  <path d="M 96 28 L 108 26 L 104 22" fill="none" stroke="#37474F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Bell -->
+  <circle cx="98" cy="25" r="3" fill="#FFD54F" stroke="#F57F17" stroke-width="1" />
+</svg>

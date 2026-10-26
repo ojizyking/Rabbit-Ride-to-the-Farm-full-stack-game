@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <radialGradient id="ninjaDark" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#424242" />
+      <stop offset="80%" stop-color="#212121" />
+      <stop offset="100%" stop-color="#000000" />
+    </radialGradient>
+    <radialGradient id="ninjaFur" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#9E9E9E" />
+      <stop offset="100%" stop-color="#616161" />
+    </radialGradient>
+  </defs>
+
+  <circle cx="80" cy="80" r="76" fill="#EDE7F6" stroke="#D1C4E9" stroke-width="2" />
+
+  <!-- Ninja Rabbit Ears with black wraps -->
+  <g transform="rotate(-15 60 40)">
+    <path d="M 52 42 C 40 10 56 2 66 22 C 70 32 64 44 52 42 Z" fill="url(#ninjaFur)" stroke="#212121" stroke-width="2.5" />
+    <path d="M 54 36 C 48 18 56 12 62 24 C 64 30 61 38 54 36 Z" fill="#E91E63" opacity="0.7" />
+    <!-- Shinobi tape wrap on ear -->
+    <line x1="50" y1="28" x2="65" y2="28" stroke="#212121" stroke-width="2.5" />
+  </g>
+  <g transform="rotate(15 100 40)">
+    <path d="M 108 42 C 120 10 104 2 94 22 C 90 32 96 44 108 42 Z" fill="url(#ninjaFur)" stroke="#212121" stroke-width="2.5" />
+    <path d="M 106 36 C 112 18 104 12 98 24 C 96 30 99 38 106 36 Z" fill="#E91E63" opacity="0.7" />
+    <line x1="95" y1="28" x2="110" y2="28" stroke="#212121" stroke-width="2.5" />
+  </g>
+
+  <!-- Ninja Cowl / Hood -->
+  <path d="M 42 68 C 38 35 122 35 118 68 C 118 94 104 104 80 104 C 56 104 42 94 42 68 Z" fill="url(#ninjaDark)" stroke="#000000" stroke-width="3" />
+
+  <!-- Eye slit cutout revealing grey rabbit eyes -->
+  <ellipse cx="80" cy="72" rx="26" ry="11" fill="url(#ninjaFur)" stroke="#000000" stroke-width="1.5" />
+
+  <!-- Ninja Eyes (Fierce & Focused) -->
+  <ellipse cx="68" cy="71" rx="4.5" ry="3.5" fill="#FFD600" />
+  <circle cx="68" cy="71" r="2.2" fill="#000000" />
+  <circle cx="69" cy="70" r="0.8" fill="#FFFFFF" />
+
+  <ellipse cx="92" cy="71" rx="4.5" ry="3.5" fill="#FFD600" />
+  <circle cx="92" cy="71" r="2.2" fill="#000000" />
+  <circle cx="93" cy="70" r="0.8" fill="#FFFFFF" />
+
+  <!-- Forehead Ninja Headband with Silver Leaf Emblem -->
+  <path d="M 44 56 Q 80 50 116 56 Q 116 62 80 56 Q 44 62 44 56 Z" fill="#311B92" />
+  <rect x="70" y="49" width="20" height="10" rx="3" fill="#CFD8DC" stroke="#455A64" stroke-width="1.5" />
+  <polygon points="80,51 77,55 83,55" fill="#000" />
+
+  <!-- Lower Ninja Face Mask -->
+  <path d="M 44 80 C 42 94 65 106 80 106 C 95 106 118 94 116 80 C 104 84 56 84 44 80 Z" fill="url(#ninjaDark)" stroke="#000" stroke-width="2" />
+  <!-- Fold creases -->
+  <path d="M 60 90 Q 80 96 100 90" stroke="#424242" stroke-width="1.5" fill="none" />
+  <path d="M 68 98 Q 80 102 92 98" stroke="#424242" stroke-width="1.5" fill="none" />
+
+  <!-- Ninja Robe & Purple Sash -->
+  <path d="M 45 106 C 40 120 40 148 40 155 L 120 155 C 120 148 120 120 115 106 C 102 112 58 112 45 106 Z" fill="url(#ninjaDark)" stroke="#000" stroke-width="3" />
+  <!-- Purple Belt & Diagonal Ribbon -->
+  <path d="M 43 124 L 117 124 L 117 138 L 43 138 Z" fill="#7B1FA2" stroke="#4A148C" stroke-width="1.5" />
+  <line x1="60" y1="106" x2="100" y2="155" stroke="#7B1FA2" stroke-width="5" />
+  <!-- Kunai / carrot hilt on back -->
+  <line x1="110" y1="115" x2="128" y2="95" stroke="#E65100" stroke-width="4" stroke-linecap="round" />
+  <circle cx="129" cy="94" r="3" fill="#FFC107" />
+</svg>
