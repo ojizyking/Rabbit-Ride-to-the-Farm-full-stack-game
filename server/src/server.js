@@ -28,11 +28,27 @@ app.use(cors({
     if (process.env.NODE_ENV !== 'production') return callback(null, true);
     // In production: if FRONTEND_URL is not configured yet, allow all
     if (allowedOrigins.length === 0) return callback(null, true);
-    // Allow configured origins or any vercel.app deployment
-    const isAllowed = allowedOrigins.includes(origin) ||
-                      origin.endsWith('.vercel.app') ||
-                      origin.includes('localhost');
-    if (isAllowed) return callback(null, true);
+    // Allow configured origins, any vercel.app deployment, or railway/localhost
+    try {
+      const parsed = new URL(origin);
+      const hostname = parsed.hostname.toLowerCase();
+      const isAllowed =
+        allowedOrigins.some(ao => {
+          try { return new URL(ao).origin === parsed.origin; }
+          catch { return ao === origin; }
+        }) ||
+        hostname.endsWith('.vercel.app') ||
+        hostname === 'vercel.app' ||
+        hostname.endsWith('.railway.app') ||
+        hostname === 'localhost' ||
+        hostname.endsWith('.localhost');
+
+      if (isAllowed) return callback(null, true);
+    } catch {
+      if (origin.includes('.vercel.app') || origin.includes('localhost') || origin.includes('.railway.app')) {
+        return callback(null, true);
+      }
+    }
     callback(new Error(`CORS: Origin ${origin} not allowed`));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

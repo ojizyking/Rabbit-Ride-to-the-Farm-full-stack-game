@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
     env.VITE_CLERK_PUBLISHABLE_KEY ||
     process.env.CLERK_PUBLISHABLE_KEY ||
     process.env.VITE_CLERK_PUBLISHABLE_KEY ||
-    '';
+    'pk_test_bG92aW5nLXdoYWxlLTc3NDAuY2xlcmsuYWNjb3VudHMuZGV2JA';
 
   return {
     plugins: [react()],
