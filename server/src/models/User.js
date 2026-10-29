@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const { createModelWrapper } = require('./modelAdapter');
 
 const userSchema = new mongoose.Schema({
+  _id: {
+    type: mongoose.Schema.Types.Mixed
+  },
   playerId: {
     type: String,
     unique: true,

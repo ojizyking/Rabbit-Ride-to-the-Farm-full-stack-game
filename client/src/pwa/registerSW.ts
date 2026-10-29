@@ -11,6 +11,9 @@ export function registerServiceWorker() {
     navigator.serviceWorker
       .register('/sw.js')
       .then((registration) => {
+        // Immediately check for updates
+        registration.update().catch(() => {});
+
         // Check for updates on load
         registration.addEventListener('updatefound', () => {
           const installingWorker = registration.installing;
@@ -18,7 +21,8 @@ export function registerServiceWorker() {
 
           installingWorker.addEventListener('statechange', () => {
             if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('🐰 Rabbit Ride update available! Refresh to get the latest version.');
+              console.log('🐰 Rabbit Ride update available! Reloading for latest version.');
+              window.location.reload();
             }
           });
         });

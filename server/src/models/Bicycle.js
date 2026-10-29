@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const { createModelWrapper } = require('./modelAdapter');
 
 const bicycleSchema = new mongoose.Schema({
+  _id: {
+    type: mongoose.Schema.Types.Mixed
+  },
   name: {
     type: String,
     required: true

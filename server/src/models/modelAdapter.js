@@ -37,10 +37,22 @@ function createModelWrapper(collectionName, mongooseModel) {
 
     async save() {
       if (mongoose.connection.readyState === 1) {
-        const doc = new mongooseModel(this);
-        const saved = await doc.save();
-        Object.assign(this, saved.toObject ? saved.toObject() : saved);
-        return this;
+        let saved;
+        if (this._id) {
+          const existing = await mongooseModel.findById(this._id);
+          if (existing) {
+            Object.assign(existing, this);
+            saved = await existing.save();
+          } else {
+            const doc = new mongooseModel(this);
+            saved = await doc.save();
+          }
+        } else {
+          const doc = new mongooseModel(this);
+          saved = await doc.save();
+        }
+        const plain = saved && saved.toObject ? saved.toObject() : (saved || this);
+        Object.assign(this, plain);
       }
 
       if (!Array.isArray(memoryStore.data[collectionName])) {
@@ -49,10 +61,11 @@ function createModelWrapper(collectionName, mongooseModel) {
       const list = memoryStore.data[collectionName];
       const thisId = this._id ? this._id.toString() : '';
       const index = list.findIndex(item => item && item._id && item._id.toString() === thisId);
+      const toStore = this && this.toObject ? this.toObject() : { ...this };
       if (index >= 0) {
-        list[index] = { ...this };
+        list[index] = toStore;
       } else {
-        list.push({ ...this });
+        list.push(toStore);
       }
       memoryStore.save();
       return this;
@@ -207,9 +220,52 @@ function createModelWrapper(collectionName, mongooseModel) {
       });
     },
 
+    insertMany: async (docs, options = {}) => {
+      if (!Array.isArray(docs) || docs.length === 0) return [];
+      if (mongoose.connection.readyState === 1) {
+        const result = await mongooseModel.insertMany(docs, { ordered: false, ...options });
+        try {
+          if (!Array.isArray(memoryStore.data[collectionName])) {
+            memoryStore.data[collectionName] = [];
+          }
+          for (const item of result) {
+            const plain = item && item.toObject ? item.toObject() : item;
+            const idStr = plain._id ? plain._id.toString() : '';
+            const idx = memoryStore.data[collectionName].findIndex(it => it && it._id && it._id.toString() === idStr);
+            if (idx >= 0) memoryStore.data[collectionName][idx] = plain;
+            else memoryStore.data[collectionName].push(plain);
+          }
+          memoryStore.save();
+        } catch {}
+        return result;
+      }
+      const savedDocs = [];
+      for (const d of docs) {
+        const doc = new DocumentInstance(d);
+        await doc.save();
+        savedDocs.push(doc);
+      }
+      return savedDocs;
+    },
+
     create: async (data) => {
       if (mongoose.connection.readyState === 1) {
-        return mongooseModel.create(data);
+        const result = await mongooseModel.create(data);
+        try {
+          if (!Array.isArray(memoryStore.data[collectionName])) {
+            memoryStore.data[collectionName] = [];
+          }
+          const items = Array.isArray(result) ? result : [result];
+          for (const item of items) {
+            const plain = item && item.toObject ? item.toObject() : item;
+            const idStr = plain._id ? plain._id.toString() : '';
+            const idx = memoryStore.data[collectionName].findIndex(it => it && it._id && it._id.toString() === idStr);
+            if (idx >= 0) memoryStore.data[collectionName][idx] = plain;
+            else memoryStore.data[collectionName].push(plain);
+          }
+          memoryStore.save();
+        } catch {}
+        return result;
       }
       if (Array.isArray(data)) {
         const docs = data.map(d => new DocumentInstance(d));
@@ -233,7 +289,18 @@ function createModelWrapper(collectionName, mongooseModel) {
 
     findOneAndUpdate: async (filter = {}, update = {}, options = {}) => {
       if (mongoose.connection.readyState === 1) {
-        return mongooseModel.findOneAndUpdate(filter, update, { new: true, ...options });
+        const result = await mongooseModel.findOneAndUpdate(filter, update, { new: true, ...options });
+        if (result && Array.isArray(memoryStore.data[collectionName])) {
+          try {
+            const plain = result.toObject ? result.toObject() : result;
+            const idStr = plain._id ? plain._id.toString() : '';
+            const idx = memoryStore.data[collectionName].findIndex(it => it && it._id && it._id.toString() === idStr);
+            if (idx >= 0) memoryStore.data[collectionName][idx] = plain;
+            else memoryStore.data[collectionName].push(plain);
+            memoryStore.save();
+          } catch {}
+        }
+        return result;
       }
       const list = memoryStore.data[collectionName] || [];
       const index = list.findIndex(item => matchesFilter(item, filter));
@@ -246,7 +313,18 @@ function createModelWrapper(collectionName, mongooseModel) {
 
     findByIdAndUpdate: async (id, update = {}, options = {}) => {
       if (mongoose.connection.readyState === 1) {
-        return mongooseModel.findByIdAndUpdate(id, update, { new: true, ...options });
+        const result = await mongooseModel.findByIdAndUpdate(id, update, { new: true, ...options });
+        if (result && Array.isArray(memoryStore.data[collectionName])) {
+          try {
+            const plain = result.toObject ? result.toObject() : result;
+            const idStr = plain._id ? plain._id.toString() : '';
+            const idx = memoryStore.data[collectionName].findIndex(it => it && it._id && it._id.toString() === idStr);
+            if (idx >= 0) memoryStore.data[collectionName][idx] = plain;
+            else memoryStore.data[collectionName].push(plain);
+            memoryStore.save();
+          } catch {}
+        }
+        return result;
       }
       const list = memoryStore.data[collectionName] || [];
       const index = list.findIndex(item => item._id?.toString() === id?.toString());
@@ -259,7 +337,19 @@ function createModelWrapper(collectionName, mongooseModel) {
 
     updateOne: async (filter = {}, update = {}) => {
       if (mongoose.connection.readyState === 1) {
-        return mongooseModel.updateOne(filter, update);
+        const result = await mongooseModel.updateOne(filter, update);
+        try {
+          const updatedDoc = await mongooseModel.findOne(filter);
+          if (updatedDoc && Array.isArray(memoryStore.data[collectionName])) {
+            const plain = updatedDoc.toObject ? updatedDoc.toObject() : updatedDoc;
+            const idStr = plain._id ? plain._id.toString() : '';
+            const idx = memoryStore.data[collectionName].findIndex(it => it && it._id && it._id.toString() === idStr);
+            if (idx >= 0) memoryStore.data[collectionName][idx] = plain;
+            else memoryStore.data[collectionName].push(plain);
+            memoryStore.save();
+          }
+        } catch {}
+        return result;
       }
       const list = memoryStore.data[collectionName] || [];
       const index = list.findIndex(item => matchesFilter(item, filter));
@@ -272,7 +362,15 @@ function createModelWrapper(collectionName, mongooseModel) {
 
     deleteOne: async (filter = {}) => {
       if (mongoose.connection.readyState === 1) {
-        return mongooseModel.deleteOne(filter);
+        const result = await mongooseModel.deleteOne(filter);
+        if (Array.isArray(memoryStore.data[collectionName])) {
+          const index = memoryStore.data[collectionName].findIndex(item => matchesFilter(item, filter));
+          if (index >= 0) {
+            memoryStore.data[collectionName].splice(index, 1);
+            memoryStore.save();
+          }
+        }
+        return result;
       }
       const list = memoryStore.data[collectionName] || [];
       const index = list.findIndex(item => matchesFilter(item, filter));
@@ -284,7 +382,12 @@ function createModelWrapper(collectionName, mongooseModel) {
 
     deleteMany: async (filter = {}) => {
       if (mongoose.connection.readyState === 1) {
-        return mongooseModel.deleteMany(filter);
+        const result = await mongooseModel.deleteMany(filter);
+        if (Array.isArray(memoryStore.data[collectionName])) {
+          memoryStore.data[collectionName] = memoryStore.data[collectionName].filter(item => !matchesFilter(item, filter));
+          memoryStore.save();
+        }
+        return result;
       }
       const list = memoryStore.data[collectionName] || [];
       const before = list.length;

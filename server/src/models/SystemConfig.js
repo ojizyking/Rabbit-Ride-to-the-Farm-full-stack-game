@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const { createModelWrapper } = require('./modelAdapter');
 
 const systemConfigSchema = new mongoose.Schema({
+  _id: {
+    type: mongoose.Schema.Types.Mixed
+  },
   key: {
     type: String,
     unique: true,

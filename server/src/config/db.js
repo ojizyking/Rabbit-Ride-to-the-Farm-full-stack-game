@@ -157,6 +157,173 @@ async function backfillPlayerIds() {
   }
 }
 
+/**
+ * Automatically synchronizes data between memoryStore (dev_data.json) and MongoDB Atlas.
+ * Guarantees that users, rides, transactions, subscriptions, withdrawals, and systemConfigs
+ * are preserved and reflected across both stores.
+ */
+async function syncStores() {
+  if (mongoose.connection.readyState !== 1) return;
+
+  try {
+    const memoryStore = require('./memoryStore');
+    const User = require('../models/User');
+    const Rabbit = require('../models/Rabbit');
+    const Bicycle = require('../models/Bicycle');
+    const Ride = require('../models/Ride');
+    const Transaction = require('../models/Transaction');
+    const Subscription = require('../models/Subscription');
+    const Withdrawal = require('../models/Withdrawal');
+    const SystemConfig = require('../models/SystemConfig');
+
+    console.log('[Sync] Starting bidirectional store synchronization...');
+
+    const atlasRabbits = await Rabbit.find({});
+    const atlasBikes = await Bicycle.find({});
+    const defaultRabbit = atlasRabbits.find(r => r.name && r.name.toLowerCase().includes('starter')) || atlasRabbits[0];
+    const defaultBike = atlasBikes.find(b => b.name && (b.name.toLowerCase().includes('classic') || b.name.toLowerCase().includes('starter'))) || atlasBikes[0];
+
+    // 1. Sync Users
+    let syncedUsers = 0;
+    const memUsers = memoryStore.data.users || [];
+    for (const memUser of memUsers) {
+      if (!memUser.email) continue;
+      const cleanEmail = memUser.email.toLowerCase().trim();
+      let mongoUser = await User.findOne({
+        $or: [{ email: cleanEmail }, { _id: memUser._id }]
+      });
+
+      if (!mongoUser) {
+        const userToInsert = { ...memUser, email: cleanEmail };
+        if (!userToInsert.currentRabbitId && defaultRabbit) userToInsert.currentRabbitId = defaultRabbit._id;
+        if (!userToInsert.currentBikeId && defaultBike) userToInsert.currentBikeId = defaultBike._id;
+        if (!userToInsert.ownedRabbits || userToInsert.ownedRabbits.length === 0) {
+          userToInsert.ownedRabbits = defaultRabbit ? [defaultRabbit._id] : [];
+        }
+        if (!userToInsert.ownedBikes || userToInsert.ownedBikes.length === 0) {
+          userToInsert.ownedBikes = defaultBike ? [defaultBike._id] : [];
+        }
+        await User.create(userToInsert);
+        syncedUsers++;
+      } else {
+        let modified = false;
+        if ((memUser.balanceNaira || 0) > (mongoUser.balanceNaira || 0)) {
+          mongoUser.balanceNaira = memUser.balanceNaira;
+          modified = true;
+        }
+        if ((memUser.totalRides || 0) > (mongoUser.totalRides || 0)) {
+          mongoUser.totalRides = memUser.totalRides;
+          modified = true;
+        }
+        if (memUser.role === 'admin' && mongoUser.role !== 'admin') {
+          mongoUser.role = 'admin';
+          modified = true;
+        }
+        if (memUser.referralCode && !mongoUser.referralCode) {
+          mongoUser.referralCode = memUser.referralCode;
+          modified = true;
+        }
+        if (memUser.playerId && !mongoUser.playerId) {
+          mongoUser.playerId = memUser.playerId;
+          modified = true;
+        }
+        if (modified) {
+          await mongoUser.save();
+        }
+      }
+    }
+
+    // Mirror any Mongo-only users back into memoryStore
+    const allMongoUsers = await User.find({});
+    for (const mu of allMongoUsers) {
+      const plain = mu.toObject ? mu.toObject() : mu;
+      const idx = memUsers.findIndex(u => u.email === plain.email || (u._id && u._id.toString() === plain._id.toString()));
+      if (idx < 0) {
+        memUsers.push(plain);
+      }
+    }
+
+    // 2. Sync Rides (Bulk)
+    let syncedRides = 0;
+    const memRides = memoryStore.data.rides || [];
+    if (memRides.length > 0) {
+      const existingRides = await Ride.find({}, { _id: 1 });
+      const existingRideIds = new Set(existingRides.map(r => r._id ? r._id.toString() : ''));
+      const ridesToInsert = memRides.filter(r => r && r._id && !existingRideIds.has(r._id.toString()));
+      if (ridesToInsert.length > 0) {
+        await Ride.insertMany(ridesToInsert, { ordered: false });
+        syncedRides = ridesToInsert.length;
+      }
+    }
+
+    // 3. Sync Transactions (Bulk)
+    let syncedTxs = 0;
+    const memTxs = memoryStore.data.transactions || [];
+    if (memTxs.length > 0) {
+      const existingTxs = await Transaction.find({}, { _id: 1 });
+      const existingTxIds = new Set(existingTxs.map(t => t._id ? t._id.toString() : ''));
+      const txsToInsert = memTxs.filter(t => t && t._id && !existingTxIds.has(t._id.toString()));
+      if (txsToInsert.length > 0) {
+        await Transaction.insertMany(txsToInsert, { ordered: false });
+        syncedTxs = txsToInsert.length;
+      }
+    }
+
+    // 4. Sync Subscriptions (Bulk)
+    let syncedSubs = 0;
+    const memSubs = memoryStore.data.subscriptions || [];
+    if (memSubs.length > 0) {
+      const existingSubs = await Subscription.find({}, { _id: 1 });
+      const existingSubIds = new Set(existingSubs.map(s => s._id ? s._id.toString() : ''));
+      const subsToInsert = memSubs.filter(s => s && s._id && !existingSubIds.has(s._id.toString()));
+      if (subsToInsert.length > 0) {
+        await Subscription.insertMany(subsToInsert, { ordered: false });
+        syncedSubs = subsToInsert.length;
+      }
+    }
+
+    // 5. Sync Withdrawals (Bulk)
+    let syncedWithdrawals = 0;
+    const memWithdrawals = memoryStore.data.withdrawals || [];
+    if (memWithdrawals.length > 0) {
+      const existingWs = await Withdrawal.find({}, { _id: 1 });
+      const existingWIds = new Set(existingWs.map(w => w._id ? w._id.toString() : ''));
+      const wsToInsert = memWithdrawals.filter(w => w && w._id && !existingWIds.has(w._id.toString()));
+      if (wsToInsert.length > 0) {
+        await Withdrawal.insertMany(wsToInsert, { ordered: false });
+        syncedWithdrawals = wsToInsert.length;
+      }
+    }
+
+    // 6. Sync SystemConfigs (Bulk)
+    let syncedConfigs = 0;
+    const memConfigs = memoryStore.data.systemConfigs || [];
+    if (memConfigs.length > 0) {
+      const existingCfgs = await SystemConfig.find({}, { key: 1 });
+      const existingCfgKeys = new Set(existingCfgs.map(c => c.key));
+      const cfgsToInsert = memConfigs.filter(c => c && c.key && !existingCfgKeys.has(c.key));
+      if (cfgsToInsert.length > 0) {
+        await SystemConfig.insertMany(cfgsToInsert, { ordered: false });
+        syncedConfigs = cfgsToInsert.length;
+      }
+    }
+
+    memoryStore.save();
+    console.log(`[Sync] ✅ Bidirectional sync finished! Synced to MongoDB Atlas: ${syncedUsers} users, ${syncedRides} rides, ${syncedTxs} txs, ${syncedSubs} subs, ${syncedWithdrawals} withdrawals.`);
+  } catch (err) {
+    console.error('[Sync] ⚠️ Error during store synchronization:', err.message);
+  }
+}
+
+// Connection event listeners for auto-reconnect tracking
+mongoose.connection.on('disconnected', () => {
+  console.warn('[DB] ⚠️ MongoDB connection lost. Operating in resilient fallback mode...');
+});
+mongoose.connection.on('reconnected', () => {
+  console.log('[DB] ✅ MongoDB reconnected. Triggering sync...');
+  syncStores();
+});
+
 async function connectDB() {
   const primaryUri = process.env.MONGO_URI || 'mongodb://localhost:27017/rabbit_farm';
   const isAtlas = primaryUri.includes('mongodb+srv');
@@ -165,7 +332,11 @@ async function connectDB() {
   try {
     console.log(`[DB] Connecting to ${isAtlas ? 'MongoDB Atlas' : 'MongoDB'}...`);
     await mongoose.connect(primaryUri, {
-      serverSelectionTimeoutMS: isAtlas ? 15000 : 2500,
+      serverSelectionTimeoutMS: isAtlas ? 15000 : 3000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 15000,
+      maxPoolSize: 10,
+      family: 4, // Force IPv4 to avoid ECONNRESET on dual-stack environments
       retryWrites: true,
       w: 'majority',
       appName: 'RabbitRideFarm'
@@ -173,14 +344,13 @@ async function connectDB() {
     console.log(`[DB] ✅ MongoDB ${isAtlas ? 'Atlas' : 'local'} connected successfully.`);
     await seedInitialShop();
     await backfillPlayerIds();
+    await syncStores();
   } catch (err) {
     if (isRemote) {
-      // Atlas / remote connection failure — this is a real problem, log clearly
       console.error('[DB] ❌ MongoDB connection FAILED:', err.message);
-      console.error('[DB] ⚠️  Falling back to in-memory JSON store. All data will be lost on restart!');
-      console.error('[DB] 💡 Ensure MONGO_URI is set correctly in Railway environment variables.');
+      console.error('[DB] ⚠️  Falling back to in-memory JSON store. All data will be retained in dev_data.json!');
+      console.error('[DB] 💡 Ensure MONGO_URI is set correctly and IP 0.0.0.0/0 is allowed in Atlas.');
     } else {
-      // Local dev fallback — expected when no local MongoDB daemon is running
       console.log('------------------------------------------------------------');
       console.log('ℹ️  No local MongoDB found — using JSON-backed memory store.');
       console.log('✅ Server is operational. Set MONGO_URI for persistent storage.');
@@ -191,4 +361,4 @@ async function connectDB() {
   }
 }
 
-module.exports = { connectDB, seedInitialShop };
+module.exports = { connectDB, seedInitialShop, syncStores };

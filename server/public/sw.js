@@ -3,7 +3,7 @@
  * Provides offline caching, lightning-fast boot, and seamless PWA capabilities.
  */
 
-const CACHE_NAME = 'rabbit-farm-pwa-v1';
+const CACHE_NAME = 'rabbit-farm-pwa-v2';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -64,20 +64,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Static Assets (scripts, styles, images, fonts): Cache-first with stale-while-revalidate
+  // 3. Scripts & Styles: Network-first to always fetch fresh code on deploy, fallback to cache offline
+  if (req.destination === 'script' || req.destination === 'style' || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    event.respondWith(
+      fetch(req)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // 4. Other Static Assets (images, fonts, sounds): Cache-first with background revalidation
   event.respondWith(
     caches.match(req).then((cachedResponse) => {
       if (cachedResponse) {
-        // Fetch background update for cache freshness
         fetch(req).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(req, responseToCache);
-            });
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, responseToCache));
           }
-        }).catch(() => { /* silent fail for offline */ });
-
+        }).catch(() => {});
         return cachedResponse;
       }
 
@@ -85,18 +97,11 @@ self.addEventListener('fetch', (event) => {
         if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
           return networkResponse;
         }
-
         const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(req, responseToCache);
-        });
-
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, responseToCache));
         return networkResponse;
       }).catch(() => {
-        // Fallback for image requests if offline
-        if (req.destination === 'image') {
-          return caches.match('/assets/logo.svg');
-        }
+        if (req.destination === 'image') return caches.match('/assets/logo.svg');
       });
     })
   );

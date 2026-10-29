@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const { createModelWrapper } = require('./modelAdapter');
 
 const subscriptionSchema = new mongoose.Schema({
+  _id: {
+    type: mongoose.Schema.Types.Mixed
+  },
   userId: {
     type: mongoose.Schema.Types.Mixed,
     ref: 'User',
