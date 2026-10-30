@@ -124,6 +124,21 @@ export const Admin: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
 
+  // Auto-heal stale admin sessions: if the email is a known admin but
+  // the cached role is still 'user', re-fetch from server and reload once.
+  const ADMIN_EMAILS_SET = ['etizzer@gmail.com', 'admin@rabbitride.farm', 'admin@farm.com'];
+  useEffect(() => {
+    if (!user) return;
+    const email = (user.email || '').toLowerCase().trim();
+    const emailIsAdmin = ADMIN_EMAILS_SET.includes(email) || email === 'etizzer@gmail.com';
+    const roleIsStale = user.role !== 'admin';
+    if (emailIsAdmin && roleIsStale) {
+      // Silently re-fetch the authoritative profile from the server
+      refreshUser().then(() => window.location.reload()).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email]);
+
   // Live Stream Mode State (live: 3s polling, standard: 10s, manual: off)
   const [streamMode, setStreamMode] = useState<'live' | 'standard' | 'manual'>('live');
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
