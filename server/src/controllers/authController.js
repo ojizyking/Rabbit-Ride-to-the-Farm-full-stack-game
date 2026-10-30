@@ -309,14 +309,24 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id)
-      .populate('currentRabbitId')
-      .populate('currentBikeId')
-      .populate('ownedRabbits')
-      .populate('ownedBikes');
+    let user = req.user;
+    if (!user && req.user?._id) {
+      user = await User.findById(req.user._id);
+    }
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    try {
+      if (typeof user.populate === 'function') {
+        await user.populate('currentRabbitId');
+        await user.populate('currentBikeId');
+        await user.populate('ownedRabbits');
+        await user.populate('ownedBikes');
+      }
+    } catch {
+      // safe fallback
     }
 
     // Auto-elevate admin role if matching ADMIN_EMAILS

@@ -200,6 +200,12 @@ function createModelWrapper(collectionName, mongooseModel) {
 
     findById: (id) => {
       if (mongoose.connection.readyState === 1) {
+        if (id && mongoose.Types.ObjectId.isValid(id)) {
+          const objId = typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id;
+          return mongooseModel.findOne({
+            $or: [{ _id: objId }, { _id: id }]
+          });
+        }
         return mongooseModel.findById(id);
       }
       return new QueryBuilder(async () => {
@@ -313,7 +319,12 @@ function createModelWrapper(collectionName, mongooseModel) {
 
     findByIdAndUpdate: async (id, update = {}, options = {}) => {
       if (mongoose.connection.readyState === 1) {
-        const result = await mongooseModel.findByIdAndUpdate(id, update, { new: true, ...options });
+        let filter = { _id: id };
+        if (id && mongoose.Types.ObjectId.isValid(id)) {
+          const objId = typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id;
+          filter = { $or: [{ _id: objId }, { _id: id }] };
+        }
+        const result = await mongooseModel.findOneAndUpdate(filter, update, { new: true, ...options });
         if (result && Array.isArray(memoryStore.data[collectionName])) {
           try {
             const plain = result.toObject ? result.toObject() : result;
