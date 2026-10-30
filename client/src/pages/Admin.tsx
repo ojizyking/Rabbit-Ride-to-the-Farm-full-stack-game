@@ -482,12 +482,25 @@ export const Admin: React.FC = () => {
         <div className="admin-panel" style={{ maxWidth: '540px', margin: '0 auto', textAlign: 'center' }}>
           <AlertTriangle size={54} color="#F59E0B" style={{ margin: '0 auto 1.25rem' }} />
           <h2 style={{ fontSize: '1.6rem', marginBottom: '0.75rem' }}>Restricted Access</h2>
-          <p style={{ color: '#94A3B8', lineHeight: 1.6, marginBottom: '2rem' }}>
-            You are signed in as <strong>{user.email}</strong>, but this account does not have administrator privileges.
+          <p style={{ color: '#94A3B8', lineHeight: 1.6, marginBottom: '1rem' }}>
+            You are signed in as <strong>{user.email}</strong>, but this session does not have administrator privileges.
           </p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button onClick={() => navigate('/')} className="btn-primary">
-              Return to Player Dashboard
+          <p style={{ color: '#64748B', fontSize: '0.85rem', marginBottom: '2rem' }}>
+            If you are the admin, your session may be stale. Click <strong>Refresh Session</strong> to re-verify your role.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={async () => {
+                await refreshUser();
+                window.location.reload();
+              }}
+              className="btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <RefreshCw size={16} /> Refresh Session
+            </button>
+            <button onClick={() => navigate('/')} className="btn-secondary" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', padding: '0.75rem 1.5rem', borderRadius: '12px' }}>
+              Return Home
             </button>
           </div>
         </div>
