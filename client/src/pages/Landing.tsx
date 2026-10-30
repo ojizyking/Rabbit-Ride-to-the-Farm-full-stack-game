@@ -427,6 +427,7 @@ export const Landing: React.FC = () => {
             <Link to="/play">Play Game</Link>
             <Link to="/shop">Farm Shop</Link>
             <Link to="/wallet">Wallet &amp; Rewards</Link>
+            <Link to="/admin/login" style={{ opacity: 0.75 }}>Admin Portal</Link>
           </div>
         </div>
       </footer>

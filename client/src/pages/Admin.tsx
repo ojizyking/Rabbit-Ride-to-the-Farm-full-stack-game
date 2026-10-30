@@ -474,8 +474,8 @@ export const Admin: React.FC = () => {
             Please sign in with your administrator account to access Mission Control.
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button onClick={() => openAuthModal('login')} className="btn-primary">
-              Sign In as Admin
+            <button onClick={() => { window.location.href = '/admin/login'; }} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ShieldCheck size={18} /> Sign In as Admin
             </button>
             <button onClick={() => navigate('/')} className="btn-secondary" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', padding: '0.75rem 1.5rem', borderRadius: '12px' }}>
               Return Home
@@ -486,7 +486,7 @@ export const Admin: React.FC = () => {
     );
   }
 
-  // If user is not admin
+  // If user is not admin — show a clear sign-in prompt pointing to the dedicated admin login page
   const ADMIN_EMAILS = ['etizzer@gmail.com', 'admin@rabbitride.farm', 'admin@farm.com'];
   const userEmail = (user.email || '').toLowerCase().trim();
   const isAdmin = user.role === 'admin' || ADMIN_EMAILS.includes(userEmail) || userEmail === 'etizzer@gmail.com';
@@ -496,25 +496,28 @@ export const Admin: React.FC = () => {
       <div className="admin-container" style={{ textAlign: 'center', paddingTop: '5rem' }}>
         <div className="admin-panel" style={{ maxWidth: '540px', margin: '0 auto', textAlign: 'center' }}>
           <AlertTriangle size={54} color="#F59E0B" style={{ margin: '0 auto 1.25rem' }} />
-          <h2 style={{ fontSize: '1.6rem', marginBottom: '0.75rem' }}>Restricted Access</h2>
-          <p style={{ color: '#94A3B8', lineHeight: 1.6, marginBottom: '1rem' }}>
-            You are signed in as <strong>{user.email}</strong>, but this session does not have administrator privileges.
+          <h2 style={{ fontSize: '1.6rem', marginBottom: '0.75rem' }}>Admin Sign-In Required</h2>
+          <p style={{ color: '#94A3B8', lineHeight: 1.6, marginBottom: '0.75rem' }}>
+            Currently signed in as <strong>{user.email}</strong> — this account does not have administrator privileges.
           </p>
-          <p style={{ color: '#64748B', fontSize: '0.85rem', marginBottom: '2rem' }}>
-            If you are the admin, your session may be stale. Click <strong>Refresh Session</strong> to re-verify your role.
+          <p style={{ color: '#64748B', fontSize: '0.875rem', marginBottom: '2rem' }}>
+            Use the dedicated admin login page to sign in with your administrator credentials.
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
-              onClick={async () => {
-                await refreshUser();
-                window.location.reload();
-              }}
+              onClick={() => { window.location.href = '/admin/login'; }}
               className="btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', padding: '0.85rem 1.75rem' }}
             >
-              <RefreshCw size={16} /> Refresh Session
+              <ShieldCheck size={18} /> Sign In as Admin
             </button>
-            <button onClick={() => navigate('/')} className="btn-secondary" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', padding: '0.75rem 1.5rem', borderRadius: '12px' }}>
+            <button
+              onClick={async () => { await refreshUser(); window.location.reload(); }}
+              style={{ background: 'rgba(255,255,255,0.08)', color: '#94A3B8', border: '1px solid rgba(255,255,255,0.15)', padding: '0.75rem 1.25rem', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}
+            >
+              <RefreshCw size={15} /> Refresh Session
+            </button>
+            <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '0.875rem', padding: '0.75rem' }}>
               Return Home
             </button>
           </div>

@@ -17,6 +17,7 @@ export const Navbar: React.FC = () => {
 
   const closeMenu = () => setMenuOpen(false);
   const isActive = (path: string) => location.pathname === path;
+  const isAdmin = user?.role === 'admin' || (user?.email && ['etizzer@gmail.com', 'admin@rabbitride.farm', 'admin@farm.com'].includes(user.email.toLowerCase().trim()));
 
   return (
     <>
@@ -37,7 +38,7 @@ export const Navbar: React.FC = () => {
             <li><a href="/#tiers" className="nav-link">Gameplay Packs</a></li>
             <li><Link to="/shop" className={`nav-link ${isActive('/shop') ? 'active' : ''}`}>Farm Shop</Link></li>
             <li><Link to="/wallet" className={`nav-link ${isActive('/wallet') ? 'active' : ''}`}>Wallet &amp; Rewards</Link></li>
-            {user?.role === 'admin' && (
+            {isAdmin && (
               <li>
                 <Link
                   to="/admin"
@@ -124,7 +125,7 @@ export const Navbar: React.FC = () => {
         <Link to="/wallet" className={`mobile-nav-link ${isActive('/wallet') ? 'active' : ''}`} onClick={closeMenu}>
           <Wallet size={20} /> Wallet &amp; Rewards
         </Link>
-        {user?.role === 'admin' && (
+        {isAdmin && (
           <Link to="/admin" className={`mobile-nav-link ${isActive('/admin') ? 'active' : ''}`} onClick={closeMenu} style={{ color: '#FF6F00', fontWeight: 700 }}>
             <ShieldCheck size={20} /> Admin Mission Control
           </Link>

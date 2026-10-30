@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import AuthModal from './components/AuthModal';
@@ -11,8 +11,22 @@ import Play from './pages/Play';
 import Shop from './pages/Shop';
 import Wallet from './pages/Wallet';
 import Admin from './pages/Admin';
+import AdminLogin from './pages/AdminLogin';
 import api from './lib/api';
 import './styles/index.css';
+
+const MainLayout: React.FC = () => {
+  return (
+    <div className="app-container">
+      <Navbar />
+      <main className="main-content">
+        <Outlet />
+      </main>
+      <AuthModal />
+      <PWAInstallPrompt />
+    </div>
+  );
+};
 
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -42,21 +56,20 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="app-container">
-      <Navbar />
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={user ? <Dashboard /> : <Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/play" element={<Play />} />
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/wallet" element={<Wallet />} />
-          <Route path="/admin" element={<Admin />} />
-        </Routes>
-      </main>
-      <AuthModal />
-      <PWAInstallPrompt />
-    </div>
+    <Routes>
+      {/* Fullscreen admin login — no Navbar, no shared layout */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+
+      {/* All standard routes share the app layout */}
+      <Route element={<MainLayout />}>
+        <Route path="/" element={user ? <Dashboard /> : <Landing />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/play" element={<Play />} />
+        <Route path="/shop" element={<Shop />} />
+        <Route path="/wallet" element={<Wallet />} />
+        <Route path="/admin" element={<Admin />} />
+      </Route>
+    </Routes>
   );
 };
 
