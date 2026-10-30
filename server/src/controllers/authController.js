@@ -229,6 +229,14 @@ exports.login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
 
+    // Clerk-only accounts have no password — guide the user to sign in via Clerk
+    if (!user.password) {
+      return res.status(401).json({
+        success: false,
+        message: 'This account was created with Google/Clerk sign-in. Please use the "Sign in with Google" option instead.'
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
