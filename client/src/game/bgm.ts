@@ -322,31 +322,34 @@ class BGMEngine {
       host = document.createElement('div');
       host.id = 'youtube-bgm-container';
       host.style.position = 'fixed';
-      host.style.bottom = '-9999px';
-      host.style.left = '-9999px';
-      host.style.width = '10px';
-      host.style.height = '10px';
-      host.style.opacity = '0.01';
+      host.style.bottom = '0px';
+      host.style.left = '0px';
+      host.style.width = '200px';
+      host.style.height = '200px';
+      host.style.opacity = '0.001';
       host.style.pointerEvents = 'none';
+      host.style.zIndex = '-999';
       document.body.appendChild(host);
     }
 
     try {
       this.ytPlayer = new window.YT.Player('youtube-bgm-container', {
-        height: '10',
-        width: '10',
+        height: '200',
+        width: '200',
         videoId: this.currentYTVideoId,
         playerVars: {
-          autoplay: 0,
+          autoplay: 1,
           controls: 0,
           loop: 1,
           playlist: this.currentYTVideoId,
-          origin: window.location.origin
+          origin: window.location.origin,
+          enablejsapi: 1,
+          playsinline: 1
         },
         events: {
           onReady: () => {
             this.updateMusicGain();
-            if (this.isPlaying && !this.isPaused && this.currentSource === 'youtube') {
+            if (this.currentSource === 'youtube' && !this.isPaused) {
               this.ytPlayer?.playVideo();
             }
           }
@@ -445,6 +448,8 @@ class BGMEngine {
 
     this.currentYTVideoId = id;
     this.currentSource = 'youtube';
+    this.isPlaying = true;
+    this.isPaused = false;
     this.saveSettings();
 
     // Stop synth loop
@@ -457,12 +462,12 @@ class BGMEngine {
       try {
         this.ytPlayer.loadVideoById(id);
         this.updateMusicGain();
-        if (this.isPlaying && !this.isPaused) {
-          this.ytPlayer.playVideo();
-        }
+        this.ytPlayer.playVideo();
       } catch {
-        // ignore
+        this.mountYouTubePlayer();
       }
+    } else {
+      this.mountYouTubePlayer();
     }
     return true;
   }

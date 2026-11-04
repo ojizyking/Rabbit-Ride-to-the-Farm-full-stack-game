@@ -146,6 +146,7 @@ export const Play: React.FC = () => {
   const [ytSearchResults, setYtSearchResults] = useState<{ videoId: string; title: string; channel: string; thumbnail: string }[]>([]);
   const [ytSearchLoading, setYtSearchLoading] = useState(false);
   const [ytSearchTimer, setYtSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [isMusicDrawerOpen, setIsMusicDrawerOpen] = useState(false);
 
   // Free-user cap banner
   const [showFreeCapBanner, setShowFreeCapBanner] = useState(true);
@@ -493,6 +494,26 @@ export const Play: React.FC = () => {
     }
   };
 
+  // Immediate YouTube search (triggered by Enter key or Search button)
+  const executeYtSearch = async (queryText?: string) => {
+    const q = (queryText !== undefined ? queryText : ytSearchQuery).trim();
+    if (!q) return;
+    if (ytSearchTimer) clearTimeout(ytSearchTimer);
+    setYtSearchLoading(true);
+    try {
+      const res = await api.get('/game/yt-search', { params: { q } });
+      if (res.data?.success && Array.isArray(res.data.results)) {
+        setYtSearchResults(res.data.results);
+      } else {
+        setYtSearchResults([]);
+      }
+    } catch {
+      setYtSearchResults([]);
+    } finally {
+      setYtSearchLoading(false);
+    }
+  };
+
   // Live YouTube search via backend API (searches songs by title)
   const handleYtSearchChange = (query: string) => {
     setYtSearchQuery(query);
@@ -501,22 +522,9 @@ export const Play: React.FC = () => {
       setYtSearchResults([]);
       return;
     }
-    const timer = setTimeout(async () => {
-      setYtSearchLoading(true);
-      try {
-        const res = await api.get('/game/yt-search', { params: { q: query.trim() } });
-        if (res.data?.success && Array.isArray(res.data.results)) {
-          setYtSearchResults(res.data.results);
-        } else {
-          setYtSearchResults([]);
-        }
-      } catch {
-        // Silently fall back — user can still paste URL
-        setYtSearchResults([]);
-      } finally {
-        setYtSearchLoading(false);
-      }
-    }, 400);
+    const timer = setTimeout(() => {
+      executeYtSearch(query);
+    }, 450);
     setYtSearchTimer(timer);
   };
 
@@ -713,9 +721,18 @@ export const Play: React.FC = () => {
 
           {/* Music Audio Drawer Toggle */}
           <button
-            onClick={handleTogglePause}
+            onClick={() => {
+              setMusicSource('youtube');
+              bgm.setSource('youtube');
+              setIsMusicDrawerOpen(true);
+            }}
             className="hud-icon-btn"
-            title="Background Music & Audio Settings"
+            title="🎵 Search & Play YouTube Songs"
+            style={{
+              background: isMusicDrawerOpen ? '#FFC93C' : undefined,
+              color: isMusicDrawerOpen ? '#1B3824' : undefined,
+              boxShadow: isMusicDrawerOpen ? '0 0 16px rgba(255, 201, 60, 0.8)' : undefined
+            }}
           >
             <Music size={20} />
           </button>
@@ -1145,6 +1162,228 @@ export const Play: React.FC = () => {
               </button>
               <button onClick={() => navigate('/shop')} className="btn-outline" style={{ justifyContent: 'center' }}>
                 <span>Visit Farm Shop</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* DEDICATED MUSIC JUKEBOX & YOUTUBE SONG SEARCH MODAL        */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {isMusicDrawerOpen && (
+        <div className="pause-overlay-modal" onClick={() => setIsMusicDrawerOpen(false)} style={{ zIndex: 3500 }}>
+          <div className="pause-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px', width: '92%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{ background: '#E8F5E9', padding: '0.6rem', borderRadius: '50%', display: 'flex', border: '2px solid #81C784' }}>
+                  <Music size={24} color="#2D8A4E" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: '#174D2A' }}>
+                    🎵 Farm Jukebox &amp; Songs
+                  </h3>
+                  <span style={{ fontSize: '0.8rem', color: '#607D8B' }}>
+                    Search &amp; stream any song live on YouTube while riding!
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMusicDrawerOpen(false)}
+                style={{
+                  background: '#ECEFF1',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontWeight: 800,
+                  fontSize: '1.1rem',
+                  color: '#455A64'
+                }}
+                title="Close and keep listening"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Music Source Tabs */}
+            <div className="music-selector-tabs" style={{ marginBottom: '0.85rem' }}>
+              <button
+                type="button"
+                className={`music-tab-btn ${musicSource === 'youtube' ? 'active' : ''}`}
+                onClick={() => { setMusicSource('youtube'); bgm.setSource('youtube'); }}
+              >
+                📺 YouTube Song Search
+              </button>
+              <button
+                type="button"
+                className={`music-tab-btn ${musicSource === 'soundtrack' ? 'active' : ''}`}
+                onClick={() => { setMusicSource('soundtrack'); bgm.setSource('soundtrack'); }}
+              >
+                📻 Farm Soundtracks
+              </button>
+            </div>
+
+            {musicSource === 'youtube' ? (
+              <div>
+                {/* Search Bar with button */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (ytSearchQuery.includes('youtube.com') || ytSearchQuery.includes('youtu.be')) {
+                      handleApplyYouTube(ytSearchQuery);
+                    } else {
+                      executeYtSearch(ytSearchQuery);
+                    }
+                  }}
+                  style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.65rem' }}
+                >
+                  <input
+                    type="text"
+                    value={ytSearchQuery}
+                    onChange={(e) => handleYtSearchChange(e.target.value)}
+                    placeholder="🔍 Search songs by title (e.g. Asake, Lofi, Synthwave)..."
+                    className="youtube-input"
+                    style={{ flex: 1, fontSize: '0.92rem', padding: '0.65rem 0.85rem' }}
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{ padding: '0.65rem 1.25rem', fontSize: '0.88rem', whiteSpace: 'nowrap' }}
+                  >
+                    {ytSearchLoading ? 'Searching…' : 'Search 🔍'}
+                  </button>
+                </form>
+
+                {/* Live Search Results */}
+                {ytSearchLoading && (
+                  <div style={{ textAlign: 'center', padding: '1rem', fontSize: '0.88rem', color: '#2D8A4E', fontWeight: 700 }}>
+                    🌾 Searching YouTube for "{ytSearchQuery}"…
+                  </div>
+                )}
+
+                {ytSearchResults.length > 0 && (
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', gap: '0.45rem',
+                    maxHeight: '240px', overflowY: 'auto', marginBottom: '0.75rem',
+                    padding: '0.2rem'
+                  }}>
+                    {ytSearchResults.map((r) => {
+                      const isCurrent = bgm.getYouTubeVideoId() === r.videoId;
+                      return (
+                        <div
+                          key={r.videoId}
+                          onClick={() => {
+                            setYtInput(r.videoId);
+                            handleApplyYouTube(r.videoId);
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.65rem',
+                            background: isCurrent ? '#E8F5E9' : '#FFFFFF',
+                            border: isCurrent ? '2px solid #2D8A4E' : '1.5px solid #CFD8DC',
+                            borderRadius: '12px', padding: '0.45rem 0.65rem', cursor: 'pointer',
+                            boxShadow: isCurrent ? '0 2px 8px rgba(45,138,78,0.2)' : '0 1px 4px rgba(0,0,0,0.04)',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <img
+                            src={r.thumbnail}
+                            alt=""
+                            style={{ width: 56, height: 42, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }}
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1B3824', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {r.title}
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#689F38' }}>
+                              {r.channel}
+                            </div>
+                          </div>
+                          <span style={{
+                            background: isCurrent ? '#2D8A4E' : '#FF7A00',
+                            color: '#fff', fontSize: '0.76rem', fontWeight: 700,
+                            padding: '0.35rem 0.75rem', borderRadius: '9999px', flexShrink: 0
+                          }}>
+                            {isCurrent ? '▶ Playing' : 'Play ▶'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Curated Presets */}
+                <div style={{ marginTop: '0.5rem' }}>
+                  <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#78909C', textTransform: 'uppercase' }}>
+                    Quick Presets:
+                  </span>
+                  <div className="youtube-presets-row" style={{ marginTop: '0.35rem' }}>
+                    {YOUTUBE_PRESETS.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="preset-chip"
+                        onClick={() => { setYtInput(p.id); handleApplyYouTube(p.id); }}
+                      >
+                        ▶ {p.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="soundtrack-pill-list">
+                {SOUNDTRACKS.map((track) => (
+                  <div
+                    key={track.id}
+                    onClick={() => handleSelectSoundtrack(track.id)}
+                    className={`soundtrack-pill ${activeTrack === track.id ? 'active' : ''}`}
+                  >
+                    <div>
+                      <div className="soundtrack-name">{track.name}</div>
+                      <div className="soundtrack-genre">{track.description}</div>
+                    </div>
+                    {activeTrack === track.id && (
+                      <span style={{ color: '#2D8A4E', fontWeight: 800, fontSize: '0.85rem' }}>Playing</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Volume Control */}
+            <div style={{ marginTop: '0.85rem', paddingTop: '0.65rem', borderTop: '1px solid #ECEFF1' }}>
+              <div className="volume-row">
+                <span className="volume-label">Music Volume:</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={musicVol}
+                  onChange={(e) => handleMusicVolChange(parseFloat(e.target.value))}
+                  className="volume-slider"
+                />
+                <span className="volume-val-pct">{Math.round(musicVol * 100)}%</span>
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <div style={{ marginTop: '0.85rem' }}>
+              <button
+                type="button"
+                onClick={() => setIsMusicDrawerOpen(false)}
+                className="btn-primary"
+                style={{ width: '100%', justifyContent: 'center', padding: '0.75rem', fontSize: '0.95rem' }}
+              >
+                <span>🎧 Keep Riding with Music</span>
               </button>
             </div>
           </div>
