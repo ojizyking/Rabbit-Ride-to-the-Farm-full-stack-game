@@ -3,7 +3,7 @@
  * Provides offline caching, lightning-fast boot, and seamless PWA capabilities.
  */
 
-const CACHE_NAME = 'rabbit-farm-pwa-v2';
+const CACHE_NAME = 'rabbit-farm-pwa-v3';
 
 const PRECACHE_ASSETS = [
   '/',
