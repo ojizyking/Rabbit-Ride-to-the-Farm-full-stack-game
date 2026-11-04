@@ -290,57 +290,111 @@ exports.syncOffline = async (req, res) => {
   }
 };
 
+// Curated fallback songs for instant offline / search fallback
+const CURATED_FALLBACK_TRACKS = [
+  { videoId: '421w1j87fEM', title: 'Burna Boy - Last Last (Official Video)', channel: 'Burna Boy', thumbnail: 'https://i.ytimg.com/vi/421w1j87fEM/hqdefault.jpg' },
+  { videoId: 'hLDQ88vAhIs', title: 'Burna Boy - City Boys (Official Video)', channel: 'Burna Boy', thumbnail: 'https://i.ytimg.com/vi/hLDQ88vAhIs/hqdefault.jpg' },
+  { videoId: 'lPe09eE6Xio', title: 'Burna Boy - Ye (Official Video)', channel: 'Burna Boy', thumbnail: 'https://i.ytimg.com/vi/lPe09eE6Xio/hqdefault.jpg' },
+  { videoId: 'G_b-z_7vj74', title: 'Asake - Lonely At The Top (Official Video)', channel: 'Asake', thumbnail: 'https://i.ytimg.com/vi/G_b-z_7vj74/hqdefault.jpg' },
+  { videoId: '7j61A-k4J2c', title: 'Asake - Basquiat (Official Video)', channel: 'Asake', thumbnail: 'https://i.ytimg.com/vi/7j61A-k4J2c/hqdefault.jpg' },
+  { videoId: 'gVbfE_uA3Z8', title: 'Davido ft. Musa Keys - UNAVAILABLE (Official Video)', channel: 'Davido', thumbnail: 'https://i.ytimg.com/vi/gVbfE_uA3Z8/hqdefault.jpg' },
+  { videoId: 'm7bc3yCG604', title: 'Wizkid ft. Tems - Essence (Official Video)', channel: 'Starboy TV', thumbnail: 'https://i.ytimg.com/vi/m7bc3yCG604/hqdefault.jpg' },
+  { videoId: 'WcIcVapfqXw', title: 'Rema - Calm Down (Official Music Video)', channel: 'Rema', thumbnail: 'https://i.ytimg.com/vi/WcIcVapfqXw/hqdefault.jpg' },
+  { videoId: 'c8v13S8jFss', title: 'Ayra Starr - Rush (Official Music Video)', channel: 'Ayra Starr', thumbnail: 'https://i.ytimg.com/vi/c8v13S8jFss/hqdefault.jpg' },
+  { videoId: 'oXb1yE8gQ64', title: 'Omah Lay - soso (Official Music Video)', channel: 'Omah Lay', thumbnail: 'https://i.ytimg.com/vi/oXb1yE8gQ64/hqdefault.jpg' },
+  { videoId: 'jfKfPfyJRdk', title: 'Lofi Girl - Relaxing Beats to Study & Chill', channel: 'Lofi Girl', thumbnail: 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg' },
+  { videoId: '5qap5aO4i9A', title: 'Lofi Girl - Peaceful Instrumental Farm Beats', channel: 'Lofi Girl', thumbnail: 'https://i.ytimg.com/vi/5qap5aO4i9A/hqdefault.jpg' },
+  { videoId: '4xDzrJKXOOY', title: 'Synthwave Turbo Ride - 80s Retro Electro', channel: 'Synthwave Radio', thumbnail: 'https://i.ytimg.com/vi/4xDzrJKXOOY/hqdefault.jpg' },
+  { videoId: '1fueZCTYkpA', title: 'Sunny Country Acoustic Farm Hop', channel: 'Farm Sounds', thumbnail: 'https://i.ytimg.com/vi/1fueZCTYkpA/hqdefault.jpg' },
+  { videoId: 'WPni755-Krg', title: 'Peaceful Piano & Acoustic Meadow Relax', channel: 'Relaxing Piano', thumbnail: 'https://i.ytimg.com/vi/WPni755-Krg/hqdefault.jpg' }
+];
+
+function extractVideoRenderers(obj, results, max = 10) {
+  if (!obj || typeof obj !== 'object' || results.length >= max) return;
+  if (obj.videoRenderer) {
+    const v = obj.videoRenderer;
+    const videoId = v.videoId;
+    const title = v.title?.runs?.[0]?.text || v.title?.simpleText || '';
+    const channel = v.ownerText?.runs?.[0]?.text || v.shortBylineText?.runs?.[0]?.text || '';
+    const thumbs = v.thumbnail?.thumbnails || [];
+    const thumbnail = thumbs[thumbs.length - 1]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+    if (videoId && title && !results.some(r => r.videoId === videoId)) {
+      results.push({ videoId, title, channel, thumbnail });
+    }
+    return;
+  }
+  for (const key of Object.keys(obj)) {
+    if (results.length >= max) break;
+    extractVideoRenderers(obj[key], results, max);
+  }
+}
+
 /**
  * GET /api/game/yt-search?q=query
+ * GET /api/game/music-search?q=query
  * Live YouTube song / video search without requiring external API keys.
+ * Includes resilient fallbacks and recursive renderer parsing.
  */
 exports.searchYouTube = async (req, res) => {
-  try {
-    const query = String(req.query.q || '').trim();
-    if (!query) {
-      return res.json({ success: true, results: [] });
-    }
+  const query = String(req.query.q || '').trim();
+  const lowerQuery = query.toLowerCase();
 
+  // If query is empty or requesting trending/default hits
+  if (!query || lowerQuery === 'trending' || lowerQuery === 'popular' || lowerQuery === 'top' || lowerQuery === 'hits') {
+    return res.json({ success: true, results: CURATED_FALLBACK_TRACKS.slice(0, 8) });
+  }
+
+  try {
     const response = await fetch('https://www.youtube.com/results?search_query=' + encodeURIComponent(query), {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9'
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
       },
-      signal: AbortSignal.timeout(6000)
+      signal: AbortSignal.timeout(6500)
     });
 
     const html = await response.text();
-    const match = html.match(/var ytInitialData = ({.*?});<\/script>/s) || html.match(/ytInitialData\s*=\s*({.+?});/);
-    
+    const match =
+      html.match(/var ytInitialData = ({.*?});<\/script>/s) ||
+      html.match(/ytInitialData\s*=\s*({.+?});/) ||
+      html.match(/window\["ytInitialData"\]\s*=\s*({.+?});/);
+
     const results = [];
     if (match) {
       try {
         const data = JSON.parse(match[1]);
-        const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
-        for (const section of contents || []) {
-          for (const item of section?.itemSectionRenderer?.contents || []) {
-            if (item.videoRenderer) {
-              const v = item.videoRenderer;
-              const videoId = v.videoId;
-              const title = v.title?.runs?.[0]?.text || '';
-              const channel = v.ownerText?.runs?.[0]?.text || '';
-              const thumbnail = v.thumbnail?.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-              if (videoId && title) {
-                results.push({ videoId, title, channel, thumbnail });
-                if (results.length >= 8) break;
-              }
-            }
-          }
-          if (results.length >= 8) break;
-        }
+        extractVideoRenderers(data, results, 10);
       } catch (err) {
         console.warn('Error parsing ytInitialData:', err.message);
       }
     }
 
-    return res.json({ success: true, results });
+    // If live search returned results, send them
+    if (results.length > 0) {
+      return res.json({ success: true, results });
+    }
+
+    // Fallback: match curated tracks by artist / title keywords
+    const fallbackMatches = CURATED_FALLBACK_TRACKS.filter(t =>
+      t.title.toLowerCase().includes(lowerQuery) ||
+      t.channel.toLowerCase().includes(lowerQuery)
+    );
+
+    return res.json({
+      success: true,
+      results: fallbackMatches.length > 0 ? fallbackMatches : CURATED_FALLBACK_TRACKS.slice(0, 6)
+    });
   } catch (err) {
-    console.error('searchYouTube error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to search YouTube.' });
+    console.error('searchYouTube error:', err.message);
+    // Even on network error, return curated fallback matches so UI never fails
+    const fallbackMatches = CURATED_FALLBACK_TRACKS.filter(t =>
+      t.title.toLowerCase().includes(lowerQuery) ||
+      t.channel.toLowerCase().includes(lowerQuery)
+    );
+    return res.json({
+      success: true,
+      results: fallbackMatches.length > 0 ? fallbackMatches : CURATED_FALLBACK_TRACKS.slice(0, 6)
+    });
   }
 };

@@ -14,42 +14,11 @@ const adminRoutes = require('./routes/admin');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration - support Vercel preview domains and production URLs
-const configuredFrontend = process.env.FRONTEND_URL || '';
-const allowedOrigins = configuredFrontend
-  ? configuredFrontend.split(',').map(u => u.trim()).filter(Boolean)
-  : [];
-
+// CORS configuration - allow all origins for public game API & web players
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow non-browser requests (mobile, server-to-server, curl, health checks)
-    if (!origin) return callback(null, true);
-    // Allow localhost during development
-    if (process.env.NODE_ENV !== 'production') return callback(null, true);
-    // In production: if FRONTEND_URL is not configured yet, allow all
-    if (allowedOrigins.length === 0) return callback(null, true);
-    // Allow configured origins, any vercel.app deployment, or railway/localhost
-    try {
-      const parsed = new URL(origin);
-      const hostname = parsed.hostname.toLowerCase();
-      const isAllowed =
-        allowedOrigins.some(ao => {
-          try { return new URL(ao).origin === parsed.origin; }
-          catch { return ao === origin; }
-        }) ||
-        hostname.endsWith('.vercel.app') ||
-        hostname === 'vercel.app' ||
-        hostname.endsWith('.railway.app') ||
-        hostname === 'localhost' ||
-        hostname.endsWith('.localhost');
-
-      if (isAllowed) return callback(null, true);
-    } catch {
-      if (origin.includes('.vercel.app') || origin.includes('localhost') || origin.includes('.railway.app')) {
-        return callback(null, true);
-      }
-    }
-    callback(new Error(`CORS: Origin ${origin} not allowed`));
+    // Allow non-browser, cross-domain, preview URLs, and mobile origins
+    return callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

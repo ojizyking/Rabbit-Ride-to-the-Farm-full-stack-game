@@ -104,6 +104,7 @@ export const Play: React.FC = () => {
       setMusicSource('youtube');
       bgm.setSource('youtube');
       setIsMusicDrawerOpen(true);
+      executeYtSearch('popular nigerian afrobeats hits');
     }
   }, [searchParams]);
 
@@ -154,6 +155,8 @@ export const Play: React.FC = () => {
   const [ytSearchQuery, setYtSearchQuery] = useState<string>('');
   const [ytSearchResults, setYtSearchResults] = useState<{ videoId: string; title: string; channel: string; thumbnail: string }[]>([]);
   const [ytSearchLoading, setYtSearchLoading] = useState(false);
+  const [ytSearchError, setYtSearchError] = useState<string | null>(null);
+  const [ytSearchHasSearched, setYtSearchHasSearched] = useState(false);
   const [ytSearchTimer, setYtSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [isMusicDrawerOpen, setIsMusicDrawerOpen] = useState(false);
 
@@ -509,15 +512,39 @@ export const Play: React.FC = () => {
     if (!q) return;
     if (ytSearchTimer) clearTimeout(ytSearchTimer);
     setYtSearchLoading(true);
+    setYtSearchError(null);
+    setYtSearchHasSearched(true);
+    // Try via axios (attaches auth header). Fallback to raw fetch if it fails.
+    const tryFetch = async (url: string): Promise<{ videoId: string; title: string; channel: string; thumbnail: string }[]> => {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.results)) return data.results;
+      return [];
+    };
+    const BASE = import.meta.env.VITE_API_URL ||
+      (typeof window !== 'undefined' && window.location.hostname.endsWith('railway.app')
+        ? '/api'
+        : 'https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api');
     try {
-      const res = await api.get('/game/yt-search', { params: { q } });
-      if (res.data?.success && Array.isArray(res.data.results)) {
-        setYtSearchResults(res.data.results);
-      } else {
-        setYtSearchResults([]);
+      let results: { videoId: string; title: string; channel: string; thumbnail: string }[] = [];
+      try {
+        const res = await api.get('/game/yt-search', { params: { q } });
+        if (res.data?.success && Array.isArray(res.data.results)) results = res.data.results;
+      } catch {
+        // Axios failed (token issue, CORS etc.) — fall back to plain fetch
+        results = await tryFetch(`${BASE}/game/yt-search?q=${encodeURIComponent(q)}`);
       }
-    } catch {
+      if (results.length === 0) {
+        // Final fallback via music-search alias
+        try { results = await tryFetch(`${BASE}/game/music-search?q=${encodeURIComponent(q)}`); } catch { /* ignore */ }
+      }
+      setYtSearchResults(results);
+      if (results.length === 0) {
+        setYtSearchError(`No songs found for "${q}" — try a different artist name or song title 🎵`);
+      }
+    } catch (err) {
       setYtSearchResults([]);
+      setYtSearchError('⚠️ Search failed. Check your connection or try again.');
     } finally {
       setYtSearchLoading(false);
     }
@@ -734,6 +761,7 @@ export const Play: React.FC = () => {
               setMusicSource('youtube');
               bgm.setSource('youtube');
               setIsMusicDrawerOpen(true);
+              if (ytSearchResults.length === 0 && !ytSearchHasSearched) { executeYtSearch('popular nigerian afrobeats hits'); }
             }}
             className="hud-btn-jukebox"
             title="Open Jukebox & Search YouTube Songs"
@@ -1271,6 +1299,12 @@ export const Play: React.FC = () => {
                 {ytSearchLoading && (
                   <div style={{ textAlign: 'center', padding: '1rem', fontSize: '0.88rem', color: '#2D8A4E', fontWeight: 700 }}>
                     🌾 Searching YouTube for "{ytSearchQuery}"…
+                  </div>
+                )}
+
+                {ytSearchError && !ytSearchLoading && (
+                  <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.84rem', color: '#D84315', background: '#FFF3E0', borderRadius: '10px', marginBottom: '0.6rem', border: '1.5px solid #FFCCBC' }}>
+                    {ytSearchError}
                   </div>
                 )}
 
