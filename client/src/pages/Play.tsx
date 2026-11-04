@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PhaserGame } from '../components/game/PhaserGame';
 import { useAuth, cacheServerBalance } from '../context/AuthContext';
 import { sounds } from '../game/audio';
@@ -97,6 +97,15 @@ interface EndRideData {
 export const Play: React.FC = () => {
   const { user, token, openAuthModal, refreshUser, updateBalance } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('jukebox') === '1' || searchParams.get('music') === '1') {
+      setMusicSource('youtube');
+      bgm.setSource('youtube');
+      setIsMusicDrawerOpen(true);
+    }
+  }, [searchParams]);
 
   const [stats, setStats] = useState<StatUpdateEvent>({
     coins: 0,
@@ -719,22 +728,19 @@ export const Play: React.FC = () => {
             <span>{stats.isBoosting ? 'BOOSTING!' : 'BOOST'}</span>
           </button>
 
-          {/* Music Audio Drawer Toggle */}
+          {/* PROMINENT JUKEBOX BUTTON */}
           <button
             onClick={() => {
               setMusicSource('youtube');
               bgm.setSource('youtube');
               setIsMusicDrawerOpen(true);
             }}
-            className="hud-icon-btn"
-            title="🎵 Search & Play YouTube Songs"
-            style={{
-              background: isMusicDrawerOpen ? '#FFC93C' : undefined,
-              color: isMusicDrawerOpen ? '#1B3824' : undefined,
-              boxShadow: isMusicDrawerOpen ? '0 0 16px rgba(255, 201, 60, 0.8)' : undefined
-            }}
+            className="hud-btn-jukebox"
+            title="Open Jukebox & Search YouTube Songs"
           >
-            <Music size={20} />
+            <Music size={18} />
+            <span className="jukebox-btn-text">Jukebox</span>
+            <span className="jukebox-btn-badge">YouTube</span>
           </button>
 
           {/* Pause / Resume Button */}

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   ArrowRight,
+  Music,
   Zap,
   CheckCircle2,
   ShieldCheck,
@@ -64,7 +65,32 @@ export const Landing: React.FC = () => {
               </a>
             </div>
 
-            <div className="hero-tags">
+            <div style={{ margin: '0.75rem 0' }}>
+                <Link
+                  to="/play?jukebox=1"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: 'linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)',
+                    border: '1.5px solid #FF9800',
+                    borderRadius: '9999px',
+                    padding: '0.5rem 1.1rem',
+                    color: '#BF360C',
+                    fontWeight: 800,
+                    fontSize: '0.92rem',
+                    textDecoration: 'none',
+                    boxShadow: '0 4px 12px rgba(255,152,0,0.25)'
+                  }}
+                >
+                  <Music size={18} color="#E65100" />
+                  <span>🎵 Live YouTube Jukebox: Search Any Song!</span>
+                  <span style={{ background: '#C62828', color: '#fff', borderRadius: '6px', fontSize: '0.68rem', padding: '0.15rem 0.45rem', textTransform: 'uppercase' }}>
+                    Open 🎧
+                  </span>
+                </Link>
+              </div>
+              <div className="hero-tags">
               <span>🌾 Your farm adventure starts here!</span>
             </div>
           </div>
