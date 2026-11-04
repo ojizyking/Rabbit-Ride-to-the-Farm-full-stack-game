@@ -150,6 +150,44 @@ export const Landing: React.FC = () => {
         {/* ─────────────────────────────────────────────────────────── */}
         {/* SECTION C: SHOPPING / IN-GAME SHOP                          */}
         {/* ─────────────────────────────────────────────────────────── */}
+        {/* FUN FREE-USER UPSELL CALLOUT */}
+        <div style={{
+          background: 'linear-gradient(135deg, #FFF8E1 0%, #FFF3E0 100%)',
+          border: '2.5px solid #FF7A00',
+          borderRadius: '20px',
+          padding: '1.5rem 1.75rem',
+          margin: '0 0 1.5rem 0',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '1rem',
+          boxShadow: '0 8px 24px rgba(255,122,0,0.18)'
+        }}>
+          <div style={{ fontSize: '3rem', flexShrink: 0 }}>🥕</div>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.3rem', fontWeight: 800, color: '#BF360C' }}>
+              🐰 Free Riders are Leaving Coins on the Table!
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.95rem', color: '#5D4037', lineHeight: 1.5 }}>
+              Without a Farm Pack, your carrot coins are <strong>capped at ₦50 per run</strong>. 🙈<br />
+              Grab any pack to <strong>instantly unlock ₦50 → ₦600+ per ride</strong>, boost multipliers, and unlimited rides!
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem' }}>
+              <span style={{ background: '#E8F5E9', border: '1.5px solid #A5D6A7', borderRadius: '8px', padding: '0.25rem 0.65rem', fontSize: '0.82rem', fontWeight: 700, color: '#1B5E20' }}>✅ Basic: ₦50 → ₦52.50/run</span>
+              <span style={{ background: '#E3F2FD', border: '1.5px solid #90CAF9', borderRadius: '8px', padding: '0.25rem 0.65rem', fontSize: '0.82rem', fontWeight: 700, color: '#0D47A1' }}>🚀 Growth: up to ₦110/run</span>
+              <span style={{ background: '#F3E5F5', border: '1.5px solid #CE93D8', borderRadius: '8px', padding: '0.25rem 0.65rem', fontSize: '0.82rem', fontWeight: 700, color: '#4A148C' }}>⚡ Elite: up to ₦750/run!</span>
+            </div>
+          </div>
+          <a href="#tiers" style={{
+            background: '#FF7A00', color: '#fff', borderRadius: '12px',
+            padding: '0.65rem 1.4rem', fontWeight: 800, fontSize: '1rem',
+            textDecoration: 'none', flexShrink: 0,
+            boxShadow: '0 4px 12px rgba(255,122,0,0.4)'
+          }}>
+            Unlock Now 🌾
+          </a>
+        </div>
+
         <div id="shop-guide" className="shop-guide-card">
           <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
             <h2 style={{ fontSize: '2rem', color: '#174D2A', fontWeight: 700, marginBottom: '0.4rem' }}>

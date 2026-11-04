@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, RabbitItem, BicycleItem } from '../context/AuthContext';
 import api from '../lib/api';
-import { ArrowLeft, Check, Sparkles, Coins, Zap, Shield, Rocket } from 'lucide-react';
+import { ArrowLeft, Zap, Shield, Rocket } from 'lucide-react';
 import '../styles/shop.css';
 
 export const Shop: React.FC = () => {
@@ -146,6 +146,10 @@ export const Shop: React.FC = () => {
 
       if (res.data?.success) {
         showToast(res.data.message);
+        // Sync the balance pill immediately from the server response
+        if (res.data.balanceNaira !== undefined) {
+          updateBalance(res.data.balanceNaira);
+        }
         if (refreshUser) await refreshUser();
       }
     } catch (err: unknown) {
@@ -208,6 +212,32 @@ export const Shop: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* FUN FREE USER EARNINGS NOTIFICATION */}
+      {(!user?.subscriptionTier || user.subscriptionTier === 'free') && (
+        <div style={{ maxWidth: '1080px', margin: '0.85rem auto 0 auto', padding: '0 1rem' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #FFF9C4 0%, #FFE082 100%)',
+            border: '2px solid #FF8F00',
+            borderRadius: '16px',
+            padding: '1rem 1.4rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            boxShadow: '0 4px 14px rgba(255,143,0,0.18)'
+          }}>
+            <span style={{ fontSize: '2.4rem', flexShrink: 0 }}>🥕</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#BF360C' }}>
+                🐰 Unlock the Farm &amp; Earn Higher Coins!
+              </div>
+              <div style={{ fontSize: '0.88rem', color: '#5D4037', marginTop: '0.25rem', lineHeight: 1.45 }}>
+                Riding without a farm item or pack caps your earnings at <strong>₦50 per ride</strong>! Purchase any rabbit, bicycle, or upgrade to remove the cap, boost your harvest multipliers, and stack your Naira balance faster! 🚀✨
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CATEGORY TABS */}
       <div className="shop-tabs-bar">

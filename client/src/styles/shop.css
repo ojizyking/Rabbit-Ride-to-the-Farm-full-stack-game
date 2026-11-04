@@ -3,6 +3,9 @@
   background: #2E4C38 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" opacity="0.07"><path d="M30 10 L45 40 L15 40 Z" fill="%23FFF"/></svg>');
   padding-bottom: 5rem;
   position: relative;
+  /* Define shop-scoped colour tokens missing from :root */
+  --green-dark: #1e6b35;
+  --orange-dark: #cc5e00;
 }
 
 .shop-header-banner {
@@ -142,7 +145,7 @@
 
 @media (min-width: 900px) {
   .shop-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 

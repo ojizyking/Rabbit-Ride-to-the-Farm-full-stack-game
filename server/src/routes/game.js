@@ -3,7 +3,10 @@ const router = express.Router();
 const gameController = require('../controllers/gameController');
 const authMiddleware = require('../middleware/auth');
 
-// All game endpoints require JWT auth
+// Public live YouTube search (no auth required)
+router.get('/yt-search', gameController.searchYouTube);
+
+// All other game endpoints require JWT auth
 router.use(authMiddleware);
 
 router.post('/start-ride', gameController.startRide);

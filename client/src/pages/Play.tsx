@@ -141,6 +141,15 @@ export const Play: React.FC = () => {
   const [sfxVol, setSfxVol] = useState<number>(() => bgm.sfxVolume);
   const [currentBiomeName, setCurrentBiomeName] = useState<string>('Sunny Emerald Meadows');
 
+  // YouTube Live Search State
+  const [ytSearchQuery, setYtSearchQuery] = useState<string>('');
+  const [ytSearchResults, setYtSearchResults] = useState<{ videoId: string; title: string; channel: string; thumbnail: string }[]>([]);
+  const [ytSearchLoading, setYtSearchLoading] = useState(false);
+  const [ytSearchTimer, setYtSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+  // Free-user cap banner
+  const [showFreeCapBanner, setShowFreeCapBanner] = useState(true);
+
   // 30-Second Billboard Ad State
   const [isBillboardOpen, setIsBillboardOpen] = useState(false);
   const [billboardCountdown, setBillboardCountdown] = useState(30);
@@ -474,12 +483,41 @@ export const Play: React.FC = () => {
     const success = bgm.setYouTubeVideo(videoIdOrUrl);
     if (success) {
       setMusicSource('youtube');
+      setYtSearchResults([]);
+      setYtSearchQuery('');
       setToastMessage('🎵 YouTube Soundtrack Connected!');
       setTimeout(() => setToastMessage(null), 2000);
     } else {
       setToastMessage('⚠️ Invalid YouTube URL or Video ID');
       setTimeout(() => setToastMessage(null), 2000);
     }
+  };
+
+  // Live YouTube search via backend API (searches songs by title)
+  const handleYtSearchChange = (query: string) => {
+    setYtSearchQuery(query);
+    if (ytSearchTimer) clearTimeout(ytSearchTimer);
+    if (!query.trim()) {
+      setYtSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setYtSearchLoading(true);
+      try {
+        const res = await api.get('/game/yt-search', { params: { q: query.trim() } });
+        if (res.data?.success && Array.isArray(res.data.results)) {
+          setYtSearchResults(res.data.results);
+        } else {
+          setYtSearchResults([]);
+        }
+      } catch {
+        // Silently fall back — user can still paste URL
+        setYtSearchResults([]);
+      } finally {
+        setYtSearchLoading(false);
+      }
+    }, 400);
+    setYtSearchTimer(timer);
   };
 
   const toggleSound = () => {
@@ -490,6 +528,39 @@ export const Play: React.FC = () => {
 
   return (
     <div className="game-page-container">
+      {/* FREE USER CAP NOTIFICATION BANNER */}
+      {showFreeCapBanner && (!user?.subscriptionTier || user.subscriptionTier === 'free') && (
+        <div style={{
+          position: 'fixed', top: '0.75rem', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 2000, maxWidth: '420px', width: 'calc(100% - 2rem)',
+          background: 'linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)',
+          border: '2px solid #FF7A00', borderRadius: '14px',
+          padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', gap: '0.6rem',
+          boxShadow: '0 6px 24px rgba(255,122,0,0.35)', animation: 'slideDown 0.4s ease'
+        }}>
+          <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>🥕</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#BF360C', lineHeight: 1.2 }}>
+              🐰 Free Rider Cap: Max ₦50 per run!
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#5D4037', lineHeight: 1.3, marginTop: '0.15rem' }}>
+              Unlock a Farm Pack to <strong>earn 2× — 12× more coins per ride!</strong> 🚀
+            </div>
+          </div>
+          <button
+            onClick={() => { setShowFreeCapBanner(false); navigate('/wallet'); }}
+            style={{ background: '#FF7A00', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.3rem 0.6rem', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+          >
+            Upgrade 🌾
+          </button>
+          <button
+            onClick={() => setShowFreeCapBanner(false)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8D6E63', fontSize: '1rem', flexShrink: 0, padding: '0 0.1rem' }}
+            title="Dismiss"
+          >✕</button>
+        </div>
+      )}
+
       {/* HUD OVERLAY */}
       <div className="game-hud-overlay">
         <div className="game-hud-left">
@@ -797,6 +868,49 @@ export const Play: React.FC = () => {
                 <span className="gameover-stat-label">Total Balance</span>
               </div>
             </div>
+
+            {/* Fun Free-Rider Cap Notification */}
+            {(!user?.subscriptionTier || user.subscriptionTier === 'free') && (
+              <div style={{
+                background: 'linear-gradient(135deg, #FFF9C4 0%, #FFE082 100%)',
+                border: '2px solid #FF8F00',
+                borderRadius: '14px',
+                padding: '0.8rem 1rem',
+                margin: '1rem 0',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                boxShadow: '0 4px 14px rgba(255,143,0,0.2)'
+              }}>
+                <span style={{ fontSize: '2.2rem', flexShrink: 0 }}>🥕</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#BF360C', marginBottom: '0.2rem' }}>
+                    🐰 Psst, Farmer! Free rides cap out at ₦50 per run!
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#5D4037', lineHeight: 1.4 }}>
+                    Without a Farm Shop purchase, extra carrots hop back to the meadow. Grab a pack or bicycle in the shop to <strong>harvest up to ₦750+ per run</strong> and keep every coin! 🌾✨
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate('/shop')}
+                  style={{
+                    background: '#FF6F00',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    padding: '0.5rem 0.8rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(255,111,0,0.3)'
+                  }}
+                >
+                  Uncap Coins 🔓
+                </button>
+              </div>
+            )}
 
             <div className="gameover-actions">
               <button onClick={handleRestartRide} className="btn-primary" style={{ justifyContent: 'center' }}>
@@ -1154,23 +1268,66 @@ export const Play: React.FC = () => {
                   </div>
                 ) : (
                   <div>
-                    <div className="youtube-input-wrap">
-                      <input
-                        type="text"
-                        value={ytInput}
-                        onChange={(e) => setYtInput(e.target.value)}
-                        placeholder="Paste YouTube Video URL or ID"
-                        className="youtube-input"
-                      />
-                      <button
-                        onClick={() => handleApplyYouTube(ytInput)}
-                        className="btn-primary"
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.82rem' }}
-                      >
-                        Play
-                      </button>
+                    {/* Live Search Input */}
+                    <div className="youtube-input-wrap" style={{ flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', width: '100%' }}>
+                        <input
+                          type="text"
+                          value={ytSearchQuery}
+                          onChange={(e) => handleYtSearchChange(e.target.value)}
+                          placeholder="🔍 Search songs by title…"
+                          className="youtube-input"
+                          style={{ flex: 1 }}
+                        />
+                        {ytSearchLoading && (
+                          <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.78rem', color: '#90A4AE', whiteSpace: 'nowrap' }}>Searching…</span>
+                        )}
+                      </div>
+                      {/* Paste URL fallback */}
+                      <div style={{ display: 'flex', gap: '0.4rem', width: '100%' }}>
+                        <input
+                          type="text"
+                          value={ytInput}
+                          onChange={(e) => setYtInput(e.target.value)}
+                          placeholder="Or paste YouTube URL / Video ID"
+                          className="youtube-input"
+                          style={{ flex: 1, fontSize: '0.78rem', opacity: 0.75 }}
+                        />
+                        <button
+                          onClick={() => handleApplyYouTube(ytInput)}
+                          className="btn-primary"
+                          style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem' }}
+                        >
+                          Play
+                        </button>
+                      </div>
                     </div>
 
+                    {/* Live Search Results */}
+                    {ytSearchResults.length > 0 && (
+                      <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '220px', overflowY: 'auto' }}>
+                        {ytSearchResults.map((r) => (
+                          <button
+                            key={r.videoId}
+                            onClick={() => { setYtInput(r.videoId); handleApplyYouTube(r.videoId); }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '0.5rem',
+                              background: '#F0F7F2', border: '1px solid #C8E6C9', borderRadius: '8px',
+                              padding: '0.35rem 0.5rem', cursor: 'pointer', textAlign: 'left', width: '100%'
+                            }}
+                          >
+                            <img src={r.thumbnail} alt="" style={{ width: 48, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                            <div style={{ overflow: 'hidden' }}>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#174D2A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</div>
+                              <div style={{ fontSize: '0.7rem', color: '#78909C' }}>{r.channel}</div>
+                            </div>
+                            <span style={{ marginLeft: 'auto', fontSize: '1rem', flexShrink: 0 }}>▶</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Curated Presets */}
                     <div style={{ marginTop: '0.5rem' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#90A4AE', textTransform: 'uppercase' }}>
                         Curated Presets:
