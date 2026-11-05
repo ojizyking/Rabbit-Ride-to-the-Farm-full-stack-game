@@ -46,8 +46,8 @@ export const Dashboard: React.FC = () => {
   const referralEarnings = user.referralEarnings || 0;
   const referralsCount = user.referralsCount || 0;
 
-  // Estimated Coin Bank: roughly 20 coins per Naira balance (1000 coins = ₦50)
-  const estimatedCoins = Math.round(user.balanceNaira * 20);
+  // Estimated Coin Bank: roughly 100 coins per Naira balance (10,000 coins = ₦100)
+  const estimatedCoins = Math.round(user.balanceNaira * 100);
 
   const handleCopyCode = async () => {
     try {

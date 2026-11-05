@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120" width="180" height="120">
+  <defs>
+    <radialGradient id="ufoDome" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#E0F7FA" />
+      <stop offset="100%" stop-color="#00E5FF" />
+    </radialGradient>
+    <linearGradient id="saucerDisk" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#78909C" />
+      <stop offset="50%" stop-color="#CFD8DC" />
+      <stop offset="100%" stop-color="#546E7A" />
+    </linearGradient>
+  </defs>
+  <!-- Anti-Gravity Glow Rings beneath -->
+  <ellipse cx="90" cy="98" rx="45" ry="8" fill="none" stroke="#00E5FF" stroke-width="3" opacity="0.8" />
+  <ellipse cx="90" cy="106" rx="30" ry="5" fill="none" stroke="#76FF03" stroke-width="2" opacity="0.6" />
+  <!-- Glass Cockpit Dome -->
+  <ellipse cx="90" cy="45" rx="35" ry="24" fill="url(#ufoDome)" stroke="#00B0FF" stroke-width="2" opacity="0.9" />
+  <!-- Saucer Disk Body -->
+  <ellipse cx="90" cy="68" rx="72" ry="18" fill="url(#saucerDisk)" stroke="#37474F" stroke-width="2.5" />
+  <!-- Rotating Neon Pod Lights -->
+  <circle cx="35" cy="68" r="4.5" fill="#FF1744" />
+  <circle cx="58" cy="73" r="5" fill="#FFEA00" />
+  <circle cx="90" cy="75" r="5.5" fill="#76FF03" />
+  <circle cx="122" cy="73" r="5" fill="#00E5FF" />
+  <circle cx="145" cy="68" r="4.5" fill="#D500F9" />
+</svg>

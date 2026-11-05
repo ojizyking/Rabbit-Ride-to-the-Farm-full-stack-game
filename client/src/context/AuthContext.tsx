@@ -43,6 +43,8 @@ export interface UserProfile {
   currentBike?: BicycleItem;
   ownedRabbits?: (string | RabbitItem)[];
   ownedBikes?: (string | BicycleItem)[];
+  ownedGadgets?: string[];
+  hasPurchasedFarmItem?: boolean;
 }
 
 interface AuthContextType {

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="cyberMetal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#37474F" />
+      <stop offset="50%" stop-color="#263238" />
+      <stop offset="100%" stop-color="#102027" />
+    </linearGradient>
+  </defs>
+  <circle cx="80" cy="80" r="76" fill="#ECEFF1" stroke="#607D8B" stroke-width="2" />
+  <!-- Cybernetic Mechanical Ears -->
+  <polygon points="50,42 42,12 58,16 64,42" fill="url(#cyberMetal)" stroke="#00E5FF" stroke-width="2" />
+  <line x1="50" y1="20" x2="56" y2="38" stroke="#00E5FF" stroke-width="2" />
+  <polygon points="110,42 118,12 102,16 96,42" fill="url(#cyberMetal)" stroke="#00E5FF" stroke-width="2" />
+  <line x1="110" y1="20" x2="104" y2="38" stroke="#00E5FF" stroke-width="2" />
+  <!-- Armored Head Plating -->
+  <ellipse cx="80" cy="82" rx="30" ry="26" fill="url(#cyberMetal)" stroke="#00E5FF" stroke-width="2.5" />
+  <!-- Glowing Cyan Laser Eye Visor -->
+  <path d="M 56 74 L 104 74 L 100 84 L 60 84 Z" fill="#00E5FF" />
+  <line x1="56" y1="79" x2="104" y2="79" stroke="#FFFFFF" stroke-width="2" />
+  <!-- Carbon Fiber Accents -->
+  <polygon points="76,92 84,92 80,98" fill="#FF1744" />
+  <line x1="68" y1="98" x2="78" y2="102" stroke="#00E5FF" stroke-width="1.8" />
+  <line x1="92" y1="98" x2="82" y2="102" stroke="#00E5FF" stroke-width="1.8" />
+</svg>

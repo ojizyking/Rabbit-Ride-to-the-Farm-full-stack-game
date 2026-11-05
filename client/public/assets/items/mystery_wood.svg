@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="woodPlank" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D7CCC8" />
+      <stop offset="50%" stop-color="#8D6E63" />
+      <stop offset="100%" stop-color="#5D4037" />
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="#EFEBE9" stroke="#BCAAA4" stroke-width="2" />
+  <rect x="25" y="30" width="70" height="65" rx="8" fill="url(#woodPlank)" stroke="#3E2723" stroke-width="3" />
+  <!-- Iron Corner Brackets -->
+  <polygon points="25,30 45,30 25,50" fill="#78909C" />
+  <polygon points="95,30 75,30 95,50" fill="#78909C" />
+  <polygon points="25,95 45,95 25,75" fill="#78909C" />
+  <polygon points="95,95 75,95 95,75" fill="#78909C" />
+  <!-- Question Mark -->
+  <text x="60" y="75" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="900" font-size="44" fill="#FFD54F" stroke="#E65100" stroke-width="2">?</text>
+</svg>

@@ -877,6 +877,17 @@ export default class FarmRide extends Phaser.Scene {
 
       if (Phaser.Geom.Intersects.RectangleToRectangle(riderHitbox, obsHitbox)) {
         // 1. If boosting or looping -> Smash!
+        const bikeTex = (window as unknown as { currentEquippedBike?: string }).currentEquippedBike || '';
+        // Vintage Farm Tractor ability: Smashes right through hay bales!
+        if (bikeTex === 'bike-tractor') {
+          this.createSmashExplosion(obs.x, obs.y);
+          sounds.playCollect('crate');
+          this.coins += 50;
+          this.showStuntText('🚜 TRACTOR SMASH! +50 Coins 🚜');
+          this.destroyObstacle(obs);
+          continue;
+        }
+
         if (this.isBoosting || this.isLooping360) {
           this.createSmashExplosion(obs.x, obs.y);
           sounds.playCollect('crate');
@@ -900,10 +911,10 @@ export default class FarmRide extends Phaser.Scene {
         if (this.velocityY > 10 && riderFeetY < obs.y + 10) {
           this.velocityY = -620; // High springboard bounce!
           this.isGrounded = false;
-          this.coins += 25;
+          this.coins += 100;
           sounds.playJump();
           sounds.playCollect('crate');
-          this.showStuntText('🥕 STOMP BOUNCE! +25 Coins 🥕');
+          this.showStuntText('🥕 STOMP BOUNCE! +100 Coins (1 ₦) 🥕');
           this.createSmashExplosion(obs.x, obs.y);
           this.destroyObstacle(obs);
           continue;
@@ -992,12 +1003,12 @@ export default class FarmRide extends Phaser.Scene {
     this.boostMeter = 100; // Refill nitro boost!
 
     // Reward for completing 360 loop!
-    const loopBonus = 100;
+    const loopBonus = 500;
     this.coins += loopBonus;
     sounds.playFlipStunt();
 
     // Spawn celebratory floating text
-    this.showStuntText('⚡ 360° LOOP MASTER! +100 Coins (10 ₦) ⚡');
+    this.showStuntText('⚡ 360° LOOP MASTER! +500 Coins (5 ₦) ⚡');
 
     // Burst particles
     this.createSmashExplosion(this.riderContainer.x, this.riderContainer.y - 20);
@@ -1012,13 +1023,13 @@ export default class FarmRide extends Phaser.Scene {
 
   private complete360AirFlip() {
     this.flipsCompleted++;
-    const bonus = 50;
+    const bonus = 250;
     this.coins += bonus;
     this.boostMeter = Math.min(100, this.boostMeter + 50);
     this.riderContainer.angle = this.roadTiltAngle;
 
     sounds.playFlipStunt();
-    this.showStuntText('★ 360° STUNT FLIP! +50 Coins (5 ₦) ★');
+    this.showStuntText('★ 360° STUNT FLIP! +250 Coins (2.5 ₦) ★');
     this.createCollectBurst(this.riderContainer.x, this.riderContainer.y - 20, 'star');
 
     window.dispatchEvent(
@@ -1078,23 +1089,23 @@ export default class FarmRide extends Phaser.Scene {
     if (rand < 0.26) {
       texture = 'item-star';
       type = 'star';
-      value = 5;
+      value = 25;
       spawnY = this.groundY - (Math.random() > 0.5 ? 90 : 50);
     } else if (rand < 0.52) {
       texture = 'item-carrot';
       type = 'carrot';
-      value = 10;
+      value = 50;
       spawnY = this.groundY - 50;
     } else if (rand < 0.64) {
       // 🎈 Floating Carrot Balloon (High aerial pickup)
       texture = 'item-balloon';
       type = 'balloon';
-      value = 20;
+      value = 100;
       spawnY = this.groundY - 140;
     } else if (rand < 0.74) {
       texture = 'item-crate';
       type = 'crate';
-      value = 50 + Math.floor(Math.random() * 150);
+      value = 250 + Math.floor(Math.random() * 750);
       spawnY = this.groundY - 45;
     } else if (rand < 0.82) {
       // 🌈 Rainbow Speed Pad

@@ -32,9 +32,13 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
     const id = typeof raw === 'object' ? (raw?._id || '') : (raw || '');
     const name = (typeof raw === 'object' ? raw?.name : '') || '';
     if (id === 'rab_002' || name.includes('Red Hoodie')) return 'rabbit-red-hoodie';
+    if (id === 'rab_006' || name.includes('Chef')) return 'rabbit-chef';
     if (id === 'rab_003' || name.includes('Blue Aviator')) return 'rabbit-blue-aviator';
+    if (id === 'rab_007' || name.includes('Disco')) return 'rabbit-disco';
     if (id === 'rab_004' || name.includes('Farmer')) return 'rabbit-farmer-hat';
+    if (id === 'rab_008' || name.includes('Astro')) return 'rabbit-astro';
     if (id === 'rab_005' || name.includes('Ninja')) return 'rabbit-ninja';
+    if (id === 'rab_009' || name.includes('Cyber')) return 'rabbit-cyber';
     return 'rabbit-starter';
   };
 
@@ -43,8 +47,11 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
     const id = typeof raw === 'object' ? (raw?._id || '') : (raw || '');
     const name = (typeof raw === 'object' ? raw?.name : '') || '';
     if (id === 'bike_002' || name.includes('Blue Basket')) return 'bike-blue-basket';
+    if (id === 'bike_005' || name.includes('Tractor')) return 'bike-tractor';
     if (id === 'bike_003' || name.includes('Green Bloom')) return 'bike-green-bloom';
+    if (id === 'bike_006' || name.includes('Chopper')) return 'bike-chopper';
     if (id === 'bike_004' || name.includes('Turbo Gold') || name.includes('Turbo Golden')) return 'bike-turbo-gold';
+    if (id === 'bike_007' || name.includes('UFO') || name.includes('Hover')) return 'bike-ufo';
     return 'bike-starter';
   };
 
@@ -54,6 +61,7 @@ export const PhaserGame: React.FC<PhaserGameProps> = ({ onCollect, onRideEnd }) 
     // Set globally for Phaser scene initialization
     (window as unknown as { currentEquippedRabbit: string }).currentEquippedRabbit = getRabbitTextureKey();
     (window as unknown as { currentEquippedBike: string }).currentEquippedBike = getBikeTextureKey();
+    (window as unknown as { userOwnedGadgets: string[] }).userOwnedGadgets = user?.ownedGadgets || [];
 
     // Phaser Game Config
     const config: Phaser.Types.Core.GameConfig = {

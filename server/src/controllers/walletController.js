@@ -386,11 +386,12 @@ exports.verifyDeposit = async (req, res) => {
 exports.buyCoins = async (req, res) => {
   try {
     const { bundleId, paymentMethod = 'paystack' } = req.body;
+    // Coin bundles scaled to 10,000 coins = ₦100 (100 coins = ₦1)
     const BUNDLES = {
-      bundle_4k: { coins: 4000, priceNaira: 200, name: 'Small Carrot Bag' },
-      bundle_12k: { coins: 12000, priceNaira: 500, name: 'Medium Farm Crate' },
-      bundle_26k: { coins: 26000, priceNaira: 1000, name: 'Large Harvest Sack' },
-      bundle_60k: { coins: 60000, priceNaira: 2000, name: 'Golden Farm Vault' }
+      bundle_4k: { coins: 20000, priceNaira: 200, name: 'Small Carrot Bag' },
+      bundle_12k: { coins: 55000, priceNaira: 500, name: 'Medium Farm Crate (+10% Bonus)' },
+      bundle_26k: { coins: 120000, priceNaira: 1000, name: 'Large Harvest Sack (+20% Bonus)' },
+      bundle_60k: { coins: 260000, priceNaira: 2000, name: 'Golden Farm Vault (+30% Bonus)' }
     };
 
     const bundle = BUNDLES[bundleId];

@@ -3,6 +3,41 @@ const Bicycle = require('../models/Bicycle');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 
+const FARM_GADGETS = {
+  gadget_magnet: {
+    _id: 'gadget_magnet',
+    name: 'Super Carrot Magnet 🧲',
+    priceNaira: 500,
+    imageUrl: '/assets/items/gadget_magnet.svg',
+    description: 'Permanent upgrade: +50% suction reach & extends magnet frenzy to 15 seconds!'
+  },
+  gadget_shield: {
+    _id: 'gadget_shield',
+    name: 'Golden Energy Shield 🛡️',
+    priceNaira: 800,
+    imageUrl: '/assets/items/gadget_shield.svg',
+    description: 'Permanent upgrade: Start every ride equipped with a protective bubble shield!'
+  },
+  gadget_heart: {
+    _id: 'gadget_heart',
+    name: 'Extra Heart Bandage ❤️',
+    priceNaira: 1500,
+    imageUrl: '/assets/items/gadget_heart.svg',
+    description: 'Permanent upgrade: Start every ride with 4 Hearts/Lives instead of 3!'
+  },
+  gadget_harvester: {
+    _id: 'gadget_harvester',
+    name: 'Golden Double Harvester 🌾',
+    priceNaira: 2500,
+    imageUrl: '/assets/items/gadget_harvester.svg',
+    description: 'Permanent upgrade: 15% chance for every collected carrot to award 2× Coins!'
+  }
+};
+
+exports.getGadgets = async (req, res) => {
+  return res.json({ success: true, gadgets: Object.values(FARM_GADGETS) });
+};
+
 exports.getRabbits = async (req, res) => {
   try {
     const rabbits = await Rabbit.find().sort({ priceNaira: 1 });
@@ -86,6 +121,7 @@ exports.buyOrEquip = async (req, res) => {
         user.ownedRabbits.push(rabbit._id);
       }
       user.currentRabbitId = rabbit._id;
+      user.hasPurchasedFarmItem = true;
       await user.save();
 
       await Transaction.create({
@@ -143,13 +179,14 @@ exports.buyOrEquip = async (req, res) => {
         user.ownedBikes.push(bike._id);
       }
       user.currentBikeId = bike._id;
+      user.hasPurchasedFarmItem = true;
       await user.save();
 
       await Transaction.create({
         userId: user._id,
         type: 'shop',
         amount: -bike.priceNaira,
-        description: `Purchased Bicycle: ${bike.name}`,
+        description: `Purchased Vehicle: ${bike.name}`,
         status: 'completed'
       });
 
@@ -161,11 +198,148 @@ exports.buyOrEquip = async (req, res) => {
         balanceNaira: user.balanceNaira,
         ownedBikes: user.ownedBikes
       });
+
+    } else if (itemType === 'gadget') {
+      const gadget = FARM_GADGETS[itemId];
+      if (!gadget) {
+        return res.status(404).json({ success: false, message: 'Farm gadget not found.' });
+      }
+
+      if (!Array.isArray(user.ownedGadgets)) user.ownedGadgets = [];
+      if (user.ownedGadgets.includes(gadget._id)) {
+        return res.json({
+          success: true,
+          action: 'already_owned',
+          message: `You already own ${gadget.name}! It is permanently active on your rides.`,
+          balanceNaira: user.balanceNaira,
+          ownedGadgets: user.ownedGadgets
+        });
+      }
+
+      if (user.balanceNaira < gadget.priceNaira) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient balance! You need ₦${gadget.priceNaira.toLocaleString()}, but have ₦${user.balanceNaira.toLocaleString()}.`
+        });
+      }
+
+      user.balanceNaira = Math.round((user.balanceNaira - gadget.priceNaira) * 100) / 100;
+      user.ownedGadgets.push(gadget._id);
+      user.hasPurchasedFarmItem = true;
+      await user.save();
+
+      await Transaction.create({
+        userId: user._id,
+        type: 'shop',
+        amount: -gadget.priceNaira,
+        description: `Purchased Gadget: ${gadget.name}`,
+        status: 'completed'
+      });
+
+      return res.json({
+        success: true,
+        action: 'purchased',
+        message: `Awesome! You permanently unlocked ${gadget.name}!`,
+        balanceNaira: user.balanceNaira,
+        ownedGadgets: user.ownedGadgets
+      });
     }
 
-    return res.status(400).json({ success: false, message: 'Invalid itemType. Must be rabbit or bicycle.' });
+    return res.status(400).json({ success: false, message: 'Invalid itemType. Must be rabbit, bicycle, or gadget.' });
   } catch (err) {
     console.error('buyOrEquip error:', err);
     return res.status(500).json({ success: false, message: 'Server error processing purchase/equip.' });
+  }
+};
+
+/**
+ * Open interactive Lucky Mystery Box
+ * POST /api/shop/mystery-box
+ * Body: { boxType: 'wood' | 'gold' }
+ */
+exports.openMysteryBox = async (req, res) => {
+  try {
+    const { boxType = 'wood' } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const priceNaira = boxType === 'gold' ? 500 : 100;
+    const boxName = boxType === 'gold' ? 'Golden Barn Vault 🏆' : 'Wooden Farm Mystery Box 📦';
+
+    if (user.balanceNaira < priceNaira) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient balance! You need ₦${priceNaira} to open ${boxName}, but have ₦${user.balanceNaira}.`
+      });
+    }
+
+    // Deduct entry price
+    user.balanceNaira = Math.round((user.balanceNaira - priceNaira) * 100) / 100;
+
+    // Roll random prize (100 coins = ₦1)
+    const roll = Math.random();
+    let coinsWon = 12000;
+    let tier = 'Nice Win!';
+
+    if (boxType === 'gold') {
+      // Golden Barn Vault: ₦500 (50k coins equivalent)
+      if (roll < 0.05) {
+        coinsWon = 500000; // ₦5,000 (10x Diamond Jackpot!)
+        tier = '💎 DIAMOND MEGA JACKPOT (10×)!';
+      } else if (roll < 0.20) {
+        coinsWon = 250000; // ₦2,500 (5x Huge Win!)
+        tier = '🌟 GOLDEN ULTRA WIN (5×)!';
+      } else if (roll < 0.55) {
+        coinsWon = 100000; // ₦1,000 (2x Double Win!)
+        tier = '✨ DOUBLE HARVEST (2×)!';
+      } else {
+        coinsWon = 55000; // ₦550 (+10% Bonus return)
+        tier = '🥕 Great Harvest (+10% Bonus)!';
+      }
+    } else {
+      // Wooden Mystery Box: ₦100 (10k coins equivalent)
+      if (roll < 0.05) {
+        coinsWon = 50000; // ₦500 (5x Jackpot!)
+        tier = '🌟 GOLDEN CARROT JACKPOT (5×)!';
+      } else if (roll < 0.30) {
+        coinsWon = 25000; // ₦250 (2.5x Win!)
+        tier = '✨ SUPER HARVEST (2.5×)!';
+      } else if (roll < 0.75) {
+        coinsWon = 12000; // ₦120 (+20% Bonus return)
+        tier = '🥕 Sweet Carrot Bundle (+20%)!';
+      } else {
+        coinsWon = 5000; // ₦50 (Consolation)
+        tier = '🌱 Friendly Bunny Consolation!';
+      }
+    }
+
+    const nairaWon = Math.round((coinsWon / 100) * 100) / 100;
+    user.balanceNaira = Math.round((user.balanceNaira + nairaWon) * 100) / 100;
+    user.hasPurchasedFarmItem = true; // Permanently unlocks unlimited earnings!
+    await user.save();
+
+    await Transaction.create({
+      userId: user._id,
+      type: 'shop',
+      amount: Math.round((nairaWon - priceNaira) * 100) / 100,
+      description: `Opened ${boxName}: Won ${coinsWon.toLocaleString()} Coins (₦${nairaWon})`,
+      status: 'completed'
+    });
+
+    return res.json({
+      success: true,
+      boxType,
+      boxName,
+      coinsWon,
+      nairaWon,
+      tier,
+      newBalance: user.balanceNaira,
+      message: `🎉 ${tier} You unboxed +${coinsWon.toLocaleString()} Carrot Coins (₦${nairaWon.toLocaleString()})!`
+    });
+  } catch (err) {
+    console.error('openMysteryBox error:', err);
+    return res.status(500).json({ success: false, message: 'Server error opening mystery box.' });
   }
 };

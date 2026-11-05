@@ -199,7 +199,7 @@ export const Admin: React.FC = () => {
   // System Configuration State
   const [systemConfig, setSystemConfig] = useState<Record<string, any>>({
     referralRewardNaira: 100,
-    coinConversionRate: 0.05,
+    coinConversionRate: 0.01,
     freeDailyRides: 3,
     minWithdrawalNaira: 1000,
     maintenanceMode: false
@@ -1421,14 +1421,14 @@ export const Admin: React.FC = () => {
 
           <div className="config-card">
             <div className="config-info">
-              <h4>Coin Conversion Value (₦ per 1,000 Coins)</h4>
-              <p>Default: ₦50 per 1,000 coins (0.05 rate)</p>
+              <h4>Coin Conversion Value (₦ per 10,000 Coins)</h4>
+              <p>Default: ₦100 per 10,000 coins (0.01 rate)</p>
             </div>
             <div className="config-input-wrap">
               <input
                 type="number"
                 step="0.01"
-                value={systemConfig.coinConversionRate || 0.05}
+                value={systemConfig.coinConversionRate || 0.01}
                 onChange={e => setSystemConfig({ ...systemConfig, coinConversionRate: Number(e.target.value) })}
               />
               <button

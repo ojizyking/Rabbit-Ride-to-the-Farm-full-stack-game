@@ -1,66 +1,141 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, RabbitItem, BicycleItem } from '../context/AuthContext';
 import api from '../lib/api';
-import { ArrowLeft, Zap, Shield, Rocket } from 'lucide-react';
+import { ArrowLeft, Zap, Shield, Rocket, Package, Star, Gift } from 'lucide-react';
 import '../styles/shop.css';
 
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface GadgetItem {
+  id: string;
+  name: string;
+  description: string;
+  priceNaira: number;
+  imageUrl: string;
+  effect: string;
+}
+
+interface MysteryPrize {
+  type: 'coins' | 'naira' | 'rabbit' | 'bike' | 'gadget';
+  label: string;
+  value: number | string;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+}
+
+interface MysteryResult {
+  success: boolean;
+  prize: MysteryPrize;
+  newBalance?: number;
+}
+
+type ShopTab = 'all' | 'rabbits' | 'bicycles' | 'gadgets' | 'mystery';
+
+// ─── Fallback data (matches server seed) ─────────────────────────────────────
+
+const FALLBACK_RABBITS: RabbitItem[] = [
+  { _id: 'rab_001', name: 'Starter White Rabbit',  priceNaira: 0,     speed: 10, jump: 10, stamina: 10, grip: 10, drift: 10, imageUrl: '/assets/rabbits/starter_rabbit.svg',  description: 'A nimble white bunny ready to ride and earn.' },
+  { _id: 'rab_002', name: 'Red Hoodie Rabbit',     priceNaira: 1000,  speed: 20, jump: 15, stamina: 20, grip: 15, drift: 12, imageUrl: '/assets/rabbits/red_hoodie.svg',      description: 'Street-smart rabbit with speed +10 and jump +5.' },
+  { _id: 'rab_003', name: 'Blue Aviator Rabbit',   priceNaira: 2000,  speed: 30, jump: 20, stamina: 25, grip: 20, drift: 15, imageUrl: '/assets/rabbits/blue_aviator.svg',    description: 'Sky-cruising rabbit with speed +20 and grip +10.' },
+  { _id: 'rab_004', name: 'Farmer Hat Rabbit',     priceNaira: 5000,  speed: 35, jump: 25, stamina: 35, grip: 25, drift: 20, imageUrl: '/assets/rabbits/farmer_hat.svg',      description: 'Veteran agricultural bunny with stamina +25 and carry +15.' },
+  { _id: 'rab_005', name: 'Ninja Rabbit',          priceNaira: 10000, speed: 50, jump: 35, stamina: 45, grip: 35, drift: 35, imageUrl: '/assets/rabbits/ninja_rabbit.svg',    description: 'Shadow runner master rabbit with speed +40 and drift +25.' },
+  { _id: 'rab_006', name: 'Chef Carrot-Flambé',   priceNaira: 1500,  speed: 22, jump: 18, stamina: 28, grip: 18, drift: 14, imageUrl: '/assets/rabbits/chef_rabbit.svg',     description: 'Master chef bunny that cooks up speed bursts and collects bonus carrots.' },
+  { _id: 'rab_007', name: 'Disco Bunny',           priceNaira: 3500,  speed: 38, jump: 30, stamina: 32, grip: 28, drift: 30, imageUrl: '/assets/rabbits/disco_rabbit.svg',   description: 'Groovy rabbit that boosts coin multiplier every 10 jumps.' },
+  { _id: 'rab_008', name: 'Astro-Bunny',           priceNaira: 7500,  speed: 55, jump: 50, stamina: 40, grip: 38, drift: 42, imageUrl: '/assets/rabbits/astro_rabbit.svg',   description: 'Zero-gravity bunny that floats over obstacles and doubles star value.' },
+  { _id: 'rab_009', name: 'Cyber Mech Bunny',      priceNaira: 15000, speed: 70, jump: 55, stamina: 60, grip: 55, drift: 50, imageUrl: '/assets/rabbits/cyber_rabbit.svg',   description: 'Robotic bunny with auto-shield, crate magnet, and 2× balloon score.' },
+];
+
+const FALLBACK_BIKES: BicycleItem[] = [
+  { _id: 'bike_001', name: 'Classic Yellow Bike',       priceNaira: 0,     speed: 10, stability: 10, boost: 10, imageUrl: '/assets/bikes/starter_bike.svg',     description: 'Reliable yellow farm bicycle with sturdy wheels.' },
+  { _id: 'bike_002', name: 'Blue Basket Bike',          priceNaira: 2000,  speed: 25, stability: 30, boost: 20, imageUrl: '/assets/bikes/blue_basket.svg',       description: 'Cruiser bike with flower basket, speed +15 and stability +20.' },
+  { _id: 'bike_003', name: 'Green Bloom Bike',          priceNaira: 5000,  speed: 45, stability: 40, boost: 30, imageUrl: '/assets/bikes/green_bloom.svg',       description: 'Eco-charged racing bike, speed +35 and boost +20.' },
+  { _id: 'bike_004', name: 'Turbo Golden Farm Bike',    priceNaira: 10000, speed: 60, stability: 50, boost: 45, imageUrl: '/assets/bikes/turbo_gold.svg',        description: 'High performance farm cruiser with ultra nitro speed.' },
+  { _id: 'bike_005', name: 'Vintage Farm Tractor',      priceNaira: 3500,  speed: 30, stability: 60, boost: 15, imageUrl: '/assets/bikes/vintage_tractor.svg',  description: 'Smashes hay bales without damage! Slow but indestructible.' },
+  { _id: 'bike_006', name: 'Carrot Chopper V-Twin',     priceNaira: 7500,  speed: 65, stability: 35, boost: 55, imageUrl: '/assets/bikes/carrot_chopper.svg',   description: 'Rumbling V-twin chopper with max speed and +3× carrot value.' },
+  { _id: 'bike_007', name: 'Crop-Circle Hover UFO',     priceNaira: 20000, speed: 80, stability: 70, boost: 70, imageUrl: '/assets/bikes/hover_ufo.svg',        description: 'Alien hovercraft — ignores gravity on jumps and magnets all collectibles.' },
+];
+
+const FALLBACK_GADGETS: GadgetItem[] = [
+  { id: 'gadget_magnet',    name: 'Super Magnet',       priceNaira: 500,  imageUrl: '/assets/items/gadget_magnet.svg',    effect: 'Auto-collects all coins & carrots within 150px range.', description: 'Never miss a collectible again!' },
+  { id: 'gadget_shield',    name: 'Golden Shield',      priceNaira: 800,  imageUrl: '/assets/items/gadget_shield.svg',    effect: 'Absorbs the first obstacle hit each ride — free extra life.', description: 'One free mistake per run.' },
+  { id: 'gadget_heart',     name: 'Extra Heart',        priceNaira: 1500, imageUrl: '/assets/items/gadget_heart.svg',     effect: 'Start every ride with 4 hearts instead of 3.', description: 'More HP = more coins!' },
+  { id: 'gadget_harvester', name: 'Double Harvester',   priceNaira: 2500, imageUrl: '/assets/items/gadget_harvester.svg', effect: '2× coin value for every carrot and crate collected.', description: 'Doubles your farm harvest earnings.' },
+];
+
+// ─── Rarity colours ──────────────────────────────────────────────────────────
+const RARITY_COLOR: Record<string, string> = {
+  common: '#78909C',
+  rare: '#29B6F6',
+  epic: '#CE93D8',
+  legendary: '#FFD700',
+};
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export const Shop: React.FC = () => {
-  const { user, token, openAuthModal, refreshUser, updateBalance } = useAuth();
+  const { user, refreshUser, updateBalance, openAuthModal } = useAuth();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'all' | 'rabbits' | 'bicycles'>('all');
+  const [activeTab, setActiveTab] = useState<ShopTab>('all');
   const [rabbits, setRabbits] = useState<RabbitItem[]>([]);
   const [bicycles, setBicycles] = useState<BicycleItem[]>([]);
+  const [gadgets, setGadgets] = useState<GadgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
-  useEffect(() => {
-    fetchShopItems();
-  }, []);
+  // Mystery box state
+  const [boxOpening, setBoxOpening] = useState<'wood' | 'gold' | null>(null);
+  const [prizeResult, setPrizeResult] = useState<MysteryPrize | null>(null);
+  const [showPrizeModal, setShowPrizeModal] = useState(false);
+  const [confettiActive, setConfettiActive] = useState(false);
 
-  const fetchShopItems = async () => {
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [rabbitsRes, bikesRes] = await Promise.all([
+      const [rabbitsRes, bikesRes, gadgetsRes] = await Promise.allSettled([
         api.get('/shop/rabbits'),
-        api.get('/shop/bicycles')
+        api.get('/shop/bicycles'),
+        api.get('/shop/gadgets'),
       ]);
 
-      if (rabbitsRes.data?.success && Array.isArray(rabbitsRes.data.rabbits)) {
-        setRabbits(rabbitsRes.data.rabbits);
-      }
-      if (bikesRes.data?.success && Array.isArray(bikesRes.data.bicycles)) {
-        setBicycles(bikesRes.data.bicycles);
-      }
-    } catch (err) {
-      console.warn('Shop API unreachable, loading fallback items:', err);
-      // Synchronized with server seed items
-      setRabbits([
-        { _id: 'rab_001', name: 'Starter White Rabbit', priceNaira: 0, speed: 10, jump: 10, stamina: 10, grip: 10, drift: 10, imageUrl: '/assets/rabbits/starter_rabbit.svg', description: 'A nimble white bunny ready to ride and earn.' },
-        { _id: 'rab_002', name: 'Red Hoodie Rabbit', priceNaira: 1000, speed: 20, jump: 15, stamina: 20, grip: 15, drift: 12, imageUrl: '/assets/rabbits/red_hoodie.svg', description: 'Street-smart rabbit with speed +10 and jump +5.' },
-        { _id: 'rab_003', name: 'Blue Aviator Rabbit', priceNaira: 2000, speed: 30, jump: 20, stamina: 25, grip: 20, drift: 15, imageUrl: '/assets/rabbits/blue_aviator.svg', description: 'Sky-cruising rabbit with speed +20 and grip +10.' },
-        { _id: 'rab_004', name: 'Farmer Hat Rabbit', priceNaira: 5000, speed: 35, jump: 25, stamina: 35, grip: 25, drift: 20, imageUrl: '/assets/rabbits/farmer_hat.svg', description: 'Veteran agricultural bunny with stamina +25 and carry +15.' },
-        { _id: 'rab_005', name: 'Ninja Rabbit', priceNaira: 10000, speed: 50, jump: 35, stamina: 45, grip: 35, drift: 35, imageUrl: '/assets/rabbits/ninja_rabbit.svg', description: 'Shadow runner master rabbit with speed +40 and drift +25.' }
-      ]);
-      setBicycles([
-        { _id: 'bike_001', name: 'Classic Yellow Bike', priceNaira: 0, speed: 10, stability: 10, boost: 10, imageUrl: '/assets/bikes/starter_bike.svg', description: 'Reliable yellow farm bicycle with sturdy wheels.' },
-        { _id: 'bike_002', name: 'Blue Basket Bike', priceNaira: 2000, speed: 25, stability: 30, boost: 20, imageUrl: '/assets/bikes/blue_basket.svg', description: 'Cruiser bike with flower basket, speed +15 and stability +20.' },
-        { _id: 'bike_003', name: 'Green Bloom Bike', priceNaira: 5000, speed: 45, stability: 40, boost: 30, imageUrl: '/assets/bikes/green_bloom.svg', description: 'Eco-charged racing bike, speed +35 and boost +20.' },
-        { _id: 'bike_004', name: 'Turbo Golden Farm Bike', priceNaira: 10000, speed: 60, stability: 50, boost: 45, imageUrl: '/assets/bikes/turbo_gold.svg', description: 'High performance farm cruiser with ultra nitro speed.' }
-      ]);
+      setRabbits(
+        rabbitsRes.status === 'fulfilled' && rabbitsRes.value.data?.rabbits
+          ? rabbitsRes.value.data.rabbits
+          : FALLBACK_RABBITS
+      );
+      setBicycles(
+        bikesRes.status === 'fulfilled' && bikesRes.value.data?.bicycles
+          ? bikesRes.value.data.bicycles
+          : FALLBACK_BIKES
+      );
+      setGadgets(
+        gadgetsRes.status === 'fulfilled' && gadgetsRes.value.data?.gadgets
+          ? gadgetsRes.value.data.gadgets
+          : FALLBACK_GADGETS
+      );
+    } catch {
+      setRabbits(FALLBACK_RABBITS);
+      setBicycles(FALLBACK_BIKES);
+      setGadgets(FALLBACK_GADGETS);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const showToast = (msg: string) => {
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    setToastType(type);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Robust ID extractor supporting string, ObjectId, and populated objects
   const extractId = (item: any): string => {
     if (!item) return '';
     if (typeof item === 'object') return (item._id || item.id || '').toString();
@@ -69,346 +144,374 @@ export const Shop: React.FC = () => {
 
   const isItemEquipped = (type: 'rabbit' | 'bicycle', id: string) => {
     const target = id.toString();
-    if (type === 'rabbit') {
-      const current = extractId(user?.currentRabbit);
-      return current === target;
-    } else {
-      const current = extractId(user?.currentBike);
-      return current === target;
-    }
+    if (type === 'rabbit') return extractId(user?.currentRabbit) === target;
+    return extractId(user?.currentBike) === target;
   };
 
   const isItemOwned = (type: 'rabbit' | 'bicycle', id: string, price: number) => {
     if (price === 0) return true;
     const target = id.toString();
-    if (type === 'rabbit') {
-      return (user?.ownedRabbits || []).some((rab) => extractId(rab) === target);
-    } else {
-      return (user?.ownedBikes || []).some((bike) => extractId(bike) === target);
-    }
+    if (type === 'rabbit') return (user?.ownedRabbits || []).some(r => extractId(r) === target);
+    return (user?.ownedBikes || []).some(b => extractId(b) === target);
   };
 
-  const handleBuyOrEquip = async (itemType: 'rabbit' | 'bicycle', item: RabbitItem | BicycleItem) => {
-    if (!token) {
-      openAuthModal('login');
-      return;
-    }
+  const isGadgetOwned = (gadgetId: string) =>
+    (user?.ownedGadgets || []).includes(gadgetId);
 
-    // Support offline / demo mode
-    if (token.startsWith('offline_')) {
-      const isOwned = isItemOwned(itemType, item._id, item.priceNaira);
-      if (isOwned) {
-        if (user) {
-          if (itemType === 'rabbit') {
-            user.currentRabbit = item as RabbitItem;
-            if (!user.ownedRabbits?.some((r) => extractId(r) === item._id)) {
-              user.ownedRabbits = [...(user.ownedRabbits || []), item as RabbitItem];
-            }
-          } else {
-            user.currentBike = item as BicycleItem;
-            if (!user.ownedBikes?.some((b) => extractId(b) === item._id)) {
-              user.ownedBikes = [...(user.ownedBikes || []), item as BicycleItem];
-            }
-          }
-          localStorage.setItem('rabbit_offline_user', JSON.stringify(user));
-        }
-        showToast(`${item.name} equipped successfully!`);
-        if (refreshUser) await refreshUser();
-        return;
-      }
+  const coinEquiv = (naira: number) =>
+    (naira * 100).toLocaleString();
 
-      if ((user?.balanceNaira || 0) < item.priceNaira) {
-        showToast(`Insufficient balance! You need ₦${item.priceNaira.toLocaleString()}, but have ₦${(user?.balanceNaira || 0).toLocaleString()}.`);
-        return;
-      }
+  // ── Buy / Equip ────────────────────────────────────────────────────────────
 
-      const newBalance = Math.round(((user?.balanceNaira || 0) - item.priceNaira) * 100) / 100;
-      if (user) {
-        user.balanceNaira = newBalance;
-        if (itemType === 'rabbit') {
-          user.currentRabbit = item as RabbitItem;
-          user.ownedRabbits = [...(user.ownedRabbits || []), item as RabbitItem];
-        } else {
-          user.currentBike = item as BicycleItem;
-          user.ownedBikes = [...(user.ownedBikes || []), item as BicycleItem];
-        }
-        localStorage.setItem('rabbit_offline_user', JSON.stringify(user));
-      }
-      updateBalance(newBalance);
-      showToast(`Congratulations! You unlocked and equipped ${item.name}!`);
-      if (refreshUser) await refreshUser();
-      return;
-    }
-
+  const handleBuyOrEquip = async (type: 'rabbit' | 'bicycle', item: RabbitItem | BicycleItem) => {
+    if (!user) { openAuthModal('login'); return; }
+    setActionLoadingId(item._id);
     try {
-      setActionLoadingId(item._id);
-      const res = await api.post('/shop/buy', { itemType, itemId: item._id });
-
+      const owned = isItemOwned(type, item._id, item.priceNaira);
+      const action = owned ? 'equip' : 'buy';
+      const res = await api.post('/shop/buy-or-equip', { type, itemId: item._id, action });
       if (res.data?.success) {
-        showToast(res.data.message);
-        // Sync the balance pill immediately from the server response
-        if (res.data.balanceNaira !== undefined) {
-          updateBalance(res.data.balanceNaira);
-        }
-        if (refreshUser) await refreshUser();
+        showToast(res.data.message || `✅ ${item.name} ${action === 'buy' ? 'purchased' : 'equipped'}!`);
+        if (res.data.newBalance !== undefined) updateBalance(res.data.newBalance);
+        await refreshUser();
+      } else {
+        showToast(res.data?.message || 'Action failed.', 'error');
       }
-    } catch (err: unknown) {
-      const errorResponse = err as { response?: { data?: { message?: string } }; message?: string };
-      showToast(errorResponse.response?.data?.message || errorResponse.message || 'Transaction failed. Please try again.');
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Network error — try again.', 'error');
     } finally {
       setActionLoadingId(null);
     }
   };
 
-  return (
-    <div className="shop-page">
-      {/* SHOP HEADER */}
-      <div className="shop-header-banner">
-        <div className="shop-header-container">
-          <div className="shop-header-left">
-            <button onClick={() => navigate('/play')} className="shop-back-btn" title="Back to Game">
-              <ArrowLeft size={22} />
-            </button>
-            <div className="shop-title-group">
-              <span className="shop-subtitle">FARM SHOP &amp; UPGRADES</span>
-              <h1 className="shop-title">Rabbit Ride to the Farm</h1>
-            </div>
-          </div>
+  const handleBuyGadget = async (gadget: GadgetItem) => {
+    if (!user) { openAuthModal('login'); return; }
+    setActionLoadingId(gadget.id);
+    try {
+      const res = await api.post('/shop/buy-or-equip', { type: 'gadget', itemId: gadget.id, action: 'buy' });
+      if (res.data?.success) {
+        showToast(`⚡ ${gadget.name} unlocked permanently!`);
+        if (res.data.newBalance !== undefined) updateBalance(res.data.newBalance);
+        await refreshUser();
+      } else {
+        showToast(res.data?.message || 'Purchase failed.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Network error — try again.', 'error');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
-          <div
-            className="shop-balance-pill"
-            onClick={() => navigate('/wallet')}
-            title="Click to View Wallet & Rewards"
-            role="button"
-            tabIndex={0}
-          >
-            <span style={{ fontSize: '1.4rem' }}>🥕</span>
-            <span>₦{(user?.balanceNaira || 0).toLocaleString()}</span>
-          </div>
+  // ── Mystery Box ────────────────────────────────────────────────────────────
+
+  const handleOpenBox = async (boxType: 'wood' | 'gold') => {
+    if (!user) { openAuthModal('login'); return; }
+    setBoxOpening(boxType);
+    try {
+      const res = await api.post('/shop/mystery-box', { boxType });
+      if (res.data?.success) {
+        const prize: MysteryPrize = res.data.prize;
+        if (res.data.newBalance !== undefined) updateBalance(res.data.newBalance);
+        await refreshUser();
+        setPrizeResult(prize);
+        setShowPrizeModal(true);
+        setConfettiActive(true);
+        setTimeout(() => setConfettiActive(false), 4000);
+      } else {
+        showToast(res.data?.message || 'Could not open box.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Network error — try again.', 'error');
+    } finally {
+      setBoxOpening(null);
+    }
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────────────
+
+  const TabButton = ({ tab, label, emoji }: { tab: ShopTab; label: string; emoji: string }) => (
+    <button
+      className={`shop-tab-btn ${activeTab === tab ? 'shop-tab-active' : ''}`}
+      onClick={() => setActiveTab(tab)}
+    >
+      {emoji} {label}
+    </button>
+  );
+
+  const RabbitCard = ({ rabbit }: { rabbit: RabbitItem }) => {
+    const equipped = isItemEquipped('rabbit', rabbit._id);
+    const owned = isItemOwned('rabbit', rabbit._id, rabbit.priceNaira);
+    const isBusy = actionLoadingId === rabbit._id;
+    return (
+      <div className={`shop-card ${equipped ? 'equipped-card' : ''}`}>
+        {equipped ? <span className="card-equipped-badge">ACTIVE</span>
+          : owned ? <span className="card-owned-badge">OWNED</span> : null}
+        <div className="shop-card-image-box">
+          <img src={rabbit.imageUrl} alt={rabbit.name}
+            onError={e => { (e.currentTarget as HTMLImageElement).src = '/assets/rabbits/starter_rabbit.svg'; }} />
         </div>
-      </div>
-
-      {/* SHOP NOTICE BANNER */}
-      <div style={{ maxWidth: '1080px', margin: '1.25rem auto 0 auto', padding: '0 1rem' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, #F1F8E9 0%, #E8F5E9 100%)',
-          border: '1.5px solid #A5D6A7',
-          borderRadius: '16px',
-          padding: '1rem 1.4rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.4rem',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', color: '#174D2A', fontWeight: 800, fontSize: '1.05rem' }}>
-            <span>🥕 Farm Speed &amp; Boost Garage</span>
-            <span style={{ fontSize: '0.85rem', color: '#E65100', fontWeight: 700 }}>
-              — Unlock faster rabbits and higher stability bikes to maximize your earnings!
+        <h3 className="shop-card-name">{rabbit.name}</h3>
+        {rabbit.description && <p className="shop-card-desc">{rabbit.description}</p>}
+        <div className="shop-card-stats-grid">
+          <span className="stat-pill"><Zap size={14} color="#FF7A00" /> Speed +{rabbit.speed}</span>
+          <span className="stat-pill"><Rocket size={14} color="#00C853" /> Jump +{rabbit.jump}</span>
+          {rabbit.stamina && <span className="stat-pill"><Shield size={14} color="#29B6F6" /> Stamina +{rabbit.stamina}</span>}
+        </div>
+        <div className="shop-card-bottom">
+          <div className="shop-price-tag">
+            <span style={{ fontSize: '1.2rem' }}>🐰</span>
+            <span>
+              {rabbit.priceNaira > 0
+                ? <>₦{rabbit.priceNaira.toLocaleString()} <small style={{opacity:0.7}}>({coinEquiv(rabbit.priceNaira)} coins)</small></>
+                : 'FREE STARTER'}
             </span>
           </div>
-          <p style={{ margin: 0, fontSize: '0.88rem', color: '#455A64', lineHeight: 1.5 }}>
-            Each rabbit and bicycle comes equipped with unique handling, top speed, and turbo bonuses.
-            Once unlocked, you own the gear permanently and can switch companions anytime!
-          </p>
+          {equipped ? (
+            <button className="shop-btn-active" disabled>EQUIPPED</button>
+          ) : owned ? (
+            <button onClick={() => handleBuyOrEquip('rabbit', rabbit)} disabled={isBusy} className="shop-btn-equip">
+              {isBusy ? 'EQUIPPING…' : 'EQUIP'}
+            </button>
+          ) : (
+            <button onClick={() => handleBuyOrEquip('rabbit', rabbit)} disabled={isBusy} className="shop-btn-buy">
+              {isBusy ? 'BUYING…' : 'BUY'}
+            </button>
+          )}
         </div>
       </div>
+    );
+  };
 
-      {/* FUN FREE USER EARNINGS NOTIFICATION */}
-      {(!user?.subscriptionTier || user.subscriptionTier === 'free') && (
-        <div style={{ maxWidth: '1080px', margin: '0.85rem auto 0 auto', padding: '0 1rem' }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #FFF9C4 0%, #FFE082 100%)',
-            border: '2px solid #FF8F00',
-            borderRadius: '16px',
-            padding: '1rem 1.4rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            boxShadow: '0 4px 14px rgba(255,143,0,0.18)'
-          }}>
-            <span style={{ fontSize: '2.4rem', flexShrink: 0 }}>🥕</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#BF360C' }}>
-                🐰 Unlock the Farm &amp; Earn Higher Coins!
+  const BikeCard = ({ bike }: { bike: BicycleItem }) => {
+    const equipped = isItemEquipped('bicycle', bike._id);
+    const owned = isItemOwned('bicycle', bike._id, bike.priceNaira);
+    const isBusy = actionLoadingId === bike._id;
+    return (
+      <div className={`shop-card ${equipped ? 'equipped-card' : ''}`}>
+        {equipped ? <span className="card-equipped-badge">ACTIVE</span>
+          : owned ? <span className="card-owned-badge">OWNED</span> : null}
+        <div className="shop-card-image-box">
+          <img src={bike.imageUrl} alt={bike.name}
+            onError={e => { (e.currentTarget as HTMLImageElement).src = '/assets/bikes/starter_bike.svg'; }} />
+        </div>
+        <h3 className="shop-card-name">{bike.name}</h3>
+        {bike.description && <p className="shop-card-desc">{bike.description}</p>}
+        <div className="shop-card-stats-grid">
+          <span className="stat-pill"><Zap size={14} color="#FF7A00" /> Speed +{bike.speed}</span>
+          <span className="stat-pill"><Shield size={14} color="#29B6F6" /> Stability +{bike.stability}</span>
+          {bike.boost && <span className="stat-pill"><Rocket size={14} color="#00C853" /> Boost +{bike.boost}</span>}
+        </div>
+        <div className="shop-card-bottom">
+          <div className="shop-price-tag">
+            <span style={{ fontSize: '1.2rem' }}>🚜</span>
+            <span>
+              {bike.priceNaira > 0
+                ? <>₦{bike.priceNaira.toLocaleString()} <small style={{opacity:0.7}}>({coinEquiv(bike.priceNaira)} coins)</small></>
+                : 'FREE STARTER'}
+            </span>
+          </div>
+          {equipped ? (
+            <button className="shop-btn-active" disabled>EQUIPPED</button>
+          ) : owned ? (
+            <button onClick={() => handleBuyOrEquip('bicycle', bike)} disabled={isBusy} className="shop-btn-equip">
+              {isBusy ? 'EQUIPPING…' : 'EQUIP'}
+            </button>
+          ) : (
+            <button onClick={() => handleBuyOrEquip('bicycle', bike)} disabled={isBusy} className="shop-btn-buy">
+              {isBusy ? 'BUYING…' : 'BUY'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const GadgetCard = ({ gadget }: { gadget: GadgetItem }) => {
+    const owned = isGadgetOwned(gadget.id);
+    const isBusy = actionLoadingId === gadget.id;
+    return (
+      <div className={`shop-card gadget-card ${owned ? 'equipped-card' : ''}`}>
+        {owned && <span className="card-equipped-badge">ACTIVE</span>}
+        <div className="shop-card-image-box">
+          <img src={gadget.imageUrl} alt={gadget.name}
+            onError={e => { (e.currentTarget as HTMLImageElement).src = '/assets/items/gadget_magnet.svg'; }} />
+        </div>
+        <h3 className="shop-card-name">{gadget.name}</h3>
+        <p className="shop-card-desc">{gadget.description}</p>
+        <div className="gadget-effect-pill">
+          <Zap size={12} color="#FFD700" />
+          <span>{gadget.effect}</span>
+        </div>
+        <div className="shop-card-bottom">
+          <div className="shop-price-tag">
+            <span style={{ fontSize: '1.2rem' }}>⚡</span>
+            <span>
+              ₦{gadget.priceNaira.toLocaleString()} <small style={{opacity:0.7}}>({coinEquiv(gadget.priceNaira)} coins)</small>
+            </span>
+          </div>
+          {owned ? (
+            <button className="shop-btn-active" disabled>UNLOCKED ✓</button>
+          ) : (
+            <button onClick={() => handleBuyGadget(gadget)} disabled={isBusy} className="shop-btn-buy">
+              {isBusy ? 'BUYING…' : 'UNLOCK'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Main render ────────────────────────────────────────────────────────────
+
+  return (
+    <div className="shop-page">
+      {/* Toast */}
+      {toastMessage && (
+        <div className={`shop-toast ${toastType === 'error' ? 'shop-toast-error' : ''}`}>
+          {toastMessage}
+        </div>
+      )}
+
+      {/* Prize Modal */}
+      {showPrizeModal && prizeResult && (
+        <div className="mystery-modal-overlay" onClick={() => { setShowPrizeModal(false); setPrizeResult(null); }}>
+          <div className="mystery-modal" onClick={e => e.stopPropagation()}>
+            {confettiActive && (
+              <div className="confetti-wrap">
+                {[...Array(24)].map((_, i) => (
+                  <div key={i} className={`confetti-piece c${(i % 6) + 1}`}
+                    style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 0.8}s` }} />
+                ))}
               </div>
-              <div style={{ fontSize: '0.88rem', color: '#5D4037', marginTop: '0.25rem', lineHeight: 1.45 }}>
-                Riding without a farm item or pack caps your earnings at <strong>₦50 per ride</strong>! Purchase any rabbit, bicycle, or upgrade to remove the cap, boost your harvest multipliers, and stack your Naira balance faster! 🚀✨
-              </div>
+            )}
+            <div className="mystery-prize-rarity" style={{ color: RARITY_COLOR[prizeResult.rarity] }}>
+              ★ {prizeResult.rarity.toUpperCase()}
             </div>
+            <div className="mystery-prize-icon">🎁</div>
+            <h2 className="mystery-prize-label">{prizeResult.label}</h2>
+            <p className="mystery-prize-sub">Added to your account!</p>
+            <button className="shop-btn-equip" style={{ marginTop: '1rem' }}
+              onClick={() => { setShowPrizeModal(false); setPrizeResult(null); }}>
+              Awesome! 🎉
+            </button>
           </div>
         </div>
       )}
 
-      {/* CATEGORY TABS */}
-      <div className="shop-tabs-bar">
-        <div className="shop-tabs-container">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`shop-tab-btn ${activeTab === 'all' ? 'active' : ''}`}
-          >
-            ALL ITEMS ({rabbits.length + bicycles.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('rabbits')}
-            className={`shop-tab-btn ${activeTab === 'rabbits' ? 'active' : ''}`}
-          >
-            🐰 RABBITS ({rabbits.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('bicycles')}
-            className={`shop-tab-btn ${activeTab === 'bicycles' ? 'active' : ''}`}
-          >
-            🚲 BICYCLES ({bicycles.length})
-          </button>
-        </div>
+      {/* Header */}
+      <div className="shop-header">
+        <button className="shop-back-btn" onClick={() => navigate(-1)}>
+          <ArrowLeft size={20} /> Back
+        </button>
+        <h1 className="shop-title">🌾 Farm Shop</h1>
+        {user && (
+          <div className="shop-balance">
+            💰 ₦{(user.balanceNaira || 0).toLocaleString()}
+          </div>
+        )}
       </div>
 
-      {/* TOAST NOTIFICATION */}
-      {toastMessage && (
-        <div className="collect-toast-container">
-          <div className="collect-toast">{toastMessage}</div>
+      {/* Free-rider banner */}
+      {(!user?.subscriptionTier || user.subscriptionTier === 'free') && (
+        <div className="shop-free-banner">
+          🔒 Free Rider Cap: <strong>₦50 / run (5,000 coins)</strong> — Buy any item to unlock unlimited earnings!
         </div>
       )}
 
-      {/* SHOP GRID */}
+      {/* Tabs */}
+      <div className="shop-tabs">
+        <TabButton tab="all"      label="ALL"      emoji="🌟" />
+        <TabButton tab="rabbits"  label="RABBITS"  emoji="🐰" />
+        <TabButton tab="bicycles" label="VEHICLES"  emoji="🚜" />
+        <TabButton tab="gadgets"  label="GADGETS"  emoji="⚡" />
+        <TabButton tab="mystery"  label="MYSTERY"  emoji="🎁" />
+      </div>
+
+      {/* Loading */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#E8F5E9', fontSize: '1.2rem', fontWeight: 600 }}>
-          <span>Loading farm shop inventory… 🌾</span>
+        <div className="shop-loading">
+          <div className="shop-spinner" />
+          <p>Loading farm shop…</p>
         </div>
       ) : (
-        <div className="shop-grid">
-          {/* Render All Rabbits (None are hidden!) */}
-          {(activeTab === 'all' || activeTab === 'rabbits') &&
-            rabbits.map((rabbit) => {
-              const equipped = isItemEquipped('rabbit', rabbit._id);
-              const owned = isItemOwned('rabbit', rabbit._id, rabbit.priceNaira);
-              const isBusy = actionLoadingId === rabbit._id;
-
-              return (
-                <div key={rabbit._id} className={`shop-card ${equipped ? 'equipped-card' : ''}`}>
-                  {equipped ? (
-                    <span className="card-equipped-badge">ACTIVE</span>
-                  ) : owned ? (
-                    <span className="card-owned-badge">OWNED</span>
-                  ) : null}
-
-                  <div className="shop-card-image-box">
-                    <img src={rabbit.imageUrl} alt={rabbit.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/rabbits/starter_rabbit.svg'; }} />
+        <>
+          {/* ── Mystery Box ───────────────────────────────────────────── */}
+          {(activeTab === 'all' || activeTab === 'mystery') && (
+            <div className="mystery-section">
+              <h2 className="mystery-section-title">🎁 Mystery Boxes</h2>
+              <p className="mystery-section-sub">Spin the farm gacha — every box hides a surprise reward!</p>
+              <div className="mystery-boxes-row">
+                {/* Wooden Box */}
+                <div className="mystery-box-card wood-box">
+                  <div className="mystery-box-icon">📦</div>
+                  <h3>Wooden Crate</h3>
+                  <p className="mystery-box-desc">Common to Rare prizes — coins, bonus naira, or starter items.</p>
+                  <div className="mystery-box-prizes">
+                    <span className="prize-tag" style={{color: RARITY_COLOR.common}}>🪙 Coins</span>
+                    <span className="prize-tag" style={{color: RARITY_COLOR.rare}}>💵 Bonus ₦</span>
+                    <span className="prize-tag" style={{color: RARITY_COLOR.epic}}>🐰 Rare Rabbit</span>
                   </div>
-
-                  <h3 className="shop-card-name">{rabbit.name}</h3>
-                  {rabbit.description && (
-                    <p className="shop-card-desc">{rabbit.description}</p>
-                  )}
-
-                  <div className="shop-card-stats-grid">
-                    <span className="stat-pill"><Zap size={14} color="#FF7A00" /> Speed +{rabbit.speed}</span>
-                    <span className="stat-pill"><Rocket size={14} color="#00C853" /> Jump +{rabbit.jump}</span>
-                    {rabbit.stamina && (
-                      <span className="stat-pill"><Shield size={14} color="#29B6F6" /> Stamina +{rabbit.stamina}</span>
-                    )}
-                  </div>
-
-                  <div className="shop-card-bottom">
-                    <div className="shop-price-tag">
-                      <span style={{ fontSize: '1.2rem' }}>🪙</span>
-                      <span>{rabbit.priceNaira > 0 ? `₦${rabbit.priceNaira.toLocaleString()}` : 'FREE STARTER'}</span>
-                    </div>
-
-                    {equipped ? (
-                      <button className="shop-btn-active" disabled>EQUIPPED</button>
-                    ) : owned ? (
-                      <button
-                        onClick={() => handleBuyOrEquip('rabbit', rabbit)}
-                        disabled={isBusy}
-                        className="shop-btn-equip"
-                      >
-                        {isBusy ? 'EQUIPPING…' : 'EQUIP'}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleBuyOrEquip('rabbit', rabbit)}
-                        disabled={isBusy}
-                        className="shop-btn-buy"
-                      >
-                        {isBusy ? 'BUYING…' : 'BUY'}
-                      </button>
-                    )}
-                  </div>
+                  <div className="mystery-box-price">₦100 <small>(10,000 coins)</small></div>
+                  <button
+                    className="shop-btn-buy mystery-open-btn"
+                    disabled={boxOpening !== null}
+                    onClick={() => handleOpenBox('wood')}
+                  >
+                    {boxOpening === 'wood' ? '🎲 Spinning…' : '🎁 OPEN BOX'}
+                  </button>
                 </div>
-              );
-            })}
 
-          {/* Render All Bicycles (None are hidden!) */}
-          {(activeTab === 'all' || activeTab === 'bicycles') &&
-            bicycles.map((bike) => {
-              const equipped = isItemEquipped('bicycle', bike._id);
-              const owned = isItemOwned('bicycle', bike._id, bike.priceNaira);
-              const isBusy = actionLoadingId === bike._id;
-
-              return (
-                <div key={bike._id} className={`shop-card ${equipped ? 'equipped-card' : ''}`}>
-                  {equipped ? (
-                    <span className="card-equipped-badge">ACTIVE</span>
-                  ) : owned ? (
-                    <span className="card-owned-badge">OWNED</span>
-                  ) : null}
-
-                  <div className="shop-card-image-box">
-                    <img src={bike.imageUrl} alt={bike.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/assets/bikes/starter_bike.svg'; }} />
+                {/* Golden Barn Vault */}
+                <div className="mystery-box-card gold-box">
+                  <div className="mystery-box-icon">🏆</div>
+                  <h3>Golden Barn Vault</h3>
+                  <p className="mystery-box-desc">Rare to Legendary prizes — premium items, big naira, or ultimate rabbits!</p>
+                  <div className="mystery-box-prizes">
+                    <span className="prize-tag" style={{color: RARITY_COLOR.rare}}>⚡ Gadget</span>
+                    <span className="prize-tag" style={{color: RARITY_COLOR.epic}}>💰 Big ₦ Prize</span>
+                    <span className="prize-tag" style={{color: RARITY_COLOR.legendary}}>🌟 Legendary</span>
                   </div>
-
-                  <h3 className="shop-card-name">{bike.name}</h3>
-                  {bike.description && (
-                    <p className="shop-card-desc">{bike.description}</p>
-                  )}
-
-                  <div className="shop-card-stats-grid">
-                    <span className="stat-pill"><Zap size={14} color="#FF7A00" /> Speed +{bike.speed}</span>
-                    <span className="stat-pill"><Shield size={14} color="#29B6F6" /> Stability +{bike.stability}</span>
-                    {bike.boost && (
-                      <span className="stat-pill"><Rocket size={14} color="#00C853" /> Boost +{bike.boost}</span>
-                    )}
-                  </div>
-
-                  <div className="shop-card-bottom">
-                    <div className="shop-price-tag">
-                      <span style={{ fontSize: '1.2rem' }}>🪙</span>
-                      <span>{bike.priceNaira > 0 ? `₦${bike.priceNaira.toLocaleString()}` : 'FREE STARTER'}</span>
-                    </div>
-
-                    {equipped ? (
-                      <button className="shop-btn-active" disabled>EQUIPPED</button>
-                    ) : owned ? (
-                      <button
-                        onClick={() => handleBuyOrEquip('bicycle', bike)}
-                        disabled={isBusy}
-                        className="shop-btn-equip"
-                      >
-                        {isBusy ? 'EQUIPPING…' : 'EQUIP'}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleBuyOrEquip('bicycle', bike)}
-                        disabled={isBusy}
-                        className="shop-btn-buy"
-                      >
-                        {isBusy ? 'BUYING…' : 'BUY'}
-                      </button>
-                    )}
-                  </div>
+                  <div className="mystery-box-price">₦500 <small>(50,000 coins)</small></div>
+                  <button
+                    className="shop-btn-buy mystery-open-btn gold-open-btn"
+                    disabled={boxOpening !== null}
+                    onClick={() => handleOpenBox('gold')}
+                  >
+                    {boxOpening === 'gold' ? '🎲 Spinning…' : '🏆 OPEN VAULT'}
+                  </button>
                 </div>
-              );
-            })}
-        </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Gadgets ──────────────────────────────────────────────── */}
+          {(activeTab === 'all' || activeTab === 'gadgets') && (
+            <div className="gadgets-section">
+              <h2 className="mystery-section-title">⚡ Permanent Gadgets</h2>
+              <p className="mystery-section-sub">One-time purchase — active on every ride forever!</p>
+              <div className="shop-grid">
+                {gadgets.map(g => <GadgetCard key={g.id} gadget={g} />)}
+              </div>
+            </div>
+          )}
+
+          {/* ── Rabbits + Bikes ───────────────────────────────────────── */}
+          <div className="shop-grid">
+            {(activeTab === 'all' || activeTab === 'rabbits') &&
+              rabbits.map(r => <RabbitCard key={r._id} rabbit={r} />)}
+            {(activeTab === 'all' || activeTab === 'bicycles') &&
+              bicycles.map(b => <BikeCard key={b._id} bike={b} />)}
+          </div>
+
+          {/* Footer banner */}
+          <div className="shop-bottom-banner">
+            <span>🎮</span>
+            <span>Equip your best gear and ride to victory! All items permanently saved to your farm wallet.</span>
+            <span>🌾</span>
+          </div>
+        </>
       )}
-
-      {/* IN-FLOW BOTTOM BANNER */}
-      <div className="shop-bottom-banner">
-        <span>🥕</span>
-        <span>Equip your best gear and ride to victory! All items permanently saved to your farm wallet.</span>
-        <span>⭐</span>
-      </div>
     </div>
   );
 };

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <radialGradient id="discoFur" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#E1BEE7" />
+      <stop offset="100%" stop-color="#BA68C8" />
+    </radialGradient>
+    <linearGradient id="shadesLens" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF" />
+      <stop offset="50%" stop-color="#FF4081" />
+      <stop offset="100%" stop-color="#FFD600" />
+    </linearGradient>
+  </defs>
+  <circle cx="80" cy="80" r="76" fill="#F3E5F5" stroke="#CE93D8" stroke-width="2" />
+  <!-- Neon Glitter Ears -->
+  <path d="M 48 35 C 32 4 48 -4 60 18 C 64 26 58 36 48 35 Z" fill="url(#discoFur)" stroke="#7B1FA2" stroke-width="2" />
+  <path d="M 50 28 C 44 14 52 8 58 18 Z" fill="#FF80AB" />
+  <path d="M 112 35 C 128 4 112 -4 100 18 C 96 26 102 36 112 35 Z" fill="url(#discoFur)" stroke="#7B1FA2" stroke-width="2" />
+  <path d="M 110 28 C 116 14 108 8 102 18 Z" fill="#FF80AB" />
+  <!-- Rabbit Face -->
+  <ellipse cx="80" cy="82" rx="30" ry="26" fill="url(#discoFur)" stroke="#7B1FA2" stroke-width="2" />
+  <!-- 80s Neon Star Sunglasses -->
+  <rect x="52" y="70" width="24" height="16" rx="5" fill="url(#shadesLens)" stroke="#FFD600" stroke-width="2.5" />
+  <rect x="84" y="70" width="24" height="16" rx="5" fill="url(#shadesLens)" stroke="#FFD600" stroke-width="2.5" />
+  <line x1="76" y1="78" x2="84" y2="78" stroke="#FFD600" stroke-width="3" />
+  <!-- Nose & Grin -->
+  <polygon points="77,92 83,92 80,96" fill="#FF4081" />
+  <path d="M 72 98 Q 80 106 88 98" fill="none" stroke="#4A148C" stroke-width="2.2" stroke-linecap="round" />
+  <!-- Sparkles -->
+  <polygon points="120,40 123,48 131,51 123,54 120,62 117,54 109,51 117,48" fill="#FFD600" />
+  <polygon points="36,65 38,70 43,72 38,74 36,79 34,74 29,72 34,70" fill="#00E5FF" />
+</svg>

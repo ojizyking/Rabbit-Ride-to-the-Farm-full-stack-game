@@ -38,7 +38,7 @@ const SPONSORS: SponsorInfo[] = [
     tag: 'OFFICIAL PAYOUTS',
     title: 'Paystack Instant Cashouts 🏦⚡',
     subtitle: 'Automated Real Naira Bank Transfers in Under 10 Seconds',
-    perk: 'Zero Wait Time • 1,000 Coins = ₦50 Direct to Bank',
+    perk: 'Zero Wait Time 💰 10,000 Coins = ₦100 Direct to Bank',
     accentColor: '#00C853',
     bgColor: 'linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)',
     icon: '💳',
@@ -627,10 +627,10 @@ export const Play: React.FC = () => {
             className="hud-stat-pill coins"
             onClick={handleBankAndEndRide}
             style={{ cursor: 'pointer' }}
-            title="Click to Bank Coins to Wallet! (Conversion: 1,000 Coins = ₦100)"
+            title="Click to Bank Coins to Wallet! (Conversion: 10,000 Coins = ₦100)"
           >
             <Coins size={20} color="#FF7A00" />
-            <span>{stats.coins} Coins (₦{(stats.coins / 10).toFixed(1)})</span>
+            <span>{stats.coins} Coins (₦{(stats.coins / 100).toFixed(2)})</span>
           </div>
 
           {/* BANK COINS ACTION BUTTON */}
@@ -655,7 +655,7 @@ export const Play: React.FC = () => {
               }}
             >
               <Wallet size={15} />
-              <span>BANK (+₦{(stats.coins / 20).toFixed(1)})</span>
+              <span>BANK (+₦{(stats.coins / 100).toFixed(2)})</span>
             </button>
           )}
 
@@ -908,9 +908,9 @@ export const Play: React.FC = () => {
               </div>
               <div className="gameover-stat-box">
                 <span className="gameover-stat-val earnings">
-                  +₦{(gameOverData.nairaEarned !== undefined ? gameOverData.nairaEarned : (gameOverData.coins / 20)).toLocaleString()}
+                  +₦{(gameOverData.nairaEarned !== undefined ? gameOverData.nairaEarned : (gameOverData.coins / 100)).toLocaleString()}
                 </span>
-                <span className="gameover-stat-label">Reward Value (1,000 Coins = ₦50)</span>
+                <span className="gameover-stat-label">Reward Value (10,000 Coins = ₦100)</span>
               </div>
               <div className="gameover-stat-box">
                 <span className="gameover-stat-val" style={{ color: '#2E7D32' }}>
@@ -1452,7 +1452,7 @@ export const Play: React.FC = () => {
               </div>
               <div className="pause-stat-item">
                 <div className="pause-stat-label">Coins</div>
-                <div className="pause-stat-val">+{stats.coins} (₦{(stats.coins / 20).toFixed(1)})</div>
+                <div className="pause-stat-val">+{stats.coins} (₦{(stats.coins / 100).toFixed(2)})</div>
               </div>
               <div className="pause-stat-item">
                 <div className="pause-stat-label">Carrots</div>

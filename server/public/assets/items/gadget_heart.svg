@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <radialGradient id="heartGrad" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FF5252" />
+      <stop offset="100%" stop-color="#C62828" />
+    </radialGradient>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="#FFEBEE" stroke="#FFCDD2" stroke-width="2" />
+  <path d="M 60 92 C 40 76 22 58 22 40 C 22 26 34 18 46 18 C 53 18 57 21 60 26 C 63 21 67 18 74 18 C 86 18 98 26 98 40 C 98 58 80 76 60 92 Z" fill="url(#heartGrad)" stroke="#B71C1C" stroke-width="3" />
+  <!-- Bandage Cross on Heart -->
+  <rect x="48" y="44" width="24" height="7" rx="3" fill="#FFF9C4" transform="rotate(45 60 47)" />
+  <rect x="48" y="44" width="24" height="7" rx="3" fill="#FFF9C4" transform="rotate(-45 60 47)" />
+</svg>

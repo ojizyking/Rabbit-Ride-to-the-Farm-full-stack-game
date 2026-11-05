@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <radialGradient id="shieldGrad" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FFE082" />
+      <stop offset="70%" stop-color="#FFB300" />
+      <stop offset="100%" stop-color="#FF8F00" />
+    </radialGradient>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="#FFF8E1" stroke="#FFE082" stroke-width="2" />
+  <path d="M 60 20 L 92 32 C 92 68 76 90 60 100 C 44 90 28 68 28 32 Z" fill="url(#shieldGrad)" stroke="#E65100" stroke-width="3" />
+  <path d="M 60 28 L 84 38 C 84 64 72 82 60 90 C 48 82 36 64 36 38 Z" fill="#FFF9C4" opacity="0.6" />
+  <!-- Carrot Symbol on Shield -->
+  <polygon points="56,48 64,48 60,72" fill="#E65100" />
+  <polygon points="58,44 62,44 60,48" fill="#2E7D32" />
+</svg>

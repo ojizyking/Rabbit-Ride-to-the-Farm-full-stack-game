@@ -18,22 +18,27 @@ function getTodayString() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Conversion Math: 10,000 coins = 100 Naira → 100 coins = 1 Naira (1 coin = 0.01 Naira / 1 Kobo)
+const COINS_PER_NAIRA = 100;
+
 // Anti-cheat bounds
-const MAX_COINS_PER_RIDE = 10000;
+const MAX_COINS_PER_RIDE = 50000; // 50,000 coins = ₦500
 const MAX_RIDES_PER_SYNC = 20;
 
 // Free-user (non-purchasing) carrot coin cap per ride run:
-// ₦50 max → at 20 coins = ₦1 that's 1,000 coins worth of carrot earnings per run.
+// ₦50 max → at 100 coins = ₦1 that's 5,000 coins worth of carrot earnings per run.
 const FREE_USER_MAX_NAIRA_PER_RIDE = 50;
-const FREE_USER_MAX_COINS_PER_RIDE = FREE_USER_MAX_NAIRA_PER_RIDE * 20; // 1,000 coins
+const FREE_USER_MAX_COINS_PER_RIDE = FREE_USER_MAX_NAIRA_PER_RIDE * COINS_PER_NAIRA; // 5,000 coins
 
 /**
- * Returns true when the user has never purchased anything (free tier, no paid subscription).
- * Shop purchases do NOT upgrade the subscriptionTier, so we check tier alone.
- * If you later add a `hasPurchased` flag to User, check that here too.
+ * Returns true when the user has never purchased anything (free tier, no farm shop items or subscriptions).
+ * Purchasing any rabbit, bike, or subscription removes the ₦50 cap.
  */
 function isNonPurchasingUser(user) {
-  return !user.subscriptionTier || user.subscriptionTier === 'free';
+  const hasPaidTier = user.subscriptionTier && user.subscriptionTier !== 'free';
+  const hasPurchasedRabbit = Array.isArray(user.ownedRabbits) && user.ownedRabbits.length > 1;
+  const hasPurchasedBike = Array.isArray(user.ownedBikes) && user.ownedBikes.length > 1;
+  return !hasPaidTier && !hasPurchasedRabbit && !hasPurchasedBike;
 }
 
 exports.startRide = async (req, res) => {
@@ -83,14 +88,14 @@ exports.collect = async (req, res) => {
     const multiplier = getTierMultiplier(user.subscriptionTier);
 
     let baseValue = Number(value);
-    if (type === 'star') baseValue = 5;
-    else if (type === 'carrot') baseValue = 10;
-    else if (type === 'crate') baseValue = typeof value === 'number' && value > 10 ? value : 50;
-    else if (type === 'ad') baseValue = 100;
+    if (type === 'star') baseValue = typeof value === 'number' && value > 5 ? value : 25;
+    else if (type === 'carrot') baseValue = typeof value === 'number' && value > 10 ? value : 50;
+    else if (type === 'crate') baseValue = typeof value === 'number' && value > 50 ? value : 250;
+    else if (type === 'ad') baseValue = 1000;
 
     const boostedValue = Math.round(baseValue * multiplier);
 
-    // Credit all collectible types to user balance (convert coins to Naira: 20 coins = ₦1)
+    // Credit all collectible types to user balance (convert coins to Naira: 100 coins = ₦1)
     if (type === 'ad') {
       // Ad reward: flat ₦10 credit
       const adRewardNaira = 10;
@@ -105,7 +110,7 @@ exports.collect = async (req, res) => {
       });
     } else {
       // Stars, carrots, crates: convert boosted coin value to Naira and persist
-      const nairaValue = Math.round((boostedValue / 20) * 100) / 100;
+      const nairaValue = Math.round((boostedValue / COINS_PER_NAIRA) * 100) / 100;
       if (nairaValue > 0) {
         user.balanceNaira = Math.round((user.balanceNaira + nairaValue) * 100) / 100;
         await user.save();
@@ -140,12 +145,12 @@ exports.endRide = async (req, res) => {
     const user = await User.findById(req.user._id);
     const multiplier = getTierMultiplier(user.subscriptionTier);
 
-    // Calculate Naira earned from coins/tokens: 1,000 coins = 50 Naira (20 coins = 1 Naira) + tier boost multiplier
-    // Apply free-user carrot coin cap: non-purchasing users earn at most ₦50 per ride run (1,000 coins).
+    // Calculate Naira earned from coins/tokens: 10,000 coins = 100 Naira (100 coins = 1 Naira) + tier boost multiplier
+    // Apply free-user carrot coin cap: non-purchasing users earn at most ₦50 per ride run (5,000 coins).
     const rawCoins = Math.max(0, Number(coins));
     const coinCap = isNonPurchasingUser(user) ? FREE_USER_MAX_COINS_PER_RIDE : MAX_COINS_PER_RIDE;
     const totalCoins = Math.min(rawCoins, coinCap);
-    const baseNaira = totalCoins / 20;
+    const baseNaira = totalCoins / COINS_PER_NAIRA;
     // For free users, cap nairaEarned at FREE_USER_MAX_NAIRA_PER_RIDE (regardless of multiplier — free users have 1.0x anyway)
     const nairaEarned = isNonPurchasingUser(user)
       ? Math.min(Math.round(baseNaira * multiplier * 100) / 100, FREE_USER_MAX_NAIRA_PER_RIDE)
@@ -233,9 +238,9 @@ exports.syncOffline = async (req, res) => {
         continue;
       }
 
-      // Apply free-user cap (₦50 per ride run) during offline sync too
+      // Apply free-user cap (₦50 per ride run = 5,000 coins) during offline sync too
       const cappedCoins = isNonPurchasingUser(user) ? Math.min(totalCoins, FREE_USER_MAX_COINS_PER_RIDE) : totalCoins;
-      const baseNaira = cappedCoins / 20;
+      const baseNaira = cappedCoins / COINS_PER_NAIRA;
       const nairaEarned = isNonPurchasingUser(user)
         ? Math.min(Math.round(baseNaira * multiplier * 100) / 100, FREE_USER_MAX_NAIRA_PER_RIDE)
         : Math.round(baseNaira * multiplier * 100) / 100;

@@ -371,7 +371,7 @@ export const Wallet: React.FC = () => {
             </button>
           </div>
           <div style={{ fontSize: '0.95rem', color: '#FFE082', fontWeight: 600, marginBottom: '0.25rem' }}>
-            🪙 {((user?.balanceNaira || 0) * 20).toLocaleString()} Coins (Rate: 1,000 Coins = ₦50)
+            💰 {((user?.balanceNaira || 0) * 100).toLocaleString()} Coins (Rate: 10,000 Coins = ₦100)
           </div>
           <span style={{ fontSize: '0.85rem', opacity: 0.9 }}>
             Equipped: {user?.currentRabbit?.name || 'Starter White Rabbit'} + {user?.currentBike?.name || 'Classic Bike'}

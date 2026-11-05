@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="redPole" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF5252" />
+      <stop offset="100%" stop-color="#D50000" />
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="#FFEBEE" stroke="#FF8A80" stroke-width="2" />
+  <path d="M 35 35 C 15 55 15 85 60 95 C 105 85 105 55 85 35 L 72 48 C 82 60 82 75 60 82 C 38 75 38 60 48 48 Z" fill="url(#redPole)" stroke="#B71C1C" stroke-width="2" />
+  <!-- Silver Poles -->
+  <rect x="27" y="26" width="16" height="14" rx="2" fill="#CFD8DC" stroke="#78909C" stroke-width="1.5" />
+  <rect x="77" y="26" width="16" height="14" rx="2" fill="#CFD8DC" stroke="#78909C" stroke-width="1.5" />
+  <!-- Magnetic Flux Waves -->
+  <path d="M 35 18 Q 60 8 85 18" fill="none" stroke="#29B6F6" stroke-width="3" stroke-linecap="round" />
+  <path d="M 42 12 Q 60 3 78 12" fill="none" stroke="#00E5FF" stroke-width="2" stroke-linecap="round" />
+</svg>

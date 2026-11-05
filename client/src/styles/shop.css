@@ -455,3 +455,286 @@
   }
 }
 
+
+/* ══════════════════════════════════════════════════════════════════
+   NEW SHOP ADDITIONS — Gadgets, Mystery Box, Tab rework
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Tab active alias (new Shop.tsx uses shop-tab-active class) */
+.shop-tab-btn.shop-tab-active,
+.shop-tab-btn.active {
+  background: linear-gradient(135deg, #FF7A00, #FFB300);
+  color: #fff;
+  font-weight: 700;
+  transform: scale(1.05);
+}
+
+/* Free rider banner */
+.shop-free-banner {
+  background: linear-gradient(90deg, #1a1a2e, #16213e);
+  border: 1px solid #FF7A00;
+  border-radius: 10px;
+  color: #FFB74D;
+  font-size: 0.85rem;
+  padding: 0.6rem 1rem;
+  margin: 0 1rem 1rem;
+  text-align: center;
+}
+
+/* Balance pill in header */
+.shop-balance {
+  background: rgba(255,183,0,0.15);
+  border: 1px solid #FFB300;
+  border-radius: 20px;
+  color: #FFD700;
+  font-weight: 700;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.95rem;
+}
+
+/* ── Mystery Section ───────────────────────────────────────────── */
+.mystery-section {
+  padding: 1rem 1rem 0.5rem;
+}
+
+.mystery-section-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #FFD700;
+  margin: 0 0 0.25rem;
+}
+
+.mystery-section-sub {
+  color: #aaa;
+  font-size: 0.82rem;
+  margin: 0 0 1rem;
+}
+
+.mystery-boxes-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.mystery-box-card {
+  flex: 1 1 200px;
+  border-radius: 16px;
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.wood-box {
+  background: linear-gradient(145deg, #3e2723, #4e342e);
+  border: 2px solid #8D6E63;
+}
+
+.gold-box {
+  background: linear-gradient(145deg, #1a1200, #2d2000);
+  border: 2px solid #FFD700;
+  box-shadow: 0 0 20px rgba(255,215,0,0.25);
+}
+
+.mystery-box-icon {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.mystery-box-card h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+}
+
+.mystery-box-desc {
+  font-size: 0.78rem;
+  color: #ccc;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.mystery-box-prizes {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.prize-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(255,255,255,0.08);
+  border-radius: 20px;
+  padding: 0.2rem 0.5rem;
+}
+
+.mystery-box-price {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #FFD700;
+}
+.mystery-box-price small { opacity: 0.65; font-size: 0.72rem; }
+
+.mystery-open-btn {
+  width: 100%;
+  font-size: 1rem !important;
+  padding: 0.65rem 1rem !important;
+  letter-spacing: 0.5px;
+}
+
+.gold-open-btn {
+  background: linear-gradient(135deg, #B8860B, #FFD700, #B8860B) !important;
+  color: #000 !important;
+  font-weight: 900 !important;
+}
+
+/* ── Prize Modal ──────────────────────────────────────────────── */
+.mystery-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.mystery-modal {
+  background: linear-gradient(145deg, #1a1a2e, #0d0d1a);
+  border: 2px solid #FFD700;
+  border-radius: 20px;
+  padding: 2rem 2.5rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  min-width: 280px;
+  box-shadow: 0 0 40px rgba(255,215,0,0.4);
+}
+
+.mystery-prize-rarity {
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  margin-bottom: 0.5rem;
+}
+
+.mystery-prize-icon {
+  font-size: 4rem;
+  line-height: 1;
+  margin: 0.5rem 0;
+  animation: prize-bounce 0.6s ease;
+}
+
+@keyframes prize-bounce {
+  0% { transform: scale(0); }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.mystery-prize-label {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #FFD700;
+  margin: 0 0 0.3rem;
+}
+
+.mystery-prize-sub {
+  color: #aaa;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* Confetti */
+.confetti-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -10px;
+  width: 10px;
+  height: 16px;
+  opacity: 0.9;
+  animation: confetti-fall 2s linear forwards;
+}
+
+.c1 { background: #FF7A00; border-radius: 2px; }
+.c2 { background: #FFD700; }
+.c3 { background: #00C853; border-radius: 50%; }
+.c4 { background: #29B6F6; }
+.c5 { background: #CE93D8; border-radius: 2px; }
+.c6 { background: #FF4081; }
+
+@keyframes confetti-fall {
+  0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
+}
+
+/* ── Gadgets Section ──────────────────────────────────────────── */
+.gadgets-section {
+  padding: 1rem 1rem 0.5rem;
+}
+
+.gadget-card {
+  border: 2px solid #FFD700 !important;
+  background: linear-gradient(145deg, #12121f, #1a1a30) !important;
+}
+
+.gadget-effect-pill {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  background: rgba(255,215,0,0.1);
+  border: 1px solid rgba(255,215,0,0.3);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.75rem;
+  color: #FFD700;
+  line-height: 1.4;
+  margin: 0.4rem 0;
+}
+
+/* ── Loading ──────────────────────────────────────────────────── */
+.shop-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem;
+  color: #aaa;
+}
+
+.shop-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255,183,0,0.2);
+  border-top-color: #FFB300;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Toast error variant */
+.shop-toast-error {
+  background: linear-gradient(135deg, #c62828, #e53935) !important;
+}
+
+/* Small coin equiv text in price tags */
+.shop-price-tag small {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-left: 2px;
+}

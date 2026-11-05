@@ -504,7 +504,7 @@ exports.getSystemConfig = async (req, res) => {
     // Default fallbacks
     const defaults = {
       referralRewardNaira: 100,
-      coinConversionRate: 0.05, // 1000 coins = ₦50
+      coinConversionRate: 0.01, // 10,000 coins = ₦100 (100 coins = ₦1)
       freeDailyRides: 3,
       minWithdrawalNaira: 1000,
       maintenanceMode: false

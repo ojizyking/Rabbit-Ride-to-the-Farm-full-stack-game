@@ -30,6 +30,18 @@ const INITIAL_RABBITS = [
     description: 'Street-smart rabbit with speed +10 and jump +5.'
   },
   {
+    _id: 'rab_006',
+    name: 'Chef Carrot-Flambé',
+    priceNaira: 1500,
+    speed: 22,
+    jump: 18,
+    stamina: 25,
+    grip: 18,
+    drift: 15,
+    imageUrl: '/assets/rabbits/chef_rabbit.svg',
+    description: 'Bakes golden crispy carrots! Speed +12 and +10% carrot harvest value.'
+  },
+  {
     _id: 'rab_003',
     name: 'Blue Aviator Rabbit',
     priceNaira: 2000,
@@ -42,10 +54,22 @@ const INITIAL_RABBITS = [
     description: 'Sky-cruising rabbit with speed +20 and grip +10.'
   },
   {
+    _id: 'rab_007',
+    name: 'Disco Bunny',
+    priceNaira: 3500,
+    speed: 35,
+    jump: 25,
+    stamina: 30,
+    grip: 20,
+    drift: 25,
+    imageUrl: '/assets/rabbits/disco_rabbit.svg',
+    description: 'Grooves with neon glitter trails! Speed +25 and combo streak timer +2s.'
+  },
+  {
     _id: 'rab_004',
     name: 'Farmer Hat Rabbit',
     priceNaira: 5000,
-    speed: 35,
+    speed: 38,
     jump: 25,
     stamina: 35,
     grip: 25,
@@ -54,16 +78,40 @@ const INITIAL_RABBITS = [
     description: 'Veteran agricultural bunny with stamina +25 and carry +15.'
   },
   {
+    _id: 'rab_008',
+    name: 'Astro-Bunny',
+    priceNaira: 7500,
+    speed: 45,
+    jump: 45,
+    stamina: 35,
+    grip: 25,
+    drift: 30,
+    imageUrl: '/assets/rabbits/astro_rabbit.svg',
+    description: 'Low-gravity lunar suit! Jump +35 and float glide for effortless stunts.'
+  },
+  {
     _id: 'rab_005',
     name: 'Ninja Rabbit',
     priceNaira: 10000,
-    speed: 50,
+    speed: 55,
     jump: 35,
     stamina: 45,
     grip: 35,
     drift: 35,
     imageUrl: '/assets/rabbits/ninja_rabbit.svg',
     description: 'Shadow runner master rabbit with speed +40 and drift +25.'
+  },
+  {
+    _id: 'rab_009',
+    name: 'Cyber Mech Bunny',
+    priceNaira: 15000,
+    speed: 65,
+    jump: 40,
+    stamina: 50,
+    grip: 40,
+    drift: 40,
+    imageUrl: '/assets/rabbits/cyber_rabbit.svg',
+    description: 'Full carbon-titanium frame with laser carrot sensors and extended turbo boost!'
   }
 ];
 
@@ -89,6 +137,16 @@ const INITIAL_BIKES = [
     description: 'Cruiser bike with flower basket, speed +15 and stability +20.'
   },
   {
+    _id: 'bike_005',
+    name: 'Vintage Farm Tractor',
+    priceNaira: 3500,
+    speed: 35,
+    stability: 60,
+    boost: 25,
+    imageUrl: '/assets/bikes/vintage_tractor.svg',
+    description: 'Heavy-duty diesel farm champion! Smashes through hay bales without damage!'
+  },
+  {
     _id: 'bike_003',
     name: 'Green Bloom Bike',
     priceNaira: 5000,
@@ -99,6 +157,16 @@ const INITIAL_BIKES = [
     description: 'Eco-charged racing bike, speed +35 and boost +20.'
   },
   {
+    _id: 'bike_006',
+    name: 'Carrot Chopper V-Twin',
+    priceNaira: 7500,
+    speed: 55,
+    stability: 40,
+    boost: 45,
+    imageUrl: '/assets/bikes/carrot_chopper.svg',
+    description: 'Loud custom chopper with dual carrot chrome exhausts and flame boost trails!'
+  },
+  {
     _id: 'bike_004',
     name: 'Turbo Golden Farm Bike',
     priceNaira: 10000,
@@ -107,6 +175,16 @@ const INITIAL_BIKES = [
     boost: 45,
     imageUrl: '/assets/bikes/turbo_gold.svg',
     description: 'High performance farm cruiser with ultra nitro speed.'
+  },
+  {
+    _id: 'bike_007',
+    name: 'Crop-Circle Hover UFO',
+    priceNaira: 20000,
+    speed: 70,
+    stability: 55,
+    boost: 55,
+    imageUrl: '/assets/bikes/hover_ufo.svg',
+    description: 'Alien crop technology! Levitates silently with frictionless anti-gravity glide.'
   }
 ];
 

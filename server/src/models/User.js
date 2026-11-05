@@ -61,6 +61,13 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     ref: 'Bicycle'
   }],
+  ownedGadgets: [{
+    type: String
+  }],
+  hasPurchasedFarmItem: {
+    type: Boolean,
+    default: false
+  },
   subscriptionTier: {
     type: String,
     enum: ['free', 'basic', 'growth', 'pro', 'elite'],

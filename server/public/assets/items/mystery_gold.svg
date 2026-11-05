@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <radialGradient id="vaultGold" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FFF9C4" />
+      <stop offset="50%" stop-color="#FFD54F" />
+      <stop offset="100%" stop-color="#FF8F00" />
+    </radialGradient>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="#FFFDE7" stroke="#FFE082" stroke-width="2" />
+  <rect x="22" y="26" width="76" height="72" rx="12" fill="url(#vaultGold)" stroke="#E65100" stroke-width="3.5" />
+  <!-- Diamond / Star Emblem in Center -->
+  <polygon points="60,38 69,52 84,55 73,66 76,82 60,74 44,82 47,66 36,55 51,52" fill="#FFFFFF" stroke="#E65100" stroke-width="2" />
+  <circle cx="60" cy="60" r="6" fill="#00E5FF" />
+</svg>

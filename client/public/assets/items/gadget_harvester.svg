@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <radialGradient id="harvesterGrad" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#C8E6C9" />
+      <stop offset="100%" stop-color="#81C784" />
+    </radialGradient>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="#E8F5E9" stroke="#A5D6A7" stroke-width="2" />
+  <!-- Twin Golden Wheat / Carrots -->
+  <path d="M 38 90 Q 60 60 75 30" fill="none" stroke="#FFB300" stroke-width="4" stroke-linecap="round" />
+  <circle cx="75" cy="30" r="6" fill="#FF8F00" />
+  <circle cx="66" cy="45" r="5" fill="#FFA000" />
+  <circle cx="56" cy="60" r="5" fill="#FFB300" />
+  <!-- Multiplier Badge 2X -->
+  <circle cx="85" cy="80" r="22" fill="#2E7D32" stroke="#FFFFFF" stroke-width="2.5" />
+  <text x="85" y="87" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="18" fill="#FFFFFF">2×</text>
+</svg>

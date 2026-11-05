@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120" width="180" height="120">
+  <defs>
+    <radialGradient id="tractorBody" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#43A047" />
+      <stop offset="100%" stop-color="#1B5E20" />
+    </radialGradient>
+    <radialGradient id="yellowWheel" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFEE58" />
+      <stop offset="100%" stop-color="#FBC02D" />
+    </radialGradient>
+  </defs>
+  <!-- Exhaust Stack Pipe with Smoke Puff -->
+  <rect x="130" y="15" width="8" height="35" rx="3" fill="#37474F" />
+  <circle cx="134" cy="10" r="5" fill="#B0BEC5" opacity="0.6" />
+  <circle cx="139" cy="4" r="7" fill="#CFD8DC" opacity="0.4" />
+  <!-- Tractor Engine Hood & Body -->
+  <path d="M 50 50 L 50 30 Q 80 25 90 40 L 155 45 L 155 80 L 50 80 Z" fill="url(#tractorBody)" stroke="#1B5E20" stroke-width="2.5" />
+  <!-- Cab / Seat Support -->
+  <path d="M 60 40 L 60 22 L 75 22" fill="none" stroke="#FFEE58" stroke-width="3" stroke-linecap="round" />
+  <!-- Front Grille -->
+  <rect x="150" y="52" width="6" height="24" rx="2" fill="#212121" />
+  <!-- Small Front Tire -->
+  <circle cx="145" cy="85" r="18" fill="#212121" stroke="#424242" stroke-width="3" />
+  <circle cx="145" cy="85" r="9" fill="url(#yellowWheel)" />
+  <circle cx="145" cy="85" r="3" fill="#212121" />
+  <!-- HUGE Rear Tire (Deep Treads) -->
+  <circle cx="55" cy="75" r="34" fill="#212121" stroke="#424242" stroke-width="4" />
+  <!-- Tire Lug Treads -->
+  <circle cx="55" cy="75" r="22" fill="url(#yellowWheel)" stroke="#F57F17" stroke-width="2" />
+  <circle cx="55" cy="75" r="8" fill="#37474F" />
+  <circle cx="55" cy="75" r="3" fill="#FFEE58" />
+</svg>

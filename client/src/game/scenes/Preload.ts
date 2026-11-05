@@ -283,12 +283,19 @@ export default class Preload extends Phaser.Scene {
 
     // Preload SVG assets
     this.load.svg('rabbit-starter', '/assets/rabbits/starter_rabbit.svg', { width: 100, height: 100 });
+    this.load.svg('rabbit-chef', '/assets/rabbits/chef_rabbit.svg', { width: 100, height: 100 });
+    this.load.svg('rabbit-disco', '/assets/rabbits/disco_rabbit.svg', { width: 100, height: 100 });
+    this.load.svg('rabbit-astro', '/assets/rabbits/astro_rabbit.svg', { width: 100, height: 100 });
+    this.load.svg('rabbit-cyber', '/assets/rabbits/cyber_rabbit.svg', { width: 100, height: 100 });
     this.load.svg('rabbit-red-hoodie', '/assets/rabbits/red_hoodie.svg', { width: 100, height: 100 });
     this.load.svg('rabbit-blue-aviator', '/assets/rabbits/blue_aviator.svg', { width: 100, height: 100 });
     this.load.svg('rabbit-farmer-hat', '/assets/rabbits/farmer_hat.svg', { width: 100, height: 100 });
     this.load.svg('rabbit-ninja', '/assets/rabbits/ninja_rabbit.svg', { width: 100, height: 100 });
 
     this.load.svg('bike-starter', '/assets/bikes/starter_bike.svg', { width: 120, height: 90 });
+    this.load.svg('bike-tractor', '/assets/bikes/vintage_tractor.svg', { width: 120, height: 90 });
+    this.load.svg('bike-chopper', '/assets/bikes/carrot_chopper.svg', { width: 120, height: 90 });
+    this.load.svg('bike-ufo', '/assets/bikes/hover_ufo.svg', { width: 120, height: 90 });
     this.load.svg('bike-blue-basket', '/assets/bikes/blue_basket.svg', { width: 120, height: 90 });
     this.load.svg('bike-green-bloom', '/assets/bikes/green_bloom.svg', { width: 120, height: 90 });
     this.load.svg('bike-turbo-gold', '/assets/bikes/turbo_gold.svg', { width: 120, height: 90 });
