@@ -507,7 +507,8 @@ exports.getSystemConfig = async (req, res) => {
       coinConversionRate: 0.01, // 10,000 coins = ₦100 (100 coins = ₦1)
       freeDailyRides: 3,
       minWithdrawalNaira: 1000,
-      maintenanceMode: false
+      maintenanceMode: false,
+      featureFlagJukebox: true  // show/hide the Jukebox button site-wide
     };
 
     return res.json({

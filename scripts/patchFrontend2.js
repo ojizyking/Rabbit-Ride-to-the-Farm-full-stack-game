@@ -118,3 +118,4 @@ patchLines('client/src/pages/Wallet.tsx', [
 ]);
 
 console.log('\n\u{1F389} Frontend line-based patches done!');
+

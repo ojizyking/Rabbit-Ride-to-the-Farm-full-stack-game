@@ -1464,7 +1464,31 @@ export const Admin: React.FC = () => {
 
           <div className="config-card">
             <div className="config-info">
-              <h4>Minimum Withdrawal Threshold (₦)</h4>
+                        <div className="config-card">
+            <div className="config-info">
+              <h4>🎵 Jukebox Feature Flag</h4>
+              <p>Show or hide the YouTube Jukebox button across the entire site (Navbar + Game HUD)</p>
+            </div>
+            <div className="config-input-wrap" style={{ alignItems: 'center', gap: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={!!systemConfig.featureFlagJukebox}
+                  onChange={e => {
+                    const val = e.target.checked;
+                    setSystemConfig({ ...systemConfig, featureFlagJukebox: val });
+                    handleSaveConfig('featureFlagJukebox', val, 'Jukebox feature visibility');
+                  }}
+                  style={{ width: 20, height: 20, accentColor: '#FF7A00', cursor: 'pointer' }}
+                />
+                <span style={{ color: systemConfig.featureFlagJukebox ? '#00C853' : '#aaa', fontWeight: 700 }}>
+                  {systemConfig.featureFlagJukebox ? '🟢 Jukebox ON' : '🔴 Jukebox OFF'}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <h4>Minimum Withdrawal Threshold (₦)</h4>
               <p>Minimum balance required for a rider to request bank payout</p>
             </div>
             <div className="config-input-wrap">

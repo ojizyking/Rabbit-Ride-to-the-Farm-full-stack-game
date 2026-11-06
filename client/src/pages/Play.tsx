@@ -161,6 +161,15 @@ export const Play: React.FC = () => {
   const [isMusicDrawerOpen, setIsMusicDrawerOpen] = useState(false);
 
   // Free-user cap banner
+  const [jukeboxEnabled, setJukeboxEnabled] = useState(true);
+  useEffect(() => {
+    api.get('/admin/config').then(res => {
+      if (res.data?.config?.featureFlagJukebox !== undefined) {
+        setJukeboxEnabled(!!res.data.config.featureFlagJukebox);
+      }
+    }).catch(() => {});
+  }, []);
+
   const [showFreeCapBanner, setShowFreeCapBanner] = useState(true);
 
   // 30-Second Billboard Ad State
@@ -755,7 +764,8 @@ export const Play: React.FC = () => {
             <span>{stats.isBoosting ? 'BOOSTING!' : 'BOOST'}</span>
           </button>
 
-          {/* PROMINENT JUKEBOX BUTTON */}
+          {/* PROMINENT JUKEBOX BUTTON — hidden by featureFlagJukebox */}
+          {jukeboxEnabled && (
           <button
             onClick={() => {
               setMusicSource('youtube');
@@ -770,6 +780,7 @@ export const Play: React.FC = () => {
             <span className="jukebox-btn-text">Jukebox</span>
             <span className="jukebox-btn-badge">YouTube</span>
           </button>
+          )}
 
           {/* Pause / Resume Button */}
           <button
