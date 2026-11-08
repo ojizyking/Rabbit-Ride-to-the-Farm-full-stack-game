@@ -1,0 +1,25 @@
+
+/* ══════════════════════════════════════════════════════════════════
+   Billboard Skip Ad Button
+   ══════════════════════════════════════════════════════════════════ */
+.billboard-skip-btn {
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.billboard-skip-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.03);
+}
+

@@ -208,7 +208,9 @@ exports.register = async (req, res) => {
         currentRabbit: populatedUser.currentRabbitId,
         currentBike: populatedUser.currentBikeId,
         ownedRabbits: populatedUser.ownedRabbits,
-        ownedBikes: populatedUser.ownedBikes
+        ownedBikes: populatedUser.ownedBikes,
+        ownedGadgets: populatedUser.ownedGadgets || [],
+        hasPurchasedFarmItem: populatedUser.hasPurchasedFarmItem || false
       }
     });
   } catch (err) {
@@ -298,7 +300,9 @@ exports.login = async (req, res) => {
         currentRabbit: populatedUser.currentRabbitId,
         currentBike: populatedUser.currentBikeId,
         ownedRabbits: populatedUser.ownedRabbits,
-        ownedBikes: populatedUser.ownedBikes
+        ownedBikes: populatedUser.ownedBikes,
+        ownedGadgets: populatedUser.ownedGadgets || [],
+        hasPurchasedFarmItem: populatedUser.hasPurchasedFarmItem || false
       }
     });
   } catch (err) {
@@ -368,7 +372,9 @@ exports.getMe = async (req, res) => {
         currentRabbit: user.currentRabbitId,
         currentBike: user.currentBikeId,
         ownedRabbits: user.ownedRabbits,
-        ownedBikes: user.ownedBikes
+        ownedBikes: user.ownedBikes,
+        ownedGadgets: user.ownedGadgets || [],
+        hasPurchasedFarmItem: user.hasPurchasedFarmItem || false
       }
     });
   } catch (err) {
@@ -483,7 +489,9 @@ exports.clerkSync = async (req, res) => {
         currentRabbit: populatedUser.currentRabbitId,
         currentBike: populatedUser.currentBikeId,
         ownedRabbits: populatedUser.ownedRabbits,
-        ownedBikes: populatedUser.ownedBikes
+        ownedBikes: populatedUser.ownedBikes,
+        ownedGadgets: populatedUser.ownedGadgets || [],
+        hasPurchasedFarmItem: populatedUser.hasPurchasedFarmItem || false
       }
     });
   } catch (err) {

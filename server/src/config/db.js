@@ -4,6 +4,7 @@ async function seedInitialShop() {
   try {
     const Rabbit = require('../models/Rabbit');
     const Bicycle = require('../models/Bicycle');
+    const Ad = require('../models/Ad');
 
     const RABBITS_TO_SEED = [
       {
@@ -187,6 +188,23 @@ async function seedInitialShop() {
       }
     }
     console.log('Shop inventory checked & seeded successfully.');
+
+    // ── Seed default ads ─────────────────────────────────────────────────
+    const DEFAULT_ADS = [
+      { tag: 'FARM FUEL',         order: 0, title: 'Crunchy Carrot Nitro Juice',    subtitle: '100% Organic Farm-Pressed Stamina Drink for Champions', perk: '+50% Jump Power & Instant 360 Flip Torque', accentColor: '#FF7A00', bgColor: 'linear-gradient(135deg,#FFF3E0 0%,#FFE0B2 100%)', icon: '🥕', slogan: '"Munch faster. Jump higher. Dominate the dirt track!"', isActive: true },
+      { tag: 'OFFICIAL PAYOUTS',  order: 1, title: 'Paystack Instant Cashouts',     subtitle: 'Automated Real Naira Bank Transfers in Under 10 Seconds',  perk: 'Zero Wait Time 10,000 Coins = ₦100 Direct to Bank',       accentColor: '#00C853', bgColor: 'linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 100%)', icon: '💳', slogan: '"Play daily. Collect coins. Cash out direct to your account."', isActive: true },
+      { tag: 'SPEED & STYLE',     order: 2, title: 'Hyper Bunny Turbo Bicycles',    subtitle: 'Aerodynamic Racing Frames, Gold Rims & Rocket Exhaust',      perk: 'Loop-de-Loop Balance Stabilizer + 2X Nitrous Burn Time',   accentColor: '#FFB300', bgColor: 'linear-gradient(135deg,#FFFDE7 0%,#FFF9C4 100%)', icon: '🚲', slogan: '"Equip pro gear in the shop to crush every track record."',      isActive: true },
+      { tag: 'LUCKY HARVEST',     order: 3, title: 'Golden Carrot Jackpot Seeds',   subtitle: 'Mystery Crates Spawning Across Every 100 Meters',            perk: 'Up to ₦10,000 Surprise Jackpot Coins in Loot Crates',      accentColor: '#8E24AA', bgColor: 'linear-gradient(135deg,#F3E5F5 0%,#E1BEE7 100%)', icon: '🌟', slogan: '"Collect crates on the run and watch your wallet explode."',  isActive: true }
+    ];
+    for (const adData of DEFAULT_ADS) {
+      const exists = await Ad.findOne({ title: adData.title });
+      if (!exists) {
+        await Ad.create(adData);
+        console.log(`✅ Seeded ad: ${adData.title}`);
+      }
+    }
+
+
   } catch (err) {
     console.error('Error seeding shop data:', err);
   }

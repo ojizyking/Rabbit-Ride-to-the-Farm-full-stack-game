@@ -10,6 +10,7 @@ const gameRoutes = require('./routes/game');
 const shopRoutes = require('./routes/shop');
 const walletRoutes = require('./routes/wallet');
 const adminRoutes = require('./routes/admin');
+const adsRoutes = require('./routes/ads');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -64,6 +65,7 @@ app.use('/api/game', gameRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/ads', adsRoutes);
 
 // Health check endpoints for Railway / monitoring
 app.get(['/health', '/api/health'], (req, res) => {

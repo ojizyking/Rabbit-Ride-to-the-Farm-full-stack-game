@@ -4,6 +4,7 @@ const Transaction = require('../models/Transaction');
 const Withdrawal = require('../models/Withdrawal');
 const Subscription = require('../models/Subscription');
 const SystemConfig = require('../models/SystemConfig');
+const Ad = require('../models/Ad');
 const telemetry = require('../services/telemetry');
 const { initiateTransfer } = require('../config/paystack');
 
@@ -562,5 +563,81 @@ exports.updateSystemConfig = async (req, res) => {
       success: false,
       message: `Failed to update config: ${err.message || 'Server error'}`
     });
+  }
+};
+
+// ─── Ad Manager ──────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/ads — list all ads (admin)
+ */
+exports.getAds = async (req, res) => {
+  try {
+    const ads = await Ad.find().sort({ order: 1, createdAt: -1 });
+    return res.json({ success: true, ads });
+  } catch (err) {
+    console.error('getAds error:', err);
+    return res.status(500).json({ success: false, message: 'Error fetching ads.' });
+  }
+};
+
+/**
+ * POST /api/admin/ads — create new ad (admin)
+ */
+exports.createAd = async (req, res) => {
+  try {
+    const { title, subtitle, tag, slogan, perk, accentColor, bgColor, icon, imageUrl, linkUrl, isActive, order } = req.body;
+    if (!title) return res.status(400).json({ success: false, message: 'Ad title is required.' });
+
+    const ad = await Ad.create({
+      title, subtitle, tag, slogan, perk,
+      accentColor: accentColor || '#FF7A00',
+      bgColor: bgColor || 'linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)',
+      icon: icon || '🌾',
+      imageUrl: imageUrl || '',
+      linkUrl: linkUrl || '',
+      isActive: isActive !== undefined ? isActive : true,
+      order: order || 0
+    });
+
+    return res.status(201).json({ success: true, message: 'Ad created successfully.', ad });
+  } catch (err) {
+    console.error('createAd error:', err);
+    return res.status(500).json({ success: false, message: 'Error creating ad.' });
+  }
+};
+
+/**
+ * PUT /api/admin/ads/:id — update ad (admin)
+ */
+exports.updateAd = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = { ...req.body, updatedAt: new Date() };
+    delete updates._id;
+
+    const ad = await Ad.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
+    if (!ad) return res.status(404).json({ success: false, message: 'Ad not found.' });
+
+    return res.json({ success: true, message: 'Ad updated.', ad });
+  } catch (err) {
+    console.error('updateAd error:', err);
+    return res.status(500).json({ success: false, message: 'Error updating ad.' });
+  }
+};
+
+/**
+ * DELETE /api/admin/ads/:id — delete ad (admin)
+ */
+exports.deleteAd = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ad = await Ad.findByIdAndDelete(id);
+    if (!ad) return res.status(404).json({ success: false, message: 'Ad not found.' });
+
+    return res.json({ success: true, message: 'Ad deleted successfully.' });
+  } catch (err) {
+    console.error('deleteAd error:', err);
+    return res.status(500).json({ success: false, message: 'Error deleting ad.' });
   }
 };

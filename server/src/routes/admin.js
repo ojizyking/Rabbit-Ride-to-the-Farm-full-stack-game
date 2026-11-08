@@ -31,4 +31,10 @@ router.get('/referrals', adminController.getReferrals);
 router.get('/config', adminController.getSystemConfig);
 router.put('/config', adminController.updateSystemConfig);
 
+// Ad Manager
+router.get('/ads', adminController.getAds);
+router.post('/ads', adminController.createAd);
+router.put('/ads/:id', adminController.updateAd);
+router.delete('/ads/:id', adminController.deleteAd);
+
 module.exports = router;

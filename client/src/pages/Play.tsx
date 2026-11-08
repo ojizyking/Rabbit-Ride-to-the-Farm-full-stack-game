@@ -174,10 +174,30 @@ export const Play: React.FC = () => {
 
   // 30-Second Billboard Ad State
   const [isBillboardOpen, setIsBillboardOpen] = useState(false);
+  const [skipAvailable, setSkipAvailable] = useState(false);
   const [billboardCountdown, setBillboardCountdown] = useState(30);
   const [isBillboardComplete, setIsBillboardComplete] = useState(false);
   const [sponsorIdx, setSponsorIdx] = useState(0);
   const [reactions, setReactions] = useState<{ id: number; emoji: string; x: number }[]>([]);
+
+  // Dynamic ads fetched from admin (/api/ads/active)
+  const [sponsors, setSponsors] = useState<SponsorInfo[]>(SPONSORS);
+  useEffect(() => {
+    api.get('/ads/active').then(res => {
+      if (res.data?.ads && Array.isArray(res.data.ads) && res.data.ads.length > 0) {
+        setSponsors(res.data.ads.map((a: any) => ({
+          tag:         a.tag         || 'SPONSOR',
+          title:       a.title       || '',
+          subtitle:    a.subtitle    || '',
+          perk:        a.perk        || '',
+          accentColor: a.accentColor || '#FF7A00',
+          bgColor:     a.bgColor     || 'linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)',
+          icon:        a.icon        || '🌾',
+          slogan:      a.slogan      || ''
+        })));
+      }
+    }).catch(() => {});
+  }, []);
 
   // Verify auth & check daily ride limits on mount
   useEffect(() => {
@@ -313,8 +333,9 @@ export const Play: React.FC = () => {
         setBillboardCountdown((prev) => {
           const next = prev - 1;
           sounds.playTick();
+          if (next <= 25) setSkipAvailable(true);
           // Cycle sponsor every 7.5 seconds
-          const slide = Math.floor((30 - next) / 7.5) % SPONSORS.length;
+          const slide = Math.floor((30 - next) / 7.5) % Math.max(sponsors.length, 1);
           setSponsorIdx(slide);
           return next;
         });
@@ -414,6 +435,14 @@ export const Play: React.FC = () => {
         detail: { earned: true, value: 100 }
       })
     );
+  };
+
+  const handleSkipAd = () => {
+    setIsBillboardOpen(false);
+    setSkipAvailable(false);
+    setBillboardCountdown(30);
+    setIsBillboardComplete(false);
+    bgm.resume();
   };
 
   const handleTriggerBillboard = () => {
@@ -1085,7 +1114,20 @@ export const Play: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="billboard-reward-pitch">
+                {/* Skip Ad button — appears after 5s */}
+              {skipAvailable && !isBillboardComplete && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.4rem' }}>
+                  <button
+                    onClick={handleSkipAd}
+                    className="billboard-skip-btn"
+                    title="Skip ad (no coin reward)"
+                  >
+                    Skip Ad ⏭
+                  </button>
+                </div>
+              )}
+
+              <div className="billboard-reward-pitch">
                   <div className="billboard-reward-tag">
                     <Coins size={18} color="#FF7A00" />
                     <span>SPONSOR BONUS</span>
@@ -1108,43 +1150,46 @@ export const Play: React.FC = () => {
               </div>
 
               {/* Dynamic Animated Sponsor Spotlight */}
-              {SPONSORS[sponsorIdx] && (
-                <div
-                  className="billboard-sponsor-card"
-                  style={{
-                    background: SPONSORS[sponsorIdx].bgColor,
-                    borderColor: SPONSORS[sponsorIdx].accentColor
-                  }}
-                >
-                  <div className="sponsor-card-top">
-                    <span
-                      className="sponsor-tag"
-                      style={{ background: SPONSORS[sponsorIdx].accentColor }}
-                    >
-                      {SPONSORS[sponsorIdx].tag}
-                    </span>
-                    <span className="sponsor-slide-counter">
-                      Commercial {sponsorIdx + 1} of {SPONSORS.length}
-                    </span>
-                  </div>
+              {(() => {
+                const currentSponsor = sponsors[sponsorIdx % Math.max(sponsors.length, 1)] || SPONSORS[0];
+                return (
+                  <div
+                    className="billboard-sponsor-card"
+                    style={{
+                      background: currentSponsor.bgColor,
+                      borderColor: currentSponsor.accentColor
+                    }}
+                  >
+                    <div className="sponsor-card-top">
+                      <span
+                        className="sponsor-tag"
+                        style={{ background: currentSponsor.accentColor }}
+                      >
+                        {currentSponsor.tag}
+                      </span>
+                      <span className="sponsor-slide-counter">
+                        Commercial {(sponsorIdx % Math.max(sponsors.length, 1)) + 1} of {Math.max(sponsors.length, 1)}
+                      </span>
+                    </div>
 
-                  <div className="sponsor-card-body">
-                    <div className="sponsor-icon-animated">{SPONSORS[sponsorIdx].icon}</div>
-                    <div className="sponsor-copy">
-                      <h4 className="sponsor-title">{SPONSORS[sponsorIdx].title}</h4>
-                      <p className="sponsor-desc">{SPONSORS[sponsorIdx].subtitle}</p>
-                      <div className="sponsor-perk-pill">
-                        <CheckCircle2 size={16} color={SPONSORS[sponsorIdx].accentColor} />
-                        <span>{SPONSORS[sponsorIdx].perk}</span>
+                    <div className="sponsor-card-body">
+                      <div className="sponsor-icon-animated">{currentSponsor.icon}</div>
+                      <div className="sponsor-copy">
+                        <h4 className="sponsor-title">{currentSponsor.title}</h4>
+                        <p className="sponsor-desc">{currentSponsor.subtitle}</p>
+                        <div className="sponsor-perk-pill">
+                          <CheckCircle2 size={16} color={currentSponsor.accentColor} />
+                          <span>{currentSponsor.perk}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="sponsor-slogan-bar">
-                    <em>{SPONSORS[sponsorIdx].slogan}</em>
+                    <div className="sponsor-slogan-bar">
+                      <em>{currentSponsor.slogan}</em>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Interactive Reaction Cheers */}
               <div className="billboard-cheer-bar">
