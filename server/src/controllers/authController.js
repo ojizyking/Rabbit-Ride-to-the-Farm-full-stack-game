@@ -137,10 +137,14 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
+    // REGISTER_GUARD_v1 — case-insensitive email duplicate check
     const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail || !/^[^s@]+@[^s@]+.[^s@]+$/.test(cleanEmail)) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
+    }
     const existing = await User.findOne({ email: cleanEmail });
     if (existing) {
-      return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
+      return res.status(400).json({ success: false, message: 'An account with this email already exists. Please sign in instead.' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -418,10 +422,33 @@ exports.clerkSync = async (req, res) => {
       return res.status(400).json({ success: false, message: 'clerkId and email are required.' });
     }
 
+    // CLERK_ISOLATION_v1
     const cleanEmail = email.toLowerCase().trim();
-    let user = await User.findOne({
-      $or: [{ clerkId }, { email: cleanEmail }]
-    });
+    // Look up by clerkId FIRST (most specific — this is the Clerk user's unique identifier)
+    let user = await User.findOne({ clerkId });
+
+    // If no clerkId match, check if an email-matched account exists
+    if (!user) {
+      const emailUser = await User.findOne({ email: cleanEmail });
+      if (emailUser) {
+        if (emailUser.password && !emailUser.clerkId) {
+          // This is a password account — do NOT auto-merge.
+          // Link the clerkId to this account only (email+clerkId merge is intentional for
+          // users who had an email/password account and later sign in with Google/Clerk).
+          // We link them but preserve all their existing data.
+          emailUser.clerkId = clerkId;
+          if (firstName && !emailUser.firstName) emailUser.firstName = firstName;
+          if (avatarUrl) emailUser.avatarUrl = avatarUrl;
+          emailUser.lastSeenAt = new Date();
+          await emailUser.save();
+          console.log(`[ClerkSync] Linked Clerk ID to existing password account: ${cleanEmail}`);
+          user = emailUser;
+        } else {
+          // Email-matched Clerk or social account — link normally
+          user = emailUser;
+        }
+      }
+    }
 
     const defaultRabbit = await Rabbit.findOne({ priceNaira: 0 });
     const defaultBike = await Bicycle.findOne({ priceNaira: 0 });

@@ -277,17 +277,34 @@ async function syncStores() {
     const defaultRabbit = atlasRabbits.find(r => r.name && r.name.toLowerCase().includes('starter')) || atlasRabbits[0];
     const defaultBike = atlasBikes.find(b => b.name && (b.name.toLowerCase().includes('classic') || b.name.toLowerCase().includes('starter'))) || atlasBikes[0];
 
-    // 1. Sync Users
+    // SYNC_ISOLATION_v1 — Safe user sync: match by _id first, then email ONLY if _ids agree
     let syncedUsers = 0;
     const memUsers = memoryStore.data.users || [];
     for (const memUser of memUsers) {
       if (!memUser.email) continue;
       const cleanEmail = memUser.email.toLowerCase().trim();
-      let mongoUser = await User.findOne({
-        $or: [{ email: cleanEmail }, { _id: memUser._id }]
-      });
+      const memId = memUser._id ? memUser._id.toString() : null;
+
+      // Step 1: Try exact _id match
+      let mongoUser = memId ? await User.findById(memUser._id) : null;
+
+      // Step 2: If no _id match, try email — but ONLY adopt it if the MongoDB user has no _id conflict
+      if (!mongoUser) {
+        const emailUser = await User.findOne({ email: cleanEmail });
+        if (emailUser) {
+          const mongoId = emailUser._id ? emailUser._id.toString() : null;
+          // If the memStore user has a different _id than the MongoDB user, they are DIFFERENT accounts
+          // sharing the same email (data corruption) — skip the merge to avoid cross-pollination
+          if (memId && mongoId && memId !== mongoId) {
+            console.warn(`[Sync] ⚠️ Account ID mismatch for email ${cleanEmail}: mem=${memId} mongo=${mongoId} — skipping merge`);
+            continue;
+          }
+          mongoUser = emailUser;
+        }
+      }
 
       if (!mongoUser) {
+        // Brand new user — insert from memoryStore into MongoDB
         const userToInsert = { ...memUser, email: cleanEmail };
         if (!userToInsert.currentRabbitId && defaultRabbit) userToInsert.currentRabbitId = defaultRabbit._id;
         if (!userToInsert.currentBikeId && defaultBike) userToInsert.currentBikeId = defaultBike._id;
@@ -297,9 +314,15 @@ async function syncStores() {
         if (!userToInsert.ownedBikes || userToInsert.ownedBikes.length === 0) {
           userToInsert.ownedBikes = defaultBike ? [defaultBike._id] : [];
         }
-        await User.create(userToInsert);
-        syncedUsers++;
+        try {
+          await User.create(userToInsert);
+          syncedUsers++;
+        } catch (createErr) {
+          // Duplicate key — another instance already inserted this user
+          console.warn(`[Sync] Skipped duplicate user insert for ${cleanEmail}:`, createErr.message);
+        }
       } else {
+        // Existing user — only sync ADDITIVE fields (never overwrite balance down)
         let modified = false;
         if ((memUser.balanceNaira || 0) > (mongoUser.balanceNaira || 0)) {
           mongoUser.balanceNaira = memUser.balanceNaira;

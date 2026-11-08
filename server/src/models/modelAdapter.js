@@ -23,6 +23,57 @@ function generatePlayerId() {
   return 'RR-' + id;
 }
 
+
+/**
+ * applyUpdateOps — applies MongoDB-style update operators to a plain JS object.
+ * Supports: $set, $inc, $addToSet, $push, $unset
+ */
+function applyUpdateOps(target, update) {
+  if (!target || !update) return;
+  // Handle $set
+  if (update.$set) {
+    Object.assign(target, update.$set);
+  }
+  // Handle $inc (numeric increment/decrement)
+  if (update.$inc) {
+    for (const [key, delta] of Object.entries(update.$inc)) {
+      const current = Number(target[key]) || 0;
+      target[key] = Math.round((current + Number(delta)) * 1e10) / 1e10;
+    }
+  }
+  // Handle $addToSet (add to array if not already present)
+  if (update.$addToSet) {
+    for (const [key, val] of Object.entries(update.$addToSet)) {
+      if (!Array.isArray(target[key])) target[key] = [];
+      const valStr = val?.toString ? val.toString() : String(val);
+      if (!target[key].some(v => (v?.toString ? v.toString() : String(v)) === valStr)) {
+        target[key].push(val);
+      }
+    }
+  }
+  // Handle $push
+  if (update.$push) {
+    for (const [key, val] of Object.entries(update.$push)) {
+      if (!Array.isArray(target[key])) target[key] = [];
+      target[key].push(val);
+    }
+  }
+  // Handle $unset
+  if (update.$unset) {
+    for (const key of Object.keys(update.$unset)) {
+      delete target[key];
+    }
+  }
+  // Bare fields (no operator) — treat as $set
+  const operatorKeys = new Set(['$set','$inc','$addToSet','$push','$unset','$pull','$or']);
+  const bareKeys = Object.keys(update).filter(k => !operatorKeys.has(k));
+  if (bareKeys.length > 0) {
+    for (const k of bareKeys) {
+      target[k] = update[k];
+    }
+  }
+}
+
 function createModelWrapper(collectionName, mongooseModel) {
   class DocumentInstance {
     constructor(data) {
@@ -308,11 +359,11 @@ function createModelWrapper(collectionName, mongooseModel) {
         }
         return result;
       }
+      // MEMORY_INC_v1 — apply $inc, $set, $addToSet in memory mode
       const list = memoryStore.data[collectionName] || [];
       const index = list.findIndex(item => matchesFilter(item, filter));
       if (index < 0) return null;
-      const updateFields = update.$set || update;
-      Object.assign(list[index], updateFields);
+      applyUpdateOps(list[index], update);
       memoryStore.save();
       return wrapResult(list[index]);
     },
@@ -340,8 +391,7 @@ function createModelWrapper(collectionName, mongooseModel) {
       const list = memoryStore.data[collectionName] || [];
       const index = list.findIndex(item => item._id?.toString() === id?.toString());
       if (index < 0) return null;
-      const updateFields = update.$set || update;
-      Object.assign(list[index], updateFields);
+      applyUpdateOps(list[index], update);
       memoryStore.save();
       return wrapResult(list[index]);
     },
@@ -365,8 +415,7 @@ function createModelWrapper(collectionName, mongooseModel) {
       const list = memoryStore.data[collectionName] || [];
       const index = list.findIndex(item => matchesFilter(item, filter));
       if (index < 0) return { matchedCount: 0, modifiedCount: 0 };
-      const updateFields = update.$set || update;
-      Object.assign(list[index], updateFields);
+      applyUpdateOps(list[index], update);
       memoryStore.save();
       return { matchedCount: 1, modifiedCount: 1 };
     },

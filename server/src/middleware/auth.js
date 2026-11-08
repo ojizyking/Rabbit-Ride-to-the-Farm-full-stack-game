@@ -46,36 +46,44 @@ async function authMiddleware(req, res, next) {
       }
     }
 
+    // AUTH_ISOLATION_v1
     // 2. Fallback to standard JWT verification
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      if (decoded && (decoded.id || decoded.email)) {
+      if (decoded && decoded.id) {
+        // PRIMARY: always look up by _id from the token — never by email when id is present.
+        // This prevents one user's JWT from resolving to another user's account.
         let userQuery = null;
-        if (decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) {
-          userQuery = { $or: [{ _id: new mongoose.Types.ObjectId(decoded.id) }, { _id: decoded.id }] };
-        } else if (decoded.id) {
+        if (mongoose.Types.ObjectId.isValid(decoded.id)) {
+          const objId = new mongoose.Types.ObjectId(decoded.id);
+          userQuery = { _id: objId };
+        } else {
+          // Non-ObjectId id (UUID from memory store or legacy)
           userQuery = { _id: decoded.id };
-        } else if (decoded.email) {
-          userQuery = { email: decoded.email.toLowerCase().trim() };
         }
 
         user = await User.findOne(userQuery);
 
-        // Fallback to email lookup if id-based lookup returned null
-        if (!user && decoded.email) {
-          user = await User.findOne({ email: decoded.email.toLowerCase().trim() });
+        // Safety: confirm the found user's email matches the token email (tamper guard)
+        if (user && decoded.email && user.email !== decoded.email.toLowerCase().trim()) {
+          console.warn(`[AuthMiddleware] ⚠️ Token email mismatch! token=${decoded.email} db=${user.email} — rejecting`);
+          return res.status(401).json({ success: false, message: 'Invalid or expired session. Please sign in again.' });
         }
 
-        if (user) {
-          try {
-            await user.populate('currentRabbitId');
-            await user.populate('currentBikeId');
-          } catch {
-            // safe fallback
-          }
-          req.user = user;
-          return next();
+        // FALLBACK: id-less tokens (very old sessions) — only if no id in token
+      } else if (decoded && decoded.email && !decoded.id) {
+        user = await User.findOne({ email: decoded.email.toLowerCase().trim() });
+      }
+
+      if (user) {
+        try {
+          await user.populate('currentRabbitId');
+          await user.populate('currentBikeId');
+        } catch {
+          // safe fallback
         }
+        req.user = user;
+        return next();
       }
     } catch (jwtErr) {
       console.warn('[AuthMiddleware] JWT verification failed:', jwtErr.message);
