@@ -193,17 +193,20 @@ exports.withdraw = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user._id);
-    if (user.balanceNaira < withdrawAmount) {
+    // $atomic withdraw — deduct only if balance is sufficient (race-condition safe)
+    const withdrawnUser = await User.findOneAndUpdate(
+      { _id: req.user._id, balanceNaira: { $gte: withdrawAmount } },
+      { $inc: { balanceNaira: -withdrawAmount } },
+      { new: true }
+    );
+    if (!withdrawnUser) {
+      const current = await User.findById(req.user._id);
       return res.status(400).json({
         success: false,
-        message: `Insufficient balance! You requested ₦${withdrawAmount.toLocaleString()}, but have ₦${user.balanceNaira.toLocaleString()}.`
+        message: `Insufficient balance! You requested ₦${withdrawAmount.toLocaleString()}, but have ₦${(current?.balanceNaira || 0).toLocaleString()}.`
       });
     }
-
-    // Deduct user balance immediately
-    user.balanceNaira = Math.round((user.balanceNaira - withdrawAmount) * 100) / 100;
-    await user.save();
+    const user = withdrawnUser;
 
     // Call Paystack Transfer
     const transferResult = await initiateTransfer({
@@ -352,10 +355,12 @@ exports.verifyDeposit = async (req, res) => {
     const data = await verifyTransaction(reference);
     if (data.status === 'success') {
       const depositAmount = data.amount / 100;
-      const user = await User.findById(req.user._id);
-
-      user.balanceNaira = Math.round((user.balanceNaira + depositAmount) * 100) / 100;
-      await user.save();
+      // $atomic deposit credit — race-condition safe
+      const user = await User.findByIdAndUpdate(
+        req.user._id,
+        { $inc: { balanceNaira: depositAmount } },
+        { new: true }
+      );
 
       await Transaction.create({
         userId: user._id,
@@ -492,8 +497,8 @@ exports.handleWebhook = async (req, res) => {
         const user = await User.findById(metadata.userId);
         if (user) {
           if (metadata.purpose === 'wallet_deposit') {
-            user.balanceNaira = Math.round((user.balanceNaira + amountNaira) * 100) / 100;
-            await user.save();
+            // $atomic webhook deposit — idempotent credit
+            await User.findByIdAndUpdate(user._id, { $inc: { balanceNaira: amountNaira } });
             await Transaction.create({
               userId: user._id,
               type: 'deposit',
@@ -532,11 +537,8 @@ exports.handleWebhook = async (req, res) => {
           wth.status = 'failed';
           await wth.save();
           // Refund user balance
-          const user = await User.findById(wth.userId);
-          if (user) {
-            user.balanceNaira += wth.amount;
-            await user.save();
-          }
+          // Atomic refund on failed transfer
+          await User.findByIdAndUpdate(wth.userId, { $inc: { balanceNaira: wth.amount } });
         }
       }
     }

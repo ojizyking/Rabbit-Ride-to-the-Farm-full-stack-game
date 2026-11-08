@@ -429,7 +429,7 @@ async function connectDB() {
       serverSelectionTimeoutMS: isAtlas ? 15000 : 3000,
       socketTimeoutMS: 45000,
       connectTimeoutMS: 15000,
-      maxPoolSize: 10,
+      maxPoolSize: 50,
       family: 4, // Force IPv4 to avoid ECONNRESET on dual-stack environments
       retryWrites: true,
       w: 'majority',

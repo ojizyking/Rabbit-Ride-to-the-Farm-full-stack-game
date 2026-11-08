@@ -97,10 +97,10 @@ exports.collect = async (req, res) => {
 
     // Credit all collectible types to user balance (convert coins to Naira: 100 coins = ₦1)
     if (type === 'ad') {
-      // Ad reward: flat ₦10 credit
+      // Ad reward: flat ₦10 credit (atomic $inc) // $inc for collect
       const adRewardNaira = 10;
-      user.balanceNaira = Math.round((user.balanceNaira + adRewardNaira) * 100) / 100;
-      await user.save();
+      await User.findByIdAndUpdate(user._id, { $inc: { balanceNaira: adRewardNaira } });
+      user.balanceNaira = user.balanceNaira + adRewardNaira;
       await Transaction.create({
         userId: user._id,
         type: 'earn',
@@ -112,8 +112,8 @@ exports.collect = async (req, res) => {
       // Stars, carrots, crates: convert boosted coin value to Naira and persist
       const nairaValue = Math.round((boostedValue / COINS_PER_NAIRA) * 100) / 100;
       if (nairaValue > 0) {
-        user.balanceNaira = Math.round((user.balanceNaira + nairaValue) * 100) / 100;
-        await user.save();
+        await User.findByIdAndUpdate(user._id, { $inc: { balanceNaira: nairaValue } });
+        user.balanceNaira = user.balanceNaira + nairaValue;
       }
     }
 
@@ -170,10 +170,18 @@ exports.endRide = async (req, res) => {
     });
     await ride.save();
 
-    // Update user balance & total rides
-    user.balanceNaira = Math.round((user.balanceNaira + nairaEarned) * 100) / 100;
-    user.totalRides += 1;
-    await user.save();
+    // Update user balance & total rides (atomic $inc — race-condition safe) // $inc for endRide
+    if (nairaEarned > 0) {
+      await User.findByIdAndUpdate(user._id, {
+        $inc: { balanceNaira: nairaEarned, totalRides: 1 }
+      });
+    } else {
+      await User.findByIdAndUpdate(user._id, { $inc: { totalRides: 1 } });
+    }
+    // Re-fetch for accurate response balance
+    const updatedUser = await User.findById(user._id);
+    user.balanceNaira = updatedUser ? updatedUser.balanceNaira : user.balanceNaira + nairaEarned;
+    user.totalRides = updatedUser ? updatedUser.totalRides : user.totalRides + 1;
 
     // Create Transaction record
     if (nairaEarned > 0) {
@@ -195,7 +203,7 @@ exports.endRide = async (req, res) => {
       distanceKm,
       newBalance: user.balanceNaira,
       totalRides: user.totalRides,
-      freeCap: isNonPurchasingUser(user) ? { applied: true, maxNaira: FREE_USER_MAX_NAIRA_PER_RIDE } : { applied: false }
+      freeCap: isNonPurchasingUser(updatedUser || user) ? { applied: true, maxNaira: FREE_USER_MAX_NAIRA_PER_RIDE } : { applied: false }
     });
   } catch (err) {
     console.error('endRide error:', err);
@@ -275,10 +283,20 @@ exports.syncOffline = async (req, res) => {
       rideResults.push({ coins: totalCoins, nairaEarned, distanceKm });
     }
 
-    // Update user balance & total rides atomically
-    user.balanceNaira = Math.round((user.balanceNaira + totalNairaEarned) * 100) / 100;
-    user.totalRides += ridesProcessed;
-    await user.save();
+    // Update user balance & total rides atomically (atomic $inc) // $inc for syncOffline
+    if (ridesProcessed > 0) {
+      await User.findByIdAndUpdate(user._id, {
+        $inc: {
+          balanceNaira: totalNairaEarned,
+          totalRides: ridesProcessed
+        }
+      });
+    }
+    const syncedUser = await User.findById(user._id);
+    if (syncedUser) {
+      user.balanceNaira = syncedUser.balanceNaira;
+      user.totalRides = syncedUser.totalRides;
+    }
 
     return res.json({
       success: true,

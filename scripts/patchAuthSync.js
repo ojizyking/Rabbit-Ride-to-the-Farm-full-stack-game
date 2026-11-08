@@ -37,3 +37,4 @@ if (src.includes(clerkOld)) {
 }
 
 fs.writeFileSync(filePath, src, 'utf8');
+

@@ -1,4 +1,7 @@
 require('dotenv').config();
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
@@ -13,9 +16,40 @@ const adminRoutes = require('./routes/admin');
 const adsRoutes = require('./routes/ads');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration - allow all origins for public game API & web players
+// ── Security middleware ──────────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled — SPA manages its own CSP
+  crossOriginEmbedderPolicy: false
+}));
+app.use(mongoSanitize()); // Strip $-operator injection from req.body / query
+
+// Global IP rate-limiter: 200 req / min per IP (covers all /api/* endpoints)
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests. Please slow down.' }
+});
+app.use('/api/', globalLimiter);
+
+// Strict limiter for auth endpoints: 10 attempts / 15 min per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many login attempts. Please wait 15 minutes.' }
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/clerk-sync', authLimiter);
+
+// ── CORS configuration - allow all origins for public game API & web players
 app.use(cors({
   origin: (origin, callback) => {
     // Allow non-browser, cross-domain, preview URLs, and mobile origins

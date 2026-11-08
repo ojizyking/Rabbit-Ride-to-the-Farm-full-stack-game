@@ -239,9 +239,32 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Account lockout check
+    if (user.lockUntil && user.lockUntil > Date.now()) {
+      const minutesLeft = Math.ceil((user.lockUntil - Date.now()) / 60000);
+      return res.status(429).json({
+        success: false,
+        message: `Account temporarily locked after too many failed attempts. Try again in ${minutesLeft} minute(s).`
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+      // Increment failed attempts; lock after 5 failures for 15 minutes
+      const attempts = (user.loginAttempts || 0) + 1;
+      const updateData = { loginAttempts: attempts };
+      if (attempts >= 5) {
+        updateData.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+        updateData.loginAttempts = 0; // reset counter after lock is set
+      }
+      await User.findByIdAndUpdate(user._id, { $set: updateData });
+      const remaining = Math.max(0, 5 - attempts);
+      return res.status(401).json({
+        success: false,
+        message: remaining > 0
+          ? `Invalid email or password. ${remaining} attempt(s) remaining before account lock.`
+          : 'Too many failed attempts. Account locked for 15 minutes.'
+      });
     }
 
     if (user.isBanned) {
@@ -249,6 +272,11 @@ exports.login = async (req, res) => {
         success: false,
         message: 'Your account has been suspended. Please contact platform administration.'
       });
+    }
+
+    // Reset login attempt counter on successful login
+    if (user.loginAttempts > 0 || user.lockUntil) {
+      await User.findByIdAndUpdate(user._id, { $set: { loginAttempts: 0, lockUntil: null } });
     }
 
     // Auto-elevate admin role if matching ADMIN_EMAILS

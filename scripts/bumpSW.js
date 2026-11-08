@@ -13,3 +13,4 @@ if (fs.existsSync(swPathDist)) {
 }
 
 console.log('✅ Bumped service worker cache to v10');
+

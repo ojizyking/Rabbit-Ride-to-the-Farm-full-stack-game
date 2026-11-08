@@ -116,13 +116,21 @@ exports.buyOrEquip = async (req, res) => {
         });
       }
 
-      user.balanceNaira = Math.round((user.balanceNaira - rabbit.priceNaira) * 100) / 100;
-      if (!user.ownedRabbits.some(id => getItemId(id) === targetId)) {
-        user.ownedRabbits.push(rabbit._id);
+      // $atomic rabbit purchase — race-condition safe balance deduction
+      const rabbitUpdated = await User.findOneAndUpdate(
+        { _id: user._id, balanceNaira: { $gte: rabbit.priceNaira } },
+        {
+          $inc: { balanceNaira: -rabbit.priceNaira },
+          $addToSet: { ownedRabbits: rabbit._id },
+          $set: { currentRabbitId: rabbit._id, hasPurchasedFarmItem: true }
+        },
+        { new: true }
+      );
+      if (!rabbitUpdated) {
+        return res.status(400).json({ success: false, message: 'Insufficient balance or concurrent purchase detected. Please try again.' });
       }
-      user.currentRabbitId = rabbit._id;
-      user.hasPurchasedFarmItem = true;
-      await user.save();
+      user.balanceNaira = rabbitUpdated.balanceNaira;
+      user.ownedRabbits = rabbitUpdated.ownedRabbits;
 
       await Transaction.create({
         userId: user._id,
@@ -174,13 +182,21 @@ exports.buyOrEquip = async (req, res) => {
         });
       }
 
-      user.balanceNaira = Math.round((user.balanceNaira - bike.priceNaira) * 100) / 100;
-      if (!user.ownedBikes.some(id => getItemId(id) === targetId)) {
-        user.ownedBikes.push(bike._id);
+      // $atomic bicycle purchase — race-condition safe balance deduction
+      const bikeUpdated = await User.findOneAndUpdate(
+        { _id: user._id, balanceNaira: { $gte: bike.priceNaira } },
+        {
+          $inc: { balanceNaira: -bike.priceNaira },
+          $addToSet: { ownedBikes: bike._id },
+          $set: { currentBikeId: bike._id, hasPurchasedFarmItem: true }
+        },
+        { new: true }
+      );
+      if (!bikeUpdated) {
+        return res.status(400).json({ success: false, message: 'Insufficient balance or concurrent purchase detected. Please try again.' });
       }
-      user.currentBikeId = bike._id;
-      user.hasPurchasedFarmItem = true;
-      await user.save();
+      user.balanceNaira = bikeUpdated.balanceNaira;
+      user.ownedBikes = bikeUpdated.ownedBikes;
 
       await Transaction.create({
         userId: user._id,
@@ -223,10 +239,21 @@ exports.buyOrEquip = async (req, res) => {
         });
       }
 
-      user.balanceNaira = Math.round((user.balanceNaira - gadget.priceNaira) * 100) / 100;
-      user.ownedGadgets.push(gadget._id);
-      user.hasPurchasedFarmItem = true;
-      await user.save();
+      // $atomic gadget purchase — race-condition safe balance deduction
+      const gadgetUpdated = await User.findOneAndUpdate(
+        { _id: user._id, balanceNaira: { $gte: gadget.priceNaira } },
+        {
+          $inc: { balanceNaira: -gadget.priceNaira },
+          $addToSet: { ownedGadgets: gadget._id },
+          $set: { hasPurchasedFarmItem: true }
+        },
+        { new: true }
+      );
+      if (!gadgetUpdated) {
+        return res.status(400).json({ success: false, message: 'Insufficient balance or concurrent purchase detected. Please try again.' });
+      }
+      user.balanceNaira = gadgetUpdated.balanceNaira;
+      user.ownedGadgets = gadgetUpdated.ownedGadgets;
 
       await Transaction.create({
         userId: user._id,
@@ -275,8 +302,16 @@ exports.openMysteryBox = async (req, res) => {
       });
     }
 
-    // Deduct entry price
-    user.balanceNaira = Math.round((user.balanceNaira - priceNaira) * 100) / 100;
+    // Deduct entry price (atomic) — $atomic mystery box
+    const boxDeducted = await User.findOneAndUpdate(
+      { _id: user._id, balanceNaira: { $gte: priceNaira } },
+      { $inc: { balanceNaira: -priceNaira } },
+      { new: true }
+    );
+    if (!boxDeducted) {
+      return res.status(400).json({ success: false, message: 'Insufficient balance or concurrent request detected. Please try again.' });
+    }
+    user.balanceNaira = boxDeducted.balanceNaira;
 
     // Roll random prize (100 coins = ₦1)
     const roll = Math.random();
@@ -316,9 +351,13 @@ exports.openMysteryBox = async (req, res) => {
     }
 
     const nairaWon = Math.round((coinsWon / 100) * 100) / 100;
-    user.balanceNaira = Math.round((user.balanceNaira + nairaWon) * 100) / 100;
-    user.hasPurchasedFarmItem = true; // Permanently unlocks unlimited earnings!
-    await user.save();
+    // Credit winnings atomically
+    const boxCredited = await User.findByIdAndUpdate(
+      user._id,
+      { $inc: { balanceNaira: nairaWon }, $set: { hasPurchasedFarmItem: true } },
+      { new: true }
+    );
+    if (boxCredited) user.balanceNaira = boxCredited.balanceNaira;
 
     await Transaction.create({
       userId: user._id,

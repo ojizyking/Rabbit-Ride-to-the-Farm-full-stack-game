@@ -458,3 +458,4 @@ const fs = require('fs');
 }
 
 console.log('All frontend ad fixes applied!');
+
