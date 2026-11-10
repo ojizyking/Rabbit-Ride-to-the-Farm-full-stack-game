@@ -295,3 +295,4 @@ adminCode = adminCode.replace(
 
 fs.writeFileSync(adminPath, adminCode, 'utf8');
 console.log('✅ Updated adminController.js to Squad API');
+

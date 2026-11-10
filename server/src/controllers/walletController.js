@@ -116,7 +116,9 @@ exports.verifySubscription = async (req, res) => {
 
     if (verification.status === 'success') {
       // Find subscription record or create
-      let sub = await Subscription.findOne({ $or: [{ squadRef: reference }, { paystackRef: reference }] });
+      let sub = await Subscription.findOne({
+        $or: [{ squadRef: reference }, { paystackRef: reference }]
+      });
       let tierName = sub ? sub.tier : 'basic';
       let amount = sub ? sub.amount : 1000;
 
@@ -132,7 +134,8 @@ exports.verifySubscription = async (req, res) => {
           userId: req.user._id,
           tier: tierName,
           amount,
-          squadRef: reference, paystackRef: reference,
+          squadRef: reference,
+          paystackRef: reference,
           status: 'active',
           expiresAt
         });
@@ -181,7 +184,7 @@ exports.withdraw = async (req, res) => {
       });
     }
 
-    if (!accountNumber || accountNumber.length < 10) {
+    if (!accountNumber || accountNumber.length !== 10) {
       return res.status(400).json({
         success: false,
         message: 'A valid 10-digit NUBAN account number is required.'
@@ -258,6 +261,209 @@ exports.getWithdrawals = async (req, res) => {
   } catch (err) {
     console.error('getWithdrawals error:', err);
     return res.status(500).json({ success: false, message: 'Server error fetching withdrawals.' });
+  }
+};
+
+/**
+ * Fetch Nigerian banks list for Squad NIP transfers
+ */
+exports.getBankList = async (req, res) => {
+  try {
+    const banks = await getBanks();
+    return res.json({ success: true, banks });
+  } catch (err) {
+    console.error('getBankList error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch bank list.' });
+  }
+};
+
+/**
+ * Verify destination account number via Squad NIP Account Lookup
+ */
+exports.verifyAccountName = async (req, res) => {
+  try {
+    const { accountNumber, bankCode } = req.body;
+    if (!accountNumber || accountNumber.length !== 10) {
+      return res.status(400).json({ success: false, message: 'Valid 10-digit account number required.' });
+    }
+    if (!bankCode) {
+      return res.status(400).json({ success: false, message: 'Please select a bank.' });
+    }
+
+    const data = await resolveAccountNumber({ accountNumber, bankCode });
+    return res.json({
+      success: true,
+      accountName: data.accountName,
+      accountNumber: data.accountNumber
+    });
+  } catch (err) {
+    console.error('verifyAccountName error:', err);
+    return res.status(400).json({ success: false, message: err.message || 'Could not verify account name.' });
+  }
+};
+
+/**
+ * Initialize direct wallet top-up deposit via Squad
+ */
+exports.deposit = async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const depositAmount = Number(amount);
+
+    if (!depositAmount || depositAmount < 200) {
+      return res.status(400).json({ success: false, message: 'Minimum deposit amount is ₦200.' });
+    }
+
+    const squadData = await initializeTransaction({
+      email: req.user.email,
+      amount: depositAmount,
+      metadata: {
+        userId: req.user._id.toString(),
+        purpose: 'wallet_deposit',
+        depositAmount
+      },
+      callback_url: `${req.headers.origin || 'http://localhost:5173'}/wallet?status=deposit_success`
+    });
+
+    return res.json({
+      success: true,
+      amount: depositAmount,
+      authorization_url: squadData.authorization_url,
+      checkout_url: squadData.checkout_url,
+      reference: squadData.reference
+    });
+  } catch (err) {
+    console.error('deposit error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to initialize deposit.' });
+  }
+};
+
+/**
+ * Verify direct wallet top-up deposit
+ */
+exports.verifyDeposit = async (req, res) => {
+  try {
+    const { reference } = req.body;
+    if (!reference) {
+      return res.status(400).json({ success: false, message: 'Transaction reference is required.' });
+    }
+
+    // Check if already credited
+    const existingTx = await Transaction.findOne({ reference });
+    if (existingTx) {
+      const user = await User.findById(req.user._id);
+      return res.json({
+        success: true,
+        message: 'Deposit already processed and credited!',
+        newBalance: user.balanceNaira
+      });
+    }
+
+    const data = await verifyTransaction(reference);
+    if (data.status === 'success') {
+      const depositAmount = data.amount > 1000 && data.amount % 100 === 0 ? data.amount / 100 : (Number(data.amount) || 0);
+      // $atomic deposit credit — race-condition safe
+      const user = await User.findByIdAndUpdate(
+        req.user._id,
+        { $inc: { balanceNaira: depositAmount } },
+        { new: true }
+      );
+
+      await Transaction.create({
+        userId: user._id,
+        type: 'deposit',
+        amount: depositAmount,
+        reference,
+        description: `Direct Wallet Top-Up of ₦${depositAmount.toLocaleString()}`,
+        status: 'completed'
+      });
+
+      return res.json({
+        success: true,
+        message: `₦${depositAmount.toLocaleString()} added to your wallet successfully!`,
+        newBalance: user.balanceNaira
+      });
+    }
+
+    return res.status(400).json({ success: false, message: 'Payment verification failed.' });
+  } catch (err) {
+    console.error('verifyDeposit error:', err);
+    return res.status(500).json({ success: false, message: 'Error verifying deposit.' });
+  }
+};
+
+/**
+ * Buy Coin Bundle with direct Squad checkout or wallet balance
+ */
+exports.buyCoins = async (req, res) => {
+  try {
+    const { bundleId, paymentMethod = 'squad' } = req.body;
+    // Coin bundles scaled to 10,000 coins = ₦100 (100 coins = ₦1)
+    const BUNDLES = {
+      bundle_4k: { coins: 20000, priceNaira: 200, name: 'Small Carrot Bag' },
+      bundle_12k: { coins: 55000, priceNaira: 500, name: 'Medium Farm Crate (+10% Bonus)' },
+      bundle_26k: { coins: 120000, priceNaira: 1000, name: 'Large Harvest Sack (+20% Bonus)' },
+      bundle_60k: { coins: 260000, priceNaira: 2000, name: 'Golden Farm Vault (+30% Bonus)' }
+    };
+
+    const bundle = BUNDLES[bundleId];
+    if (!bundle) {
+      return res.status(400).json({ success: false, message: 'Invalid coin bundle selected.' });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    // If paying from wallet balance
+    if (paymentMethod === 'balance') {
+      if (user.balanceNaira < bundle.priceNaira) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient balance! You need ₦${bundle.priceNaira}, but have ₦${user.balanceNaira}.`
+        });
+      }
+
+      user.balanceNaira = Math.round((user.balanceNaira - bundle.priceNaira) * 100) / 100;
+      await user.save();
+
+      await Transaction.create({
+        userId: user._id,
+        type: 'coin_purchase',
+        amount: -bundle.priceNaira,
+        description: `Purchased ${bundle.name} (+${bundle.coins.toLocaleString()} Coins)`,
+        status: 'completed'
+      });
+
+      return res.json({
+        success: true,
+        message: `Successfully purchased ${bundle.name}! +${bundle.coins.toLocaleString()} Coins added.`,
+        coinsAwarded: bundle.coins,
+        newBalance: user.balanceNaira
+      });
+    }
+
+    // Otherwise initialize Squad payment
+    const squadData = await initializeTransaction({
+      email: user.email,
+      amount: bundle.priceNaira,
+      metadata: {
+        userId: user._id.toString(),
+        bundleId,
+        coins: bundle.coins,
+        purpose: 'coin_purchase'
+      },
+      callback_url: `${req.headers.origin || 'http://localhost:5173'}/wallet?status=coins_success`
+    });
+
+    return res.json({
+      success: true,
+      bundle,
+      authorization_url: squadData.authorization_url,
+      checkout_url: squadData.checkout_url,
+      reference: squadData.reference
+    });
+  } catch (err) {
+    console.error('buyCoins error:', err);
+    return res.status(500).json({ success: false, message: 'Error initiating coin purchase.' });
   }
 };
 
@@ -361,4 +567,3 @@ exports.handleWebhook = async (req, res) => {
     return res.status(500).send('Internal server error');
   }
 };
-

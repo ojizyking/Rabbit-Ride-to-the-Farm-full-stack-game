@@ -101,3 +101,4 @@ farmRideSrc = farmRideSrc.replace(
 
 fs.writeFileSync(farmRideFile, farmRideSrc, 'utf8');
 console.log('✅ Updated client/src/game/scenes/FarmRide.ts');
+
