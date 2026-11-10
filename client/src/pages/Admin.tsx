@@ -114,6 +114,7 @@ interface AdminWithdrawal {
   bankCode: string;
   accountName?: string;
   status: 'pending' | 'paid' | 'failed';
+  squadRef?: string;
   paystackRef?: string;
   transferCode?: string;
   createdAt: string;
@@ -504,7 +505,7 @@ export const Admin: React.FC = () => {
   };
 
   // Handle Approve Withdrawal
-  const handleApproveWithdrawal = async (id: string, method: 'paystack' | 'manual') => {
+  const handleApproveWithdrawal = async (id: string, method: 'squad' | 'manual') => {
     if (!confirm(`Are you sure you want to approve this cashout via ${method.toUpperCase()}?`)) return;
     try {
       setProcessingWthId(id);
@@ -972,7 +973,7 @@ export const Admin: React.FC = () => {
                 <div style={{ background: 'rgba(10, 12, 25, 0.6)', padding: '0.85rem', borderRadius: '14px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
                   <div style={{ fontSize: '0.72rem', color: '#555872', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>GATEWAYS</div>
                   <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#C4B5FD' }}>
-                    Paystack
+                    Squad (GTCO)
                   </div>
                   <div style={{ fontSize: '0.7rem', color: '#34D399' }}>● Connected</div>
                 </div>
@@ -1255,11 +1256,11 @@ export const Admin: React.FC = () => {
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                               <button
                                 disabled={processingWthId === w._id}
-                                onClick={() => handleApproveWithdrawal(w._id, 'paystack')}
+                                onClick={() => handleApproveWithdrawal(w._id, 'squad')}
                                 className="btn-action-sm approve"
-                                title="Execute real bank transfer via Paystack"
+                                title="Execute real bank transfer via Squad by GTCO"
                               >
-                                ⚡ Paystack Transfer
+                                ⚡ Squad Transfer
                               </button>
                               <button
                                 disabled={processingWthId === w._id}
@@ -1280,7 +1281,7 @@ export const Admin: React.FC = () => {
                             </div>
                           ) : (
                             <span style={{ fontSize: '0.8rem', color: '#64748B' }}>
-                              Ref: {w.transferCode || w.paystackRef || 'N/A'}
+                              Ref: {w.transferCode || w.squadRef || w.paystackRef || 'N/A'}
                             </span>
                           )}
                         </td>

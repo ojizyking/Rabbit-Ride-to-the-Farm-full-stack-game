@@ -346,7 +346,7 @@ export const Landing: React.FC = () => {
                 </li>
                 <li>
                   <CheckCircle2 size={16} color="#1565C0" />
-                  <span>Fast Paystack processing</span>
+                  <span>Fast Squad processing</span>
                 </li>
               </ul>
               <button onClick={() => handleTierSelect(5000)} className="tier-btn-select">
@@ -418,7 +418,7 @@ export const Landing: React.FC = () => {
               </li>
               <li>
                 <CheckCircle2 size={18} color="#2D8A4E" style={{ flexShrink: 0, marginTop: '3px' }} />
-                <span>Applicable withdrawal fees, processing times, and payment methods (Processed directly to verified Nigerian bank accounts via Paystack).</span>
+                <span>Applicable withdrawal fees, processing times, and payment methods (Processed directly to verified Nigerian bank accounts via Squad by GTCO).</span>
               </li>
               <li>
                 <CheckCircle2 size={18} color="#2D8A4E" style={{ flexShrink: 0, marginTop: '3px' }} />

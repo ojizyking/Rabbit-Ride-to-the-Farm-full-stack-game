@@ -19,9 +19,13 @@ const subscriptionSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  squadRef: {
+    type: String,
+    sparse: true
+  },
   paystackRef: {
     type: String,
-    required: true
+    required: false
   },
   status: {
     type: String,

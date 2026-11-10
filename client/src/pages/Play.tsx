@@ -36,7 +36,7 @@ const SPONSORS: SponsorInfo[] = [
   },
   {
     tag: 'OFFICIAL PAYOUTS',
-    title: 'Paystack Instant Cashouts 🏦⚡',
+    title: 'Squad Instant Cashouts 🏦⚡',
     subtitle: 'Automated Real Naira Bank Transfers in Under 10 Seconds',
     perk: 'Zero Wait Time 💰 10,000 Coins = ₦100 Direct to Bank',
     accentColor: '#00C853',

@@ -3,7 +3,7 @@ const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Subscription = require('../models/Subscription');
 const Withdrawal = require('../models/Withdrawal');
-const { initializeTransaction, verifyTransaction, initiateTransfer, getBanks, resolveAccountNumber } = require('../config/paystack');
+const { initializeTransaction, verifyTransaction, initiateTransfer, getBanks, resolveAccountNumber } = require('../config/squad');
 
 const TIER_AMOUNTS = {
   1000: 'basic',
@@ -66,7 +66,7 @@ exports.subscribe = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid subscription tier. Choose 1000, 2000, 5000, or 10000.' });
     }
 
-    const paystackData = await initializeTransaction({
+    const squadData = await initializeTransaction({
       email: req.user.email,
       amount,
       metadata: {
@@ -85,7 +85,8 @@ exports.subscribe = async (req, res) => {
       userId: req.user._id,
       tier: tierName,
       amount,
-      paystackRef: paystackData.reference,
+      squadRef: squadData.reference,
+      paystackRef: squadData.reference,
       status: 'pending',
       expiresAt
     });
@@ -94,8 +95,9 @@ exports.subscribe = async (req, res) => {
       success: true,
       tier: tierName,
       amount,
-      authorization_url: paystackData.authorization_url,
-      reference: paystackData.reference
+      authorization_url: squadData.authorization_url,
+      checkout_url: squadData.checkout_url,
+      reference: squadData.reference
     });
   } catch (err) {
     console.error('subscribe error:', err);
@@ -114,7 +116,7 @@ exports.verifySubscription = async (req, res) => {
 
     if (verification.status === 'success') {
       // Find subscription record or create
-      let sub = await Subscription.findOne({ paystackRef: reference });
+      let sub = await Subscription.findOne({ $or: [{ squadRef: reference }, { paystackRef: reference }] });
       let tierName = sub ? sub.tier : 'basic';
       let amount = sub ? sub.amount : 1000;
 
@@ -130,7 +132,7 @@ exports.verifySubscription = async (req, res) => {
           userId: req.user._id,
           tier: tierName,
           amount,
-          paystackRef: reference,
+          squadRef: reference, paystackRef: reference,
           status: 'active',
           expiresAt
         });
@@ -208,7 +210,7 @@ exports.withdraw = async (req, res) => {
     }
     const user = withdrawnUser;
 
-    // Call Paystack Transfer
+    // Call Squad Transfer
     const transferResult = await initiateTransfer({
       amount: withdrawAmount,
       accountNumber,
@@ -223,6 +225,7 @@ exports.withdraw = async (req, res) => {
       bankCode,
       bankName,
       status: transferResult.status === 'paid' ? 'paid' : 'pending',
+      squadRef: transferResult.reference,
       paystackRef: transferResult.reference,
       transferCode: transferResult.transferCode
     });
@@ -238,7 +241,7 @@ exports.withdraw = async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Withdrawal of ₦${withdrawAmount.toLocaleString()} initiated successfully via Paystack!`,
+      message: `Withdrawal of ₦${withdrawAmount.toLocaleString()} initiated successfully via Squad by GTCO!`,
       withdrawal,
       newBalance: user.balanceNaira
     });
@@ -259,245 +262,50 @@ exports.getWithdrawals = async (req, res) => {
 };
 
 /**
- * Fetch Nigerian banks list
- */
-exports.getBankList = async (req, res) => {
-  try {
-    const banks = await getBanks();
-    return res.json({ success: true, banks });
-  } catch (err) {
-    console.error('getBankList error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to fetch bank list.' });
-  }
-};
-
-/**
- * Verify destination account number
- */
-exports.verifyAccountName = async (req, res) => {
-  try {
-    const { accountNumber, bankCode } = req.body;
-    if (!accountNumber || accountNumber.length !== 10) {
-      return res.status(400).json({ success: false, message: 'Valid 10-digit account number required.' });
-    }
-    if (!bankCode) {
-      return res.status(400).json({ success: false, message: 'Please select a bank.' });
-    }
-
-    const data = await resolveAccountNumber({ accountNumber, bankCode });
-    return res.json({
-      success: true,
-      accountName: data.accountName,
-      accountNumber: data.accountNumber
-    });
-  } catch (err) {
-    console.error('verifyAccountName error:', err);
-    return res.status(400).json({ success: false, message: err.message || 'Could not verify account name.' });
-  }
-};
-
-/**
- * Initialize direct wallet top-up deposit
- */
-exports.deposit = async (req, res) => {
-  try {
-    const { amount } = req.body;
-    const depositAmount = Number(amount);
-
-    if (!depositAmount || depositAmount < 200) {
-      return res.status(400).json({ success: false, message: 'Minimum deposit amount is ₦200.' });
-    }
-
-    const paystackData = await initializeTransaction({
-      email: req.user.email,
-      amount: depositAmount,
-      metadata: {
-        userId: req.user._id.toString(),
-        purpose: 'wallet_deposit',
-        depositAmount
-      },
-      callback_url: `${req.headers.origin || 'http://localhost:5173'}/wallet?status=deposit_success`
-    });
-
-    return res.json({
-      success: true,
-      amount: depositAmount,
-      authorization_url: paystackData.authorization_url,
-      reference: paystackData.reference
-    });
-  } catch (err) {
-    console.error('deposit error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to initialize deposit.' });
-  }
-};
-
-/**
- * Verify direct wallet top-up deposit
- */
-exports.verifyDeposit = async (req, res) => {
-  try {
-    const { reference } = req.body;
-    if (!reference) {
-      return res.status(400).json({ success: false, message: 'Transaction reference is required.' });
-    }
-
-    // Check if already credited
-    const existingTx = await Transaction.findOne({ reference });
-    if (existingTx) {
-      const user = await User.findById(req.user._id);
-      return res.json({
-        success: true,
-        message: 'Deposit already processed and credited!',
-        newBalance: user.balanceNaira
-      });
-    }
-
-    const data = await verifyTransaction(reference);
-    if (data.status === 'success') {
-      const depositAmount = data.amount / 100;
-      // $atomic deposit credit — race-condition safe
-      const user = await User.findByIdAndUpdate(
-        req.user._id,
-        { $inc: { balanceNaira: depositAmount } },
-        { new: true }
-      );
-
-      await Transaction.create({
-        userId: user._id,
-        type: 'deposit',
-        amount: depositAmount,
-        reference,
-        description: `Direct Wallet Top-Up of ₦${depositAmount.toLocaleString()}`,
-        status: 'completed'
-      });
-
-      return res.json({
-        success: true,
-        message: `₦${depositAmount.toLocaleString()} added to your wallet successfully!`,
-        newBalance: user.balanceNaira
-      });
-    }
-
-    return res.status(400).json({ success: false, message: 'Payment verification failed.' });
-  } catch (err) {
-    console.error('verifyDeposit error:', err);
-    return res.status(500).json({ success: false, message: 'Error verifying deposit.' });
-  }
-};
-
-/**
- * Buy Coin Bundle with direct Paystack or wallet balance
- */
-exports.buyCoins = async (req, res) => {
-  try {
-    const { bundleId, paymentMethod = 'paystack' } = req.body;
-    // Coin bundles scaled to 10,000 coins = ₦100 (100 coins = ₦1)
-    const BUNDLES = {
-      bundle_4k: { coins: 20000, priceNaira: 200, name: 'Small Carrot Bag' },
-      bundle_12k: { coins: 55000, priceNaira: 500, name: 'Medium Farm Crate (+10% Bonus)' },
-      bundle_26k: { coins: 120000, priceNaira: 1000, name: 'Large Harvest Sack (+20% Bonus)' },
-      bundle_60k: { coins: 260000, priceNaira: 2000, name: 'Golden Farm Vault (+30% Bonus)' }
-    };
-
-    const bundle = BUNDLES[bundleId];
-    if (!bundle) {
-      return res.status(400).json({ success: false, message: 'Invalid coin bundle selected.' });
-    }
-
-    const user = await User.findById(req.user._id);
-
-    // If paying from wallet balance
-    if (paymentMethod === 'balance') {
-      if (user.balanceNaira < bundle.priceNaira) {
-        return res.status(400).json({
-          success: false,
-          message: `Insufficient balance! You need ₦${bundle.priceNaira}, but have ₦${user.balanceNaira}.`
-        });
-      }
-
-      user.balanceNaira = Math.round((user.balanceNaira - bundle.priceNaira) * 100) / 100;
-      await user.save();
-
-      await Transaction.create({
-        userId: user._id,
-        type: 'coin_purchase',
-        amount: -bundle.priceNaira,
-        description: `Purchased ${bundle.name} (+${bundle.coins.toLocaleString()} Coins)`,
-        status: 'completed'
-      });
-
-      return res.json({
-        success: true,
-        message: `Successfully purchased ${bundle.name}! +${bundle.coins.toLocaleString()} Coins added.`,
-        coinsAwarded: bundle.coins,
-        newBalance: user.balanceNaira
-      });
-    }
-
-    // Otherwise initialize Paystack payment
-    const paystackData = await initializeTransaction({
-      email: user.email,
-      amount: bundle.priceNaira,
-      metadata: {
-        userId: user._id.toString(),
-        bundleId,
-        coins: bundle.coins,
-        purpose: 'coin_purchase'
-      },
-      callback_url: `${req.headers.origin || 'http://localhost:5173'}/wallet?status=coins_success`
-    });
-
-    return res.json({
-      success: true,
-      bundle,
-      authorization_url: paystackData.authorization_url,
-      reference: paystackData.reference
-    });
-  } catch (err) {
-    console.error('buyCoins error:', err);
-    return res.status(500).json({ success: false, message: 'Error initiating coin purchase.' });
-  }
-};
-
-/**
- * Paystack Cryptographic Webhook Handler
+ * Squad Cryptographic Webhook Handler
  */
 exports.handleWebhook = async (req, res) => {
   try {
-    const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || 'sk_test_demo_key';
-    const signature = req.headers['x-paystack-signature'];
+    const SQUAD_SECRET = process.env.SQUAD_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY || 'sandbox_sk_demo_key';
+    const signature =
+      req.headers['x-squad-encrypted-body'] ||
+      req.headers['x-squad-signature'] ||
+      req.headers['x-paystack-signature'];
 
-    // Verify HMAC SHA512 signature in production
-    if (PAYSTACK_SECRET && !PAYSTACK_SECRET.includes('demo') && signature) {
-      const hash = crypto.createHmac('sha512', PAYSTACK_SECRET)
+    // Verify HMAC SHA512 signature in production if secret is not demo
+    if (SQUAD_SECRET && !SQUAD_SECRET.includes('demo') && signature) {
+      const hash = crypto.createHmac('sha512', SQUAD_SECRET)
         .update(JSON.stringify(req.body))
         .digest('hex');
-      if (hash !== signature) {
-        console.warn('Paystack webhook signature mismatch!');
+      if (hash.toLowerCase() !== signature.toLowerCase()) {
+        console.warn('Squad webhook signature mismatch!');
         return res.status(400).send('Invalid signature');
       }
     }
 
-    const event = req.body;
-    console.log(`[Paystack Webhook] Event received: ${event.event}`);
+    const payload = req.body || {};
+    console.log('[Squad Webhook] Event received:', payload.Event || payload.event || payload);
 
-    if (event.event === 'charge.success') {
-      const data = event.data;
-      const metadata = data.metadata || {};
-      const reference = data.reference;
-      const amountNaira = (data.amount || 0) / 100;
+    const eventType = (payload.Event || payload.event || '').toLowerCase();
+    const data = payload.Body || payload.data || payload;
+    const metadata = data.metadata || data.meta || {};
+    const reference = payload.TransactionRef || data.transaction_ref || data.reference;
+    const amountInKobo = data.amount || data.transaction_amount || 0;
+    const amountNaira = (amountInKobo > 1000 && amountInKobo % 100 === 0) ? amountInKobo / 100 : amountInKobo;
 
+    if (eventType === 'charge_successful' || eventType === 'charge.success' || data.transaction_status === 'Success') {
       // Prevent duplicate processing
-      const existing = await Transaction.findOne({ reference });
-      if (existing) {
-        return res.status(200).send('Already processed');
+      if (reference) {
+        const existing = await Transaction.findOne({ reference });
+        if (existing) {
+          return res.status(200).send('Already processed');
+        }
       }
 
       if (metadata.userId) {
         const user = await User.findById(metadata.userId);
         if (user) {
           if (metadata.purpose === 'wallet_deposit') {
-            // $atomic webhook deposit — idempotent credit
             await User.findByIdAndUpdate(user._id, { $inc: { balanceNaira: amountNaira } });
             await Transaction.create({
               userId: user._id,
@@ -524,20 +332,24 @@ exports.handleWebhook = async (req, res) => {
           }
         }
       }
-    } else if (event.event === 'transfer.success') {
-      const transferCode = event.data?.transfer_code;
-      if (transferCode) {
-        await Withdrawal.findOneAndUpdate({ transferCode }, { status: 'paid' });
+    } else if (eventType === 'transfer_successful' || eventType === 'transfer.success') {
+      const transferRef = reference || data.transfer_code;
+      if (transferRef) {
+        await Withdrawal.findOneAndUpdate(
+          { $or: [{ transferCode: transferRef }, { squadRef: transferRef }, { paystackRef: transferRef }] },
+          { status: 'paid' }
+        );
       }
-    } else if (event.event === 'transfer.failed') {
-      const transferCode = event.data?.transfer_code;
-      if (transferCode) {
-        const wth = await Withdrawal.findOne({ transferCode });
+    } else if (eventType === 'transfer_failed' || eventType === 'transfer.failed') {
+      const transferRef = reference || data.transfer_code;
+      if (transferRef) {
+        const wth = await Withdrawal.findOne({
+          $or: [{ transferCode: transferRef }, { squadRef: transferRef }, { paystackRef: transferRef }]
+        });
         if (wth && wth.status !== 'failed') {
           wth.status = 'failed';
           await wth.save();
           // Refund user balance
-          // Atomic refund on failed transfer
           await User.findByIdAndUpdate(wth.userId, { $inc: { balanceNaira: wth.amount } });
         }
       }
@@ -545,7 +357,7 @@ exports.handleWebhook = async (req, res) => {
 
     return res.status(200).send('Webhook processed');
   } catch (err) {
-    console.error('Paystack webhook error:', err);
+    console.error('Squad webhook error:', err);
     return res.status(500).send('Internal server error');
   }
 };

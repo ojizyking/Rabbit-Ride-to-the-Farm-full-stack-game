@@ -6,7 +6,7 @@ const Subscription = require('../models/Subscription');
 const SystemConfig = require('../models/SystemConfig');
 const Ad = require('../models/Ad');
 const telemetry = require('../services/telemetry');
-const { initiateTransfer } = require('../config/paystack');
+const { initiateTransfer } = require('../config/squad');
 
 /**
  * High-level overview statistics for Mission Control
@@ -275,12 +275,12 @@ exports.getWithdrawals = async (req, res) => {
 };
 
 /**
- * Approve pending withdrawal (automated via Paystack Transfer or marked manual paid)
+ * Approve pending withdrawal (automated via Squad Transfer or marked manual paid)
  */
 exports.approveWithdrawal = async (req, res) => {
   try {
     const { id } = req.params;
-    const { method = 'paystack', note = '' } = req.body;
+    const { method = 'squad', note = '' } = req.body;
 
     const withdrawal = await Withdrawal.findById(id);
     if (!withdrawal) {
@@ -291,8 +291,8 @@ exports.approveWithdrawal = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Withdrawal has already been paid.' });
     }
 
-    if (method === 'paystack') {
-      // Initiate Paystack Transfer
+    if (method === 'squad' || method === 'paystack') {
+      // Initiate Squad Transfer
       const transferRes = await initiateTransfer({
         amount: withdrawal.amount,
         accountNumber: withdrawal.accountNumber,
@@ -301,8 +301,9 @@ exports.approveWithdrawal = async (req, res) => {
       });
 
       withdrawal.status = 'paid';
-      withdrawal.transferCode = transferRes.transferCode || 'TRF_APPROVED';
-      withdrawal.paystackRef = transferRes.reference || `REF_${Date.now()}`;
+      withdrawal.transferCode = transferRes.transferCode || 'SQ_APPROVED';
+      withdrawal.squadRef = transferRes.reference || `SQ_REF_${Date.now()}`;
+      withdrawal.paystackRef = withdrawal.squadRef;
       await withdrawal.save();
     } else {
       // Manual payout confirmation
@@ -313,7 +314,7 @@ exports.approveWithdrawal = async (req, res) => {
 
     // Update transaction status
     await Transaction.findOneAndUpdate(
-      { reference: withdrawal.paystackRef },
+      { $or: [{ reference: withdrawal.squadRef }, { reference: withdrawal.paystackRef }] },
       { status: 'completed' }
     );
 

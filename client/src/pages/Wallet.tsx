@@ -41,7 +41,7 @@ export const Wallet: React.FC = () => {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState('2000');
   const [depositLoading, setDepositLoading] = useState(false);
-  const [depositPaystackData, setDepositPaystackData] = useState<{
+  const [depositSquadData, setDepositSquadData] = useState<{
     reference: string;
     authorization_url: string;
     amount: number;
@@ -61,7 +61,7 @@ export const Wallet: React.FC = () => {
     return tierParam ? parseInt(tierParam, 10) : 2000;
   });
   const [subscribeLoading, setSubscribeLoading] = useState(false);
-  const [paystackModalData, setPaystackModalData] = useState<{
+  const [squadModalData, setSquadModalData] = useState<{
     reference: string;
     authorization_url: string;
     amount: number;
@@ -135,7 +135,7 @@ export const Wallet: React.FC = () => {
     }
   }, [token]);
 
-  // Load live Nigerian bank list from Paystack
+  // Load live Nigerian bank list from Squad
   useEffect(() => {
     api.get('/wallet/banks')
       .then(res => {
@@ -178,7 +178,7 @@ export const Wallet: React.FC = () => {
     try {
       const res = await api.post('/wallet/deposit', { amount: amt });
       if (res.data.success) {
-        setDepositPaystackData({
+        setDepositSquadData({
           reference: res.data.reference,
           authorization_url: res.data.authorization_url,
           amount: res.data.amount
@@ -193,13 +193,13 @@ export const Wallet: React.FC = () => {
   };
 
   const handleVerifyDeposit = async () => {
-    if (!depositPaystackData) return;
+    if (!depositSquadData) return;
     setDepositLoading(true);
     try {
-      const res = await api.post('/wallet/verify-deposit', { reference: depositPaystackData.reference });
+      const res = await api.post('/wallet/verify-deposit', { reference: depositSquadData.reference });
       if (res.data.success) {
         alert(res.data.message);
-        setDepositPaystackData(null);
+        setDepositSquadData(null);
         setShowDepositModal(false);
         await refreshUser();
         await fetchTransactions();
@@ -287,7 +287,7 @@ export const Wallet: React.FC = () => {
     try {
       const res = await api.post('/wallet/subscribe', { tier: tierAmount });
       if (res.data.success) {
-        setPaystackModalData({
+        setSquadModalData({
           reference: res.data.reference,
           authorization_url: res.data.authorization_url,
           amount: res.data.amount,
@@ -296,20 +296,20 @@ export const Wallet: React.FC = () => {
       }
     } catch (err: unknown) {
       const errorResponse = err as { response?: { data?: { message?: string } } };
-      alert(errorResponse.response?.data?.message || 'Could not initialize Paystack transaction.');
+      alert(errorResponse.response?.data?.message || 'Could not initialize Squad transaction.');
     } finally {
       setSubscribeLoading(false);
     }
   };
 
   const handleVerifySubscription = async () => {
-    if (!paystackModalData) return;
+    if (!squadModalData) return;
     setSubscribeLoading(true);
     try {
-      const res = await api.post('/wallet/verify', { reference: paystackModalData.reference });
+      const res = await api.post('/wallet/verify', { reference: squadModalData.reference });
       if (res.data.success) {
         alert(res.data.message);
-        setPaystackModalData(null);
+        setSquadModalData(null);
         await refreshUser();
         await fetchTransactions();
       }
@@ -430,7 +430,7 @@ export const Wallet: React.FC = () => {
             </div>
             <div>
               <h3 style={{ fontSize: '1.35rem', color: '#174D2A', fontWeight: 700 }}>Withdraw Eligible Rewards</h3>
-              <p style={{ fontSize: '0.85rem', color: '#78909C' }}>Direct bank transfer via Paystack (Minimum: ₦1,000)</p>
+              <p style={{ fontSize: '0.85rem', color: '#78909C' }}>Direct bank transfer via Squad (Minimum: ₦1,000)</p>
             </div>
           </div>
 
@@ -494,7 +494,7 @@ export const Wallet: React.FC = () => {
               />
               {verifyingAccount && (
                 <div style={{ fontSize: '0.8rem', color: '#0288D1', marginTop: '0.35rem', fontWeight: 600 }}>
-                  Verifying account name via Paystack NUBAN...
+                  Verifying account name via Squad NUBAN...
                 </div>
               )}
               {verifiedAccountName && (
@@ -510,7 +510,7 @@ export const Wallet: React.FC = () => {
               className="btn-primary"
               style={{ justifyContent: 'center', padding: '0.85rem', marginTop: '0.5rem' }}
             >
-              {withdrawLoading ? 'Processing Paystack Transfer...' : 'Request Bank Transfer'}
+              {withdrawLoading ? 'Processing Squad Transfer...' : 'Request Bank Transfer'}
             </button>
           </form>
         </div>
@@ -565,7 +565,7 @@ export const Wallet: React.FC = () => {
               className="btn-green"
               style={{ justifyContent: 'center', padding: '0.85rem', marginTop: '0.75rem' }}
             >
-              {subscribeLoading ? 'Connecting to Paystack...' : `Get Pack for ₦${selectedTier.toLocaleString()} via Paystack`}
+              {subscribeLoading ? 'Connecting to Squad...' : `Get Pack for ₦${selectedTier.toLocaleString()} via Squad`}
             </button>
           </div>
         </div>
@@ -778,26 +778,26 @@ export const Wallet: React.FC = () => {
         </div>
       )}
 
-      {/* PAYSTACK POPUP SIMULATION MODAL */}
-      {paystackModalData && (
+      {/* SQUAD POPUP SIMULATION MODAL */}
+      {squadModalData && (
         <div className="modal-overlay">
           <div className="modal-card" style={{ maxWidth: '440px', textAlign: 'center' }}>
             <div style={{ width: '56px', height: '56px', background: '#E0F2F1', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto', color: '#00897B' }}>
               <ShieldCheck size={32} />
             </div>
-            <h3 style={{ fontSize: '1.5rem', color: '#004D40', fontWeight: 700 }}>Paystack Checkout</h3>
+            <h3 style={{ fontSize: '1.5rem', color: '#004D40', fontWeight: 700 }}>Squad Checkout</h3>
             <p style={{ color: '#546E7A', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
-              Complete payment for <strong>{paystackModalData.tier.toUpperCase()} PACK</strong>
+              Complete payment for <strong>{squadModalData.tier.toUpperCase()} PACK</strong>
             </p>
 
             <div style={{ background: '#F5F5F5', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem', textAlign: 'left' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.9rem' }}>
                 <span style={{ color: '#78909C' }}>Amount:</span>
-                <span style={{ fontWeight: 700, color: '#263238' }}>₦{paystackModalData.amount.toLocaleString()}</span>
+                <span style={{ fontWeight: 700, color: '#263238' }}>₦{squadModalData.amount.toLocaleString()}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                 <span style={{ color: '#78909C' }}>Reference:</span>
-                <span style={{ fontFamily: 'monospace', color: '#00897B' }}>{paystackModalData.reference.slice(0, 18)}...</span>
+                <span style={{ fontFamily: 'monospace', color: '#00897B' }}>{squadModalData.reference.slice(0, 18)}...</span>
               </div>
             </div>
 
@@ -808,10 +808,10 @@ export const Wallet: React.FC = () => {
                 className="btn-green"
                 style={{ justifyContent: 'center', padding: '0.85rem' }}
               >
-                <span>Simulate / Confirm Paystack Payment</span>
+                <span>Simulate / Confirm Squad Payment</span>
               </button>
               <button
-                onClick={() => setPaystackModalData(null)}
+                onClick={() => setSquadModalData(null)}
                 className="btn-outline"
                 style={{ justifyContent: 'center' }}
               >
@@ -831,7 +831,7 @@ export const Wallet: React.FC = () => {
             </div>
             <h3 style={{ fontSize: '1.5rem', color: '#174D2A', fontWeight: 700, margin: '0 0 0.5rem 0' }}>Top Up Naira Wallet</h3>
             <p style={{ color: '#546E7A', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
-              Add funds directly to your wallet via Paystack (Cards, USSD, Bank Transfer, Apple Pay, OPay)
+              Add funds directly to your wallet via Squad (Cards, USSD, Bank Transfer, Apple Pay, OPay)
             </p>
 
             {/* Quick preset amount chips */}
@@ -872,19 +872,19 @@ export const Wallet: React.FC = () => {
               />
             </div>
 
-            {depositPaystackData ? (
+            {depositSquadData ? (
               <div style={{ background: '#F1F8E9', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.25rem', border: '1px solid #C8E6C9' }}>
                 <p style={{ fontSize: '0.9rem', color: '#2E7D32', fontWeight: 700, margin: '0 0 0.75rem 0' }}>
-                  Paystack Checkout Ready (₦{depositPaystackData.amount.toLocaleString()})
+                  Squad Checkout Ready (₦{depositSquadData.amount.toLocaleString()})
                 </p>
                 <a
-                  href={depositPaystackData.authorization_url}
+                  href={depositSquadData.authorization_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-primary"
                   style={{ display: 'inline-flex', justifyContent: 'center', width: '100%', marginBottom: '0.75rem', padding: '0.85rem' }}
                 >
-                  <ExternalLink size={16} /> Open Paystack Checkout
+                  <ExternalLink size={16} /> Open Squad Checkout
                 </a>
                 <button
                   onClick={handleVerifyDeposit}
@@ -902,12 +902,12 @@ export const Wallet: React.FC = () => {
                 className="btn-primary"
                 style={{ width: '100%', justifyContent: 'center', padding: '0.85rem', marginBottom: '0.5rem' }}
               >
-                {depositLoading ? 'Connecting to Paystack...' : `Proceed with ₦${Number(depositAmount || 0).toLocaleString()}`}
+                {depositLoading ? 'Connecting to Squad...' : `Proceed with ₦${Number(depositAmount || 0).toLocaleString()}`}
               </button>
             )}
 
             <button
-              onClick={() => { setShowDepositModal(false); setDepositPaystackData(null); }}
+              onClick={() => { setShowDepositModal(false); setDepositSquadData(null); }}
               className="btn-outline"
               style={{ width: '100%', justifyContent: 'center' }}
             >

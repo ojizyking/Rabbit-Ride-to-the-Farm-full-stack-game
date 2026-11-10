@@ -504,3 +504,4 @@ patch(
 );
 
 console.log('\n🔐 Auth isolation patches complete!');
+

@@ -1217,7 +1217,7 @@ export default class FarmRide extends Phaser.Scene {
       new CustomEvent('game:open_billboard_ad', {
         detail: {
           value: 100,
-          sponsor: 'Carrot Fuel & Paystack Payouts'
+          sponsor: 'Carrot Fuel & Squad Payouts'
         }
       })
     );

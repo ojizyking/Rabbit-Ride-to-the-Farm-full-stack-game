@@ -35,6 +35,10 @@ const withdrawalSchema = new mongoose.Schema({
     enum: ['pending', 'paid', 'failed'],
     default: 'pending'
   },
+  squadRef: {
+    type: String,
+    default: ''
+  },
   paystackRef: {
     type: String,
     default: ''
