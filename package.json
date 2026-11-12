@@ -17,7 +17,7 @@
     "react19",
     "nodejs",
     "express",
-    "paystack"
+    "squad"
   ],
   "author": "Antigravity Team",
   "license": "MIT"

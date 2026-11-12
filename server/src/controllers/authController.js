@@ -139,7 +139,7 @@ exports.register = async (req, res) => {
 
     // REGISTER_GUARD_v1 — case-insensitive email duplicate check
     const cleanEmail = email.toLowerCase().trim();
-    if (!cleanEmail || !/^[^s@]+@[^s@]+.[^s@]+$/.test(cleanEmail)) {
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
     }
     const existing = await User.findOne({ email: cleanEmail });
