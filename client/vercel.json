@@ -5,6 +5,10 @@
       "destination": "https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api/:path*"
     },
     {
+      "source": "/auth/:path*",
+      "destination": "https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api/auth/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -19,7 +19,18 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 
-// ── Security middleware ──────────────────────────────────────────────────
+// ── 1. CORS FIRST: ensure all preflight OPTIONS & cross-origin responses get headers ──
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser, cross-domain, preview URLs, and mobile origins
+    return callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+// ── 2. Security middleware ──────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: false, // Disabled — SPA manages its own CSP
   crossOriginEmbedderPolicy: false
@@ -30,37 +41,29 @@ app.use(mongoSanitize()); // Strip $-operator injection from req.body / query
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 200,
+  skip: (req) => req.method === 'OPTIONS',
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests. Please slow down.' }
 });
 app.use('/api/', globalLimiter);
 
-// Strict limiter for auth endpoints: 10 attempts / 15 min per IP
+// Strict limiter for auth endpoints: 30 attempts / 15 min per IP (skips OPTIONS)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 30,
+  skip: (req) => req.method === 'OPTIONS',
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many login attempts. Please wait 15 minutes.' }
 });
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/clerk-sync', authLimiter);
+app.use(['/api/auth/login', '/auth/login'], authLimiter);
+app.use(['/api/auth/register', '/auth/register'], authLimiter);
+app.use(['/api/auth/clerk-sync', '/auth/clerk-sync'], authLimiter);
 
-// ── CORS configuration - allow all origins for public game API & web players
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow non-browser, cross-domain, preview URLs, and mobile origins
-    return callback(null, true);
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Import telemetry service
 const telemetry = require('./services/telemetry');
@@ -93,13 +96,13 @@ app.get('/api/telemetry/public-stats', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/game', gameRoutes);
-app.use('/api/shop', shopRoutes);
-app.use('/api/wallet', walletRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/ads', adsRoutes);
+// API Routes (mounted under both /api/* and /* for maximum resilience)
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/game', '/game'], gameRoutes);
+app.use(['/api/shop', '/shop'], shopRoutes);
+app.use(['/api/wallet', '/wallet'], walletRoutes);
+app.use(['/api/admin', '/admin-api'], adminRoutes);
+app.use(['/api/ads', '/ads'], adsRoutes);
 
 // Health check endpoints for Railway / monitoring
 app.get(['/health', '/api/health'], (req, res) => {

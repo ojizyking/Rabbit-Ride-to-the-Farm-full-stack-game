@@ -3,7 +3,8 @@ const { createModelWrapper } = require('./modelAdapter');
 
 const transactionSchema = new mongoose.Schema({
   _id: {
-    type: mongoose.Schema.Types.Mixed
+    type: mongoose.Schema.Types.Mixed,
+    default: () => new mongoose.Types.ObjectId()
   },
   userId: {
     type: mongoose.Schema.Types.Mixed,
@@ -25,7 +26,8 @@ const transactionSchema = new mongoose.Schema({
   },
   reference: {
     type: String,
-    default: ''
+    sparse: true,
+    index: true
   },
   status: {
     type: String,
@@ -37,6 +39,8 @@ const transactionSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+transactionSchema.index({ userId: 1, createdAt: -1 });
 
 let MongooseTx;
 try {

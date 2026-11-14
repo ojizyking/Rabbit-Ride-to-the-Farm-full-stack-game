@@ -3,7 +3,8 @@ const { createModelWrapper } = require('./modelAdapter');
 
 const withdrawalSchema = new mongoose.Schema({
   _id: {
-    type: mongoose.Schema.Types.Mixed
+    type: mongoose.Schema.Types.Mixed,
+    default: () => new mongoose.Types.ObjectId()
   },
   userId: {
     type: mongoose.Schema.Types.Mixed,
@@ -52,6 +53,8 @@ const withdrawalSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+withdrawalSchema.index({ userId: 1, createdAt: -1 });
 
 let MongooseWithdrawal;
 try {

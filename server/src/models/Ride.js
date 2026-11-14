@@ -3,7 +3,8 @@ const { createModelWrapper } = require('./modelAdapter');
 
 const rideSchema = new mongoose.Schema({
   _id: {
-    type: mongoose.Schema.Types.Mixed
+    type: mongoose.Schema.Types.Mixed,
+    default: () => new mongoose.Types.ObjectId()
   },
   userId: {
     type: mongoose.Schema.Types.Mixed,
@@ -43,6 +44,8 @@ const rideSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+rideSchema.index({ userId: 1, createdAt: -1 });
 
 let MongooseRide;
 try {

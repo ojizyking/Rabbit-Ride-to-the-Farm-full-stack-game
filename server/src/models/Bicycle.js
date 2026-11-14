@@ -3,7 +3,8 @@ const { createModelWrapper } = require('./modelAdapter');
 
 const bicycleSchema = new mongoose.Schema({
   _id: {
-    type: mongoose.Schema.Types.Mixed
+    type: mongoose.Schema.Types.Mixed,
+    default: () => new mongoose.Types.ObjectId()
   },
   name: {
     type: String,

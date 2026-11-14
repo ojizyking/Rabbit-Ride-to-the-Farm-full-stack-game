@@ -93,11 +93,14 @@ async function processReferralReward(newUserId, newUserEmail, referralCode) {
     return { referrerBonus: 0, refereeBonus: 0, referrerId: null };
   }
 
-  // Credit Referrer ₦100 Reward
-  referrer.balanceNaira = Math.round((referrer.balanceNaira + 100) * 100) / 100;
-  referrer.referralsCount = (referrer.referralsCount || 0) + 1;
-  referrer.referralEarnings = (referrer.referralEarnings || 0) + 100;
-  await referrer.save();
+  // Credit Referrer ₦100 Reward atomically (race-condition safe)
+  await User.findByIdAndUpdate(referrer._id, {
+    $inc: {
+      balanceNaira: 100,
+      referralsCount: 1,
+      referralEarnings: 100
+    }
+  });
 
   // Log transaction for referrer
   try {
