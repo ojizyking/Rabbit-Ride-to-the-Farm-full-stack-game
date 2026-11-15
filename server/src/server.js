@@ -9,6 +9,7 @@ const cors = require('cors');
 const { connectDB } = require('./config/db');
 
 const authRoutes = require('./routes/auth');
+const authController = require('./controllers/authController');
 const gameRoutes = require('./routes/game');
 const shopRoutes = require('./routes/shop');
 const walletRoutes = require('./routes/wallet');
@@ -18,6 +19,14 @@ const adsRoutes = require('./routes/ads');
 const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
+
+// ── HTTPS enforcement (307 Temporary Redirect preserves POST method & payload) ──
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] === 'http') {
+    return res.redirect(307, `https://${req.headers.host}${req.url}`);
+  }
+  next();
+});
 
 // ── 1. CORS FIRST: ensure all preflight OPTIONS & cross-origin responses get headers ──
 app.use(cors({
@@ -103,6 +112,16 @@ app.use(['/api/shop', '/shop'], shopRoutes);
 app.use(['/api/wallet', '/wallet'], walletRoutes);
 app.use(['/api/admin', '/admin-api'], adminRoutes);
 app.use(['/api/ads', '/ads'], adsRoutes);
+
+// Direct auth shortcuts for maximum URL compatibility across proxies and clients
+app.post(['/api/register', '/register'], authLimiter, authController.register);
+app.post(['/api/login', '/login'], authLimiter, authController.login);
+app.get(['/api/register', '/register', '/api/login', '/login'], (req, res) => {
+  res.json({
+    success: true,
+    message: `Rabbit Ride ${req.path} endpoint active. Use POST with { email, password }.`
+  });
+});
 
 // Health check endpoints for Railway / monitoring
 app.get(['/health', '/api/health'], (req, res) => {

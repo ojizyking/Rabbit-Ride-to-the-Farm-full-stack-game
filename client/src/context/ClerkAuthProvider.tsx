@@ -208,12 +208,14 @@ export const ClerkAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const register = async (email: string, password: string) => {
+  const register = async (email: string, password: string, referralCode?: string) => {
     try {
-      const res = await api.post('/auth/register', { email, password });
+      const code = referralCode || localStorage.getItem('rabbit_referral_code') || undefined;
+      const res = await api.post('/auth/register', { email, password, referralCode: code });
       if (res.data.success) {
         localStorage.setItem('rabbit_token', res.data.token);
         localStorage.removeItem('rabbit_offline_user');
+        localStorage.removeItem('rabbit_referral_code');
         setToken(res.data.token);
         setUser(res.data.user);
         // Cache server's authoritative balance

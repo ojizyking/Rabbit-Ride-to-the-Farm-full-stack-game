@@ -9,6 +9,14 @@
       "destination": "https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api/auth/:path*"
     },
     {
+      "source": "/register",
+      "destination": "https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api/auth/register"
+    },
+    {
+      "source": "/login",
+      "destination": "https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api/auth/login"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

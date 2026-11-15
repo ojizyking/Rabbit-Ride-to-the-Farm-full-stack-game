@@ -7,15 +7,19 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/clerk-sync', authController.clerkSync);
 
-// Catch-all for non-POST methods on login/register to provide descriptive 405 error
-router.all(['/register', '/login', '/clerk-sync'], (req, res, next) => {
-  if (req.method !== 'POST' && req.method !== 'OPTIONS') {
-    return res.status(405).json({
-      success: false,
-      message: `HTTP Method ${req.method} not allowed on this endpoint. Please use POST.`
-    });
-  }
-  next();
+// Informative GET handlers (prevents 405 on browser navigation or 301/302 redirects)
+router.get(['/register', '/register/'], (req, res) => {
+  res.json({
+    success: true,
+    message: 'Rabbit Ride Auth register endpoint active. Submit a POST request with { email, password, referralCode }.'
+  });
+});
+
+router.get(['/login', '/login/'], (req, res) => {
+  res.json({
+    success: true,
+    message: 'Rabbit Ride Auth login endpoint active. Submit a POST request with { email, password }.'
+  });
 });
 router.get('/me', authMiddleware, authController.getMe);
 // Referral code routes - resilient across POST, PUT, PATCH and trailing slashes

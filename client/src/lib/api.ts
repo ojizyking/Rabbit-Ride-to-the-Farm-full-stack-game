@@ -1,12 +1,22 @@
 import axios from 'axios';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV
-    ? 'http://localhost:5000/api'
-    : (typeof window !== 'undefined' && window.location.hostname.endsWith('railway.app')
-        ? '/api'
-        : 'https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api'));
+function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    // When running on Railway (same-origin), always use relative '/api'
+    // This avoids cross-origin preflights, protocol redirects, and CORS latency
+    if (window.location.hostname.endsWith('railway.app') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return '/api';
+    }
+  }
+  return (
+    import.meta.env.VITE_API_URL ||
+    (import.meta.env.DEV
+      ? 'http://localhost:5000/api'
+      : 'https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api')
+  );
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
