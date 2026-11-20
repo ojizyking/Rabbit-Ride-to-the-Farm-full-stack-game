@@ -1,57 +1,28 @@
 const User = require('../models/User');
 const Ride = require('../models/Ride');
 const Transaction = require('../models/Transaction');
-
-function getTierMultiplier(tier) {
-  switch (tier) {
-    case 'elite': return 1.50; // +50%
-    case 'pro': return 1.25;   // +25%
-    case 'growth': return 1.10; // +10%
-    case 'basic': return 1.05;  // +5%
-    case 'free':
-    default:
-      return 1.0;
-  }
-}
-
-function getTodayString() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-// Conversion Math: 10,000 coins = 100 Naira → 100 coins = 1 Naira (1 coin = 0.01 Naira / 1 Kobo)
-const COINS_PER_NAIRA = 100;
-
-// Anti-cheat bounds
-const MAX_COINS_PER_RIDE = 50000; // 50,000 coins = ₦500
-const MAX_RIDES_PER_SYNC = 20;
-
-// Free-user (non-purchasing) carrot coin cap per ride run:
-// ₦50 max → at 100 coins = ₦1 that's 5,000 coins worth of carrot earnings per run.
-const FREE_USER_MAX_NAIRA_PER_RIDE = 50;
-const FREE_USER_MAX_COINS_PER_RIDE = FREE_USER_MAX_NAIRA_PER_RIDE * COINS_PER_NAIRA; // 5,000 coins
-
-/**
- * Returns true when the user has never purchased anything (free tier, no farm shop items or subscriptions).
- * Purchasing any rabbit, bike, or subscription removes the ₦50 cap.
- */
-function isNonPurchasingUser(user) {
-  const hasPaidTier = user.subscriptionTier && user.subscriptionTier !== 'free';
-  const hasPurchasedRabbit = Array.isArray(user.ownedRabbits) && user.ownedRabbits.length > 1;
-  const hasPurchasedBike = Array.isArray(user.ownedBikes) && user.ownedBikes.length > 1;
-  return !hasPaidTier && !hasPurchasedRabbit && !hasPurchasedBike;
-}
+const {
+  COINS_PER_NAIRA, BASE_DAILY_CAP_COINS, AD_DAILY_CAP_COINS,
+  COINS_PER_AD, MAX_ADS_PER_DAY, ANTI_CHEAT_MAX_COINS,
+  getTodayWAT, getActiveBoostPct, getPackDailyCapNaira, maybeResetDailyCounters, expireUserPacks
+} = require('../lib/economy');
 
 exports.startRide = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    const today = getTodayString();
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    expireUserPacks(user);
+    maybeResetDailyCounters(user);
+    const today = getTodayWAT();
 
     if (user.lastRideDate !== today) {
       user.lastRideDate = today;
       user.dailyRidesToday = 0;
     }
 
-    const isPaid = user.subscriptionTier && user.subscriptionTier !== 'free';
+    const hasActivePack = (user.activePacks || []).some(p => p.status === 'active' && new Date(p.expiresAt) > new Date());
+    const isPaid = (user.subscriptionTier && user.subscriptionTier !== 'free') || hasActivePack;
 
     if (!isPaid && user.dailyRidesToday >= 10) {
       return res.status(403).json({
@@ -65,6 +36,7 @@ exports.startRide = async (req, res) => {
     await user.save();
 
     const remainingRides = isPaid ? 'Unlimited' : Math.max(0, 10 - user.dailyRidesToday);
+    const boostPct = getActiveBoostPct(user);
 
     return res.json({
       success: true,
@@ -72,7 +44,7 @@ exports.startRide = async (req, res) => {
       tier: user.subscriptionTier,
       dailyRidesToday: user.dailyRidesToday,
       remainingRidesToday: remainingRides,
-      boostMultiplier: getTierMultiplier(user.subscriptionTier)
+      boostMultiplier: 1 + (boostPct / 100)
     });
   } catch (err) {
     console.error('startRide error:', err);
@@ -83,9 +55,13 @@ exports.startRide = async (req, res) => {
 exports.collect = async (req, res) => {
   try {
     const { type, value = 1 } = req.body;
-    const user = await User.findById(req.user._id);
+    let user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
-    const multiplier = getTierMultiplier(user.subscriptionTier);
+    expireUserPacks(user);
+    maybeResetDailyCounters(user);
+    const boostPct   = getActiveBoostPct(user);
+    const multiplier = 1 + (boostPct / 100);
 
     let baseValue = Number(value);
     if (type === 'star') baseValue = typeof value === 'number' && value > 5 ? value : 25;
@@ -95,25 +71,60 @@ exports.collect = async (req, res) => {
 
     const boostedValue = Math.round(baseValue * multiplier);
 
-    // Credit all collectible types to user balance (convert coins to Naira: 100 coins = ₦1)
+    // Credit all collectible types to user balance (convert coins to Naira: 1,000 coins = ₦1)
     if (type === 'ad') {
-      // Ad reward: flat ₦10 credit (atomic $inc) // $inc for collect
-      const adRewardNaira = 10;
-      await User.findByIdAndUpdate(user._id, { $inc: { balanceNaira: adRewardNaira } });
-      user.balanceNaira = user.balanceNaira + adRewardNaira;
+      // Check daily ad limit
+      expireUserPacks(user);
+      maybeResetDailyCounters(user);
+      
+      if ((user.dailyAdsWatched || 0) >= MAX_ADS_PER_DAY) {
+        return res.status(429).json({
+          success: false, limitReached: true,
+          message: 'You\'ve watched 10 ads today! Come back tomorrow for more ad rewards.'
+        });
+      }
+
+      const totalDailyCoins = (user.dailyCoinsEarned || 0) + (user.dailyAdCoinsEarned || 0);
+      if (totalDailyCoins >= AD_DAILY_CAP_COINS) {
+        return res.status(429).json({
+          success: false, limitReached: true,
+          message: 'Daily earning cap reached. Play again tomorrow!'
+        });
+      }
+
+      const adCoins = COINS_PER_AD; // 3,500 coins per ad
+      const adCreditCoins = Math.min(adCoins, AD_DAILY_CAP_COINS - totalDailyCoins);
+      const adNaira = adCreditCoins / COINS_PER_NAIRA;
+
+      await User.findByIdAndUpdate(user._id, {
+        $inc: { balanceNaira: adNaira, dailyAdCoinsEarned: adCreditCoins, dailyAdsWatched: 1 },
+        $set: { coinsLastEarnedAt: new Date() }
+      });
+
       await Transaction.create({
-        userId: user._id,
-        type: 'earn',
-        amount: adRewardNaira,
-        description: 'Sponsor Billboard Ad View (30s)',
+        userId: user._id, type: 'earn_ad', amount: adNaira,
+        coins: adCreditCoins, capApplied: adCreditCoins < adCoins,
+        description: `Sponsor Billboard Ad View (30s) — ${adCreditCoins} coins`,
         status: 'completed'
+      });
+
+      const updatedUser = await User.findById(user._id);
+      return res.json({
+        success: true, type: 'ad',
+        coinsEarned: adCreditCoins, nairaEarned: adNaira,
+        adsWatchedToday: updatedUser?.dailyAdsWatched ?? 1,
+        adsRemainingToday: Math.max(0, MAX_ADS_PER_DAY - (updatedUser?.dailyAdsWatched ?? 1)),
+        newBalance: updatedUser?.balanceNaira ?? 0
       });
     } else {
       // Stars, carrots, crates: convert boosted coin value to Naira and persist
       const nairaValue = Math.round((boostedValue / COINS_PER_NAIRA) * 100) / 100;
       if (nairaValue > 0) {
-        await User.findByIdAndUpdate(user._id, { $inc: { balanceNaira: nairaValue } });
-        user.balanceNaira = user.balanceNaira + nairaValue;
+        await User.findByIdAndUpdate(user._id, {
+          $inc: { balanceNaira: nairaValue },
+          $set: { coinsLastEarnedAt: new Date() }
+        });
+        user.balanceNaira = (user.balanceNaira || 0) + nairaValue;
       }
     }
 
@@ -133,77 +144,129 @@ exports.collect = async (req, res) => {
 
 exports.endRide = async (req, res) => {
   try {
-    const {
-      coins = 0,
-      distance = 0,
-      stars = 0,
-      carrots = 0,
-      boxes = 0,
-      adViews = 0
-    } = req.body;
+    const { coins = 0, distance = 0, stars = 0, carrots = 0, boxes = 0, adViews = 0 } = req.body;
 
-    const user = await User.findById(req.user._id);
-    const multiplier = getTierMultiplier(user.subscriptionTier);
+    let user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
-    // Calculate Naira earned from coins/tokens: 10,000 coins = 100 Naira (100 coins = 1 Naira) + tier boost multiplier
-    // Apply free-user carrot coin cap: non-purchasing users earn at most ₦50 per ride run (5,000 coins).
-    const rawCoins = Math.max(0, Number(coins));
-    const coinCap = isNonPurchasingUser(user) ? FREE_USER_MAX_COINS_PER_RIDE : MAX_COINS_PER_RIDE;
-    const totalCoins = Math.min(rawCoins, coinCap);
-    const baseNaira = totalCoins / COINS_PER_NAIRA;
-    // For free users, cap nairaEarned at FREE_USER_MAX_NAIRA_PER_RIDE (regardless of multiplier — free users have 1.0x anyway)
-    const nairaEarned = isNonPurchasingUser(user)
-      ? Math.min(Math.round(baseNaira * multiplier * 100) / 100, FREE_USER_MAX_NAIRA_PER_RIDE)
-      : Math.round(baseNaira * multiplier * 100) / 100;
+    // Expire stale packs, reset daily counters if new WAT day
+    expireUserPacks(user);
+    const wasReset = maybeResetDailyCounters(user);
+
+    // Anti-cheat: hard ceiling per ride
+    const rawCoins = Math.max(0, Math.min(Number(coins), ANTI_CHEAT_MAX_COINS));
+
+    // Boost from highest active pack (not additive)
+    const boostPct   = getActiveBoostPct(user);
+    const multiplier = 1 + (boostPct / 100);
+    const boostedCoins = Math.round(rawCoins * multiplier);
+
+    // ── Free-tier gameplay daily cap ──────────────────────────────────────────
+    const gameCapRemaining = Math.max(0, BASE_DAILY_CAP_COINS - (user.dailyCoinsEarned || 0));
+    const creditGameCoins  = Math.min(boostedCoins, gameCapRemaining);
+    const capApplied       = creditGameCoins < boostedCoins;
+
+    // ── Pack extra earning (Naira on top of base cap) ─────────────────────────
+    const packDailyCapNaira    = getPackDailyCapNaira(user);
+    // Sum today's pack_earn transactions to know what's already been credited
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const packEarnedToday = await Transaction.aggregate([
+      { $match: { userId: user._id, type: 'pack_earn', createdAt: { $gte: today } } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const packEarnedTodayNaira = packEarnedToday[0]?.total || 0;
+    const packRemainingNaira   = Math.max(0, packDailyCapNaira - packEarnedTodayNaira);
+
+    // Pack withdrawable credit (convert game coins earned → Naira, capped by pack allowance)
+    const gameNairaValue    = creditGameCoins / COINS_PER_NAIRA;
+    let packNairaToCredit   = Math.min(packRemainingNaira, gameNairaValue);
+
+    // Lifetime cap check per pack — reduce packNairaToCredit if any pack would overflow
+    if (packNairaToCredit > 0) {
+      let availableLifetime = 0;
+      (user.activePacks || []).filter(p => p.status === 'active').forEach(p => {
+        availableLifetime += Math.max(0, (p.lifetimeMaxNaira || 0) - (p.lifetimeEarnedNaira || 0));
+      });
+      packNairaToCredit = Math.min(packNairaToCredit, availableLifetime);
+    }
+    packNairaToCredit = Math.round(packNairaToCredit * 100) / 100;
+
     const distanceKm = Number((Number(distance) / 1000).toFixed(2)) || 0.5;
 
-    // Create Ride record
+    // ── Save Ride record ──────────────────────────────────────────────────────
     const ride = new Ride({
       userId: user._id,
-      coins: totalCoins,
+      coins: creditGameCoins,
       stars: Number(stars),
       carrots: Number(carrots),
       boxes: Number(boxes),
       adViews: Number(adViews),
-      nairaEarned,
+      nairaEarned: gameNairaValue,
       distanceKm
     });
     await ride.save();
 
-    // Update user balance & total rides (atomic $inc — race-condition safe) // $inc for endRide
-    if (nairaEarned > 0) {
-      await User.findByIdAndUpdate(user._id, {
-        $inc: { balanceNaira: nairaEarned, totalRides: 1 }
-      });
-    } else {
-      await User.findByIdAndUpdate(user._id, { $inc: { totalRides: 1 } });
-    }
-    // Re-fetch for accurate response balance
-    const updatedUser = await User.findById(user._id);
-    user.balanceNaira = updatedUser ? updatedUser.balanceNaira : user.balanceNaira + nairaEarned;
-    user.totalRides = updatedUser ? updatedUser.totalRides : user.totalRides + 1;
+    // ── Atomic user update ────────────────────────────────────────────────────
+    const incOp = {
+      dailyCoinsEarned: creditGameCoins,
+      totalRides: 1
+    };
+    if (gameNairaValue > 0) incOp.balanceNaira = gameNairaValue;
+    if (packNairaToCredit > 0) incOp.withdrawableNaira = packNairaToCredit;
 
-    // Create Transaction record
-    if (nairaEarned > 0) {
+    const setOp = { coinsLastEarnedAt: new Date() };
+    if (wasReset) {
+      setOp.dailyEarningDate   = user.dailyEarningDate;
+      setOp.dailyCoinsEarned   = creditGameCoins;
+      setOp.dailyAdCoinsEarned = 0;
+      setOp.dailyAdsWatched    = 0;
+    }
+
+    // Update pack lifetimeEarnedNaira in-place
+    if (packNairaToCredit > 0) {
+      let remaining = packNairaToCredit;
+      (user.activePacks || []).filter(p => p.status === 'active').forEach(p => {
+        if (remaining <= 0) return;
+        const space = Math.max(0, (p.lifetimeMaxNaira || 0) - (p.lifetimeEarnedNaira || 0));
+        const credit = Math.min(remaining, space);
+        p.lifetimeEarnedNaira = (p.lifetimeEarnedNaira || 0) + credit;
+        remaining -= credit;
+      });
+      setOp.activePacks = user.activePacks;
+    }
+
+    await User.findByIdAndUpdate(user._id, { $inc: incOp, $set: setOp });
+
+    // ── Log transactions ──────────────────────────────────────────────────────
+    await Transaction.create({
+      userId: user._id, type: 'earn', amount: gameNairaValue,
+      coins: creditGameCoins, capApplied,
+      description: `Ride earnings (${distanceKm} km, ${creditGameCoins} coins)`,
+      status: 'completed'
+    });
+    if (packNairaToCredit > 0) {
       await Transaction.create({
-        userId: user._id,
-        type: 'earn',
-        amount: nairaEarned,
-        description: `Ride earnings (${distanceKm} km, ${totalCoins} tokens)`,
-        status: 'completed'
+        userId: user._id, type: 'pack_earn', amount: packNairaToCredit,
+        description: `Pack bonus earning (ride, ${boostPct}% boost)`, status: 'completed'
       });
     }
 
+    const updatedUser = await User.findById(user._id);
     return res.json({
       success: true,
       message: 'Ride saved successfully!',
       rideId: ride._id,
-      coins: totalCoins,
-      nairaEarned,
+      coins: creditGameCoins,
+      nairaEarned: gameNairaValue,
+      packNairaEarned: packNairaToCredit,
+      boostPct,
+      capApplied,
       distanceKm,
-      newBalance: user.balanceNaira,
-      totalRides: user.totalRides,
-      freeCap: isNonPurchasingUser(updatedUser || user) ? { applied: true, maxNaira: FREE_USER_MAX_NAIRA_PER_RIDE } : { applied: false }
+      newBalance: updatedUser?.balanceNaira ?? 0,
+      withdrawableNaira: updatedUser?.withdrawableNaira ?? 0,
+      totalRides: updatedUser?.totalRides ?? 0,
+      dailyCoinsEarned: updatedUser?.dailyCoinsEarned ?? creditGameCoins,
+      dailyCapCoins: BASE_DAILY_CAP_COINS
     });
   } catch (err) {
     console.error('endRide error:', err);
@@ -211,11 +274,6 @@ exports.endRide = async (req, res) => {
   }
 };
 
-/**
- * POST /api/game/sync-offline
- * Accepts an array of buffered offline rides and processes them server-side.
- * Ensures no coin earnings are ever lost due to network failures.
- */
 exports.syncOffline = async (req, res) => {
   try {
     const { rides } = req.body;
@@ -223,25 +281,40 @@ exports.syncOffline = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No rides to sync.' });
     }
 
-    if (rides.length > MAX_RIDES_PER_SYNC) {
-      return res.status(400).json({ success: false, message: `Too many rides. Max ${MAX_RIDES_PER_SYNC} per sync.` });
+    if (rides.length > 20) {
+      return res.status(400).json({ success: false, message: 'Too many rides. Max 20 per sync.' });
     }
 
-    const user = await User.findById(req.user._id);
+    let user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
-    const multiplier = getTierMultiplier(user.subscriptionTier);
+    expireUserPacks(user);
+    const wasReset = maybeResetDailyCounters(user);
+
+    const boostPct = getActiveBoostPct(user);
+    const multiplier = 1 + (boostPct / 100);
+    const packDailyCapNaira = getPackDailyCapNaira(user);
+
+    const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+    const packEarnedToday = await Transaction.aggregate([
+      { $match: { userId: user._id, type: 'pack_earn', createdAt: { $gte: todayDate } } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    let packEarnedTodayNaira = packEarnedToday[0]?.total || 0;
+
     let totalNairaEarned = 0;
+    let totalPackNairaEarned = 0;
+    let totalCoinsEarned = 0;
     let ridesProcessed = 0;
     const rideResults = [];
 
     for (const ride of rides) {
-      const totalCoins = Math.min(Math.max(0, Number(ride.coins) || 0), MAX_COINS_PER_RIDE);
+      const rawCoins = Math.min(Math.max(0, Number(ride.coins) || 0), ANTI_CHEAT_MAX_COINS);
 
       // Anti-cheat: skip suspicious rides
-      if (totalCoins > MAX_COINS_PER_RIDE) {
+      if ((Number(ride.coins) || 0) > ANTI_CHEAT_MAX_COINS) {
         rideResults.push({ skipped: true, reason: 'Suspicious coin count' });
         continue;
       }
@@ -257,71 +330,179 @@ exports.syncOffline = async (req, res) => {
         }
       }
 
-      // Apply free-user cap (₦50 per ride run = 5,000 coins) during offline sync too
-      const cappedCoins = isNonPurchasingUser(user) ? Math.min(totalCoins, FREE_USER_MAX_COINS_PER_RIDE) : totalCoins;
-      const baseNaira = cappedCoins / COINS_PER_NAIRA;
-      const nairaEarned = isNonPurchasingUser(user)
-        ? Math.min(Math.round(baseNaira * multiplier * 100) / 100, FREE_USER_MAX_NAIRA_PER_RIDE)
-        : Math.round(baseNaira * multiplier * 100) / 100;
+      const boostedCoins = Math.round(rawCoins * multiplier);
+      const currentDailyCoins = (user.dailyCoinsEarned || 0) + totalCoinsEarned;
+      const gameCapRemaining = Math.max(0, BASE_DAILY_CAP_COINS - currentDailyCoins);
+      const creditGameCoins = Math.min(boostedCoins, gameCapRemaining);
+      const capApplied = creditGameCoins < boostedCoins;
+      const gameNairaValue = creditGameCoins / COINS_PER_NAIRA;
+
+      const packRemainingNaira = Math.max(0, packDailyCapNaira - packEarnedTodayNaira);
+      let packNairaToCredit = Math.min(packRemainingNaira, gameNairaValue);
+      if (packNairaToCredit > 0) {
+        let availableLifetime = 0;
+        (user.activePacks || []).filter(p => p.status === 'active').forEach(p => {
+          availableLifetime += Math.max(0, (p.lifetimeMaxNaira || 0) - (p.lifetimeEarnedNaira || 0));
+        });
+        packNairaToCredit = Math.min(packNairaToCredit, availableLifetime);
+      }
+      packNairaToCredit = Math.round(packNairaToCredit * 100) / 100;
+      packEarnedTodayNaira += packNairaToCredit;
+
+      if (packNairaToCredit > 0) {
+        let remaining = packNairaToCredit;
+        (user.activePacks || []).filter(p => p.status === 'active').forEach(p => {
+          if (remaining <= 0) return;
+          const space = Math.max(0, (p.lifetimeMaxNaira || 0) - (p.lifetimeEarnedNaira || 0));
+          const credit = Math.min(remaining, space);
+          p.lifetimeEarnedNaira = (p.lifetimeEarnedNaira || 0) + credit;
+          remaining -= credit;
+        });
+      }
+
       const distanceKm = Number((Number(ride.distance || 0) / 1000).toFixed(2)) || 0.5;
 
       // Create Ride record (syncKey stored for idempotency — unique sparse index enforces once-only)
       const rideRecord = new Ride({
         userId: user._id,
-        coins: cappedCoins,
+        coins: creditGameCoins,
         stars: Number(ride.stars) || 0,
         carrots: Number(ride.carrots) || 0,
         boxes: Number(ride.boxes) || 0,
         adViews: Number(ride.adViews) || 0,
-        nairaEarned,
+        nairaEarned: gameNairaValue,
         distanceKm,
         ...(syncKey ? { syncKey } : {})
       });
       await rideRecord.save();
 
       // Create Transaction record
-      if (nairaEarned > 0) {
+      if (gameNairaValue > 0) {
         await Transaction.create({
           userId: user._id,
           type: 'earn',
-          amount: nairaEarned,
-          description: `Offline ride sync (${distanceKm} km, ${totalCoins} tokens)`,
+          amount: gameNairaValue,
+          coins: creditGameCoins,
+          capApplied,
+          description: `Offline ride sync (${distanceKm} km, ${creditGameCoins} coins)`,
           status: 'completed'
         });
       }
 
-      totalNairaEarned += nairaEarned;
+      if (packNairaToCredit > 0) {
+        await Transaction.create({
+          userId: user._id,
+          type: 'pack_earn',
+          amount: packNairaToCredit,
+          description: `Pack bonus earning (offline ride, ${boostPct}% boost)`,
+          status: 'completed'
+        });
+      }
+
+      totalNairaEarned += gameNairaValue;
+      totalPackNairaEarned += packNairaToCredit;
+      totalCoinsEarned += creditGameCoins;
       ridesProcessed++;
-      rideResults.push({ coins: totalCoins, nairaEarned, distanceKm });
+      rideResults.push({ coins: creditGameCoins, nairaEarned: gameNairaValue, packNairaEarned: packNairaToCredit, distanceKm, capApplied });
     }
 
-    // Update user balance & total rides atomically (atomic $inc) // $inc for syncOffline
+    // Update user balance & total rides atomically
     if (ridesProcessed > 0) {
+      const incOp = {
+        dailyCoinsEarned: totalCoinsEarned,
+        totalRides: ridesProcessed
+      };
+      if (totalNairaEarned > 0) incOp.balanceNaira = totalNairaEarned;
+      if (totalPackNairaEarned > 0) incOp.withdrawableNaira = totalPackNairaEarned;
+
+      const setOp = {
+        coinsLastEarnedAt: new Date(),
+        activePacks: user.activePacks
+      };
+      if (wasReset) {
+        setOp.dailyEarningDate = user.dailyEarningDate;
+        setOp.dailyCoinsEarned = totalCoinsEarned;
+        setOp.dailyAdCoinsEarned = 0;
+        setOp.dailyAdsWatched = 0;
+      }
+
       await User.findByIdAndUpdate(user._id, {
-        $inc: {
-          balanceNaira: totalNairaEarned,
-          totalRides: ridesProcessed
-        }
+        $inc: incOp,
+        $set: setOp
       });
     }
+
     const syncedUser = await User.findById(user._id);
-    if (syncedUser) {
-      user.balanceNaira = syncedUser.balanceNaira;
-      user.totalRides = syncedUser.totalRides;
-    }
 
     return res.json({
       success: true,
       message: `${ridesProcessed} offline ride(s) synced successfully!`,
       ridesProcessed,
       totalNairaEarned,
-      newBalance: user.balanceNaira,
-      totalRides: user.totalRides,
+      totalPackNairaEarned,
+      newBalance: syncedUser ? syncedUser.balanceNaira : user.balanceNaira,
+      withdrawableNaira: syncedUser ? syncedUser.withdrawableNaira : user.withdrawableNaira,
+      totalRides: syncedUser ? syncedUser.totalRides : user.totalRides,
+      dailyCoinsEarned: syncedUser ? syncedUser.dailyCoinsEarned : user.dailyCoinsEarned,
+      dailyCapCoins: BASE_DAILY_CAP_COINS,
       rideResults
     });
   } catch (err) {
     console.error('syncOffline error:', err);
     return res.status(500).json({ success: false, message: 'Server error syncing offline rides.' });
+  }
+};
+
+exports.dailyStatus = async (req, res) => {
+  try {
+    let user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    expireUserPacks(user);
+    maybeResetDailyCounters(user);
+    await user.save();
+
+    const boostPct         = getActiveBoostPct(user);
+    const packDailyCapNaira= getPackDailyCapNaira(user);
+    const totalDailyCoins  = (user.dailyCoinsEarned || 0) + (user.dailyAdCoinsEarned || 0);
+    const adsWatched       = user.dailyAdsWatched || 0;
+
+    // Coin expiry
+    let coinExpiresAt = null;
+    if (user.coinsLastEarnedAt) {
+      const exp = new Date(user.coinsLastEarnedAt);
+      exp.setDate(exp.getDate() + 7);
+      coinExpiresAt = exp.toISOString();
+    }
+
+    return res.json({
+      success: true,
+      dailyCoinsEarned:    user.dailyCoinsEarned || 0,
+      dailyAdCoinsEarned:  user.dailyAdCoinsEarned || 0,
+      dailyAdsWatched:     adsWatched,
+      adsRemainingToday:   Math.max(0, MAX_ADS_PER_DAY - adsWatched),
+      gameCapCoins:        BASE_DAILY_CAP_COINS,
+      adCapCoins:          AD_DAILY_CAP_COINS,
+      totalDailyCoins,
+      boostPct,
+      packDailyCapNaira,
+      activePacks:  (user.activePacks || []).filter(p => p.status === 'active').map(p => ({
+        packId:        p.packId,
+        packName:      p.packName,
+        boostPct:      p.boostPct,
+        dailyCapNaira: p.dailyCapNaira,
+        lifetimeMaxNaira:    p.lifetimeMaxNaira,
+        lifetimeEarnedNaira: p.lifetimeEarnedNaira,
+        expiresAt:     p.expiresAt,
+        daysLeft:      Math.max(0, Math.ceil((new Date(p.expiresAt) - new Date()) / 86400000))
+      })),
+      balanceNaira:      user.balanceNaira || 0,
+      withdrawableNaira: user.withdrawableNaira || 0,
+      coinExpiresAt
+    });
+  } catch (err) {
+    console.error('dailyStatus error:', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
   }
 };
 

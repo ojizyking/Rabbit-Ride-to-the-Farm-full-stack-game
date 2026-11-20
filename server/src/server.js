@@ -15,6 +15,7 @@ const shopRoutes = require('./routes/shop');
 const walletRoutes = require('./routes/wallet');
 const adminRoutes = require('./routes/admin');
 const adsRoutes = require('./routes/ads');
+const cronRoutes = require('./routes/cron');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -112,6 +113,7 @@ app.use(['/api/shop', '/shop'], shopRoutes);
 app.use(['/api/wallet', '/wallet'], walletRoutes);
 app.use(['/api/admin', '/admin-api'], adminRoutes);
 app.use(['/api/ads', '/ads'], adsRoutes);
+app.use(['/api/cron', '/cron'], cronRoutes);
 
 // Direct auth shortcuts for maximum URL compatibility across proxies and clients
 app.post(['/api/register', '/register'], authLimiter, authController.register);
@@ -182,7 +184,16 @@ app.use((err, req, res, next) => {
 
 // Connect to DB and start server
 connectDB()
-  .then(() => {
+  .then(async () => {
+    // Seed Farm Pack catalog (upserts — safe to run every startup)
+    try {
+      const FarmPack = require('./models/FarmPack');
+      await FarmPack.seedPacks();
+      console.log('[FarmPack] Seed packs upserted OK.');
+    } catch (e) {
+      console.warn('[FarmPack] Seed failed (non-fatal):', e.message);
+    }
+
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`===============================================`);
       console.log(` 🐇 Rabbit Ride to the Farm Backend Running!   `);

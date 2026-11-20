@@ -12,4 +12,10 @@ router.get('/gadgets', shopController.getGadgets);
 router.post('/buy', authMiddleware, shopController.buyOrEquip);
 router.post('/mystery-box', authMiddleware, shopController.openMysteryBox);
 
+// Farm Shop Packs
+router.get('/packs', shopController.listPacks);
+router.get('/my-packs', authMiddleware, shopController.myPacks);
+router.post('/buy-pack', authMiddleware, shopController.buyPack);
+router.post('/verify-pack', authMiddleware, shopController.verifyPack);
+
 module.exports = router;

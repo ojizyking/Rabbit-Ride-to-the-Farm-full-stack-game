@@ -10,6 +10,7 @@ router.get('/yt-search', gameController.searchYouTube);
 // All other game endpoints require JWT auth
 router.use(authMiddleware);
 
+router.get('/daily-status', gameController.dailyStatus);
 router.post('/start-ride', gameController.startRide);
 router.post('/collect', gameController.collect);
 router.post('/end-ride', gameController.endRide);

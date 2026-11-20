@@ -48,6 +48,10 @@ const withdrawalSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  method:       { type: String, enum: ['airtime', 'bank'], default: 'bank' },
+  coinsSpent:   { type: Number, default: 0 },
+  packEarnings: { type: Boolean, default: false },
+  phoneNumber:  { type: String, default: '' },
   createdAt: {
     type: Date,
     default: Date.now

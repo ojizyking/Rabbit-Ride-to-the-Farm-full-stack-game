@@ -19,12 +19,32 @@ const TIER_AMOUNTS = {
 exports.getBalance = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
+    // Coin expiry info
+    let coinExpiresAt = null;
+    if (user.coinsLastEarnedAt) {
+      const exp = new Date(user.coinsLastEarnedAt);
+      exp.setDate(exp.getDate() + 7);
+      coinExpiresAt = exp.toISOString();
+    }
     return res.json({
       success: true,
       balanceNaira: user.balanceNaira,
+      withdrawableNaira: user.withdrawableNaira || 0,
       subscriptionTier: user.subscriptionTier,
       subscriptionExpiresAt: user.subscriptionExpiresAt,
-      totalRides: user.totalRides
+      totalRides: user.totalRides,
+      activePacks: (user.activePacks || []).filter(p => p.status === 'active').map(p => ({
+        packId: p.packId,
+        packName: p.packName,
+        boostPct: p.boostPct,
+        dailyCapNaira: p.dailyCapNaira,
+        lifetimeMaxNaira: p.lifetimeMaxNaira,
+        lifetimeEarnedNaira: p.lifetimeEarnedNaira || 0,
+        expiresAt: p.expiresAt,
+        daysLeft: Math.max(0, Math.ceil((new Date(p.expiresAt) - new Date()) / 86400000))
+      })),
+      coinExpiresAt,
+      lastPackPurchasedAt: user.lastPackPurchasedAt || null
     });
   } catch (err) {
     console.error('getBalance error:', err);
@@ -174,79 +194,121 @@ exports.verifySubscription = async (req, res) => {
 
 exports.withdraw = async (req, res) => {
   try {
-    const { amount, accountNumber, bankCode, bankName = 'Commercial Bank' } = req.body;
+    const { method = 'bank', amount, accountNumber, bankCode, bankName = 'Commercial Bank', phoneNumber } = req.body;
     const withdrawAmount = Number(amount);
 
-    if (!withdrawAmount || withdrawAmount < 1000) {
+    // ── Validate method ────────────────────────────────────────────────────────
+    if (!['bank', 'airtime'].includes(method)) {
+      return res.status(400).json({ success: false, message: 'Invalid withdrawal method. Use "bank" or "airtime".' });
+    }
+
+    // ── Minimum amounts ────────────────────────────────────────────────────────
+    if (method === 'airtime') {
+      if (!withdrawAmount || withdrawAmount < 100) {
+        return res.status(400).json({ success: false, message: 'Minimum airtime withdrawal is ₦100.' });
+      }
+      if (!phoneNumber || !/^0[7-9][01]\d{8}$/.test(phoneNumber)) {
+        return res.status(400).json({ success: false, message: 'A valid Nigerian phone number is required for airtime withdrawal.' });
+      }
+    } else {
+      if (!withdrawAmount || withdrawAmount < 1000) {
+        return res.status(400).json({ success: false, message: 'Minimum bank withdrawal is ₦1,000.' });
+      }
+      if (!accountNumber || accountNumber.length !== 10) {
+        return res.status(400).json({ success: false, message: 'A valid 10-digit NUBAN account number is required.' });
+      }
+      if (!bankCode) {
+        return res.status(400).json({ success: false, message: 'Please select your destination bank.' });
+      }
+    }
+
+    // ── Load user and check 24h pack purchase cooldown ────────────────────────
+    const userDoc = await User.findById(req.user._id);
+    if (!userDoc) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    if (userDoc.lastPackPurchasedAt) {
+      const hoursSincePurchase = (Date.now() - new Date(userDoc.lastPackPurchasedAt).getTime()) / 3600000;
+      if (hoursSincePurchase < 24) {
+        const hoursLeft = Math.ceil(24 - hoursSincePurchase);
+        return res.status(400).json({
+          success: false,
+          message: `Withdrawals are blocked for 24 hours after buying a pack. Wait ${hoursLeft} more hour(s).`
+        });
+      }
+    }
+
+    // ── Withdraw from withdrawableNaira (real earnings) — not play balance ────
+    if (userDoc.withdrawableNaira < withdrawAmount) {
       return res.status(400).json({
         success: false,
-        message: 'Minimum withdrawal amount is ₦1,000.'
+        message: `Insufficient withdrawable balance! You can withdraw ₦${(userDoc.withdrawableNaira || 0).toLocaleString()} but requested ₦${withdrawAmount.toLocaleString()}.`
       });
     }
 
-    if (!accountNumber || accountNumber.length !== 10) {
-      return res.status(400).json({
-        success: false,
-        message: 'A valid 10-digit NUBAN account number is required.'
-      });
-    }
-
-    if (!bankCode) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please select your destination bank.'
-      });
-    }
-
-    // $atomic withdraw — deduct only if balance is sufficient (race-condition safe)
+    // $atomic deduct from withdrawableNaira (race-condition safe)
     const withdrawnUser = await User.findOneAndUpdate(
-      { _id: req.user._id, balanceNaira: { $gte: withdrawAmount } },
-      { $inc: { balanceNaira: -withdrawAmount } },
+      { _id: req.user._id, withdrawableNaira: { $gte: withdrawAmount } },
+      { $inc: { withdrawableNaira: -withdrawAmount } },
       { new: true }
     );
     if (!withdrawnUser) {
-      const current = await User.findById(req.user._id);
-      return res.status(400).json({
-        success: false,
-        message: `Insufficient balance! You requested ₦${withdrawAmount.toLocaleString()}, but have ₦${(current?.balanceNaira || 0).toLocaleString()}.`
-      });
+      return res.status(400).json({ success: false, message: 'Insufficient withdrawable balance or concurrent request detected. Please try again.' });
     }
-    const user = withdrawnUser;
 
-    // Call Squad Transfer
-    const transferResult = await initiateTransfer({
-      amount: withdrawAmount,
-      accountNumber,
-      bankCode,
-      reason: `Rabbit Ride cashout for ${user.email}`
-    });
+    // ── Initiate Squad transfer ───────────────────────────────────────────────
+    let transferResult;
+    try {
+      if (method === 'airtime') {
+        // For airtime, use Squad's airtime API or fall back to pending manual processing
+        transferResult = { status: 'pending', reference: `airtime_${Date.now()}_${req.user._id}`, transferCode: null };
+      } else {
+        transferResult = await initiateTransfer({
+          amount: withdrawAmount,
+          accountNumber,
+          bankCode,
+          reason: `Rabbit Ride cashout for ${withdrawnUser.email}`
+        });
+      }
+    } catch (transferErr) {
+      // Refund on transfer failure
+      await User.findByIdAndUpdate(req.user._id, { $inc: { withdrawableNaira: withdrawAmount } });
+      console.error('Transfer initiation failed:', transferErr.message);
+      return res.status(500).json({ success: false, message: 'Transfer failed. Your balance has been restored. Please try again.' });
+    }
 
     const withdrawal = await Withdrawal.create({
-      userId: user._id,
+      userId: withdrawnUser._id,
       amount: withdrawAmount,
-      accountNumber,
-      bankCode,
-      bankName,
+      method,
+      phoneNumber: method === 'airtime' ? phoneNumber : undefined,
+      accountNumber: method === 'bank' ? accountNumber : undefined,
+      bankCode: method === 'bank' ? bankCode : undefined,
+      bankName: method === 'bank' ? bankName : undefined,
+      coinsSpent: Math.round(withdrawAmount * 1000), // 1,000 coins = ₦1
       status: transferResult.status === 'paid' ? 'paid' : 'pending',
       squadRef: transferResult.reference,
       paystackRef: transferResult.reference,
-      transferCode: transferResult.transferCode
+      transferCode: transferResult.transferCode || null
     });
 
     await Transaction.create({
-      userId: user._id,
+      userId: withdrawnUser._id,
       type: 'withdrawal',
       amount: -withdrawAmount,
       reference: transferResult.reference,
-      description: `Withdrawal to ${bankName} (${accountNumber.slice(0, 3)}****${accountNumber.slice(-3)})`,
+      description: method === 'airtime'
+        ? `Airtime withdrawal ₦${withdrawAmount.toLocaleString()} → ${phoneNumber}`
+        : `Bank withdrawal ₦${withdrawAmount.toLocaleString()} → ${bankName} (${accountNumber.slice(0, 3)}****${accountNumber.slice(-3)})`,
       status: transferResult.status === 'paid' ? 'completed' : 'pending'
     });
 
     return res.json({
       success: true,
-      message: `Withdrawal of ₦${withdrawAmount.toLocaleString()} initiated successfully via Squad by GTCO!`,
-      withdrawal,
-      newBalance: user.balanceNaira
+      message: `Withdrawal of ₦${withdrawAmount.toLocaleString()} submitted successfully! Processing time: 1–24 hours.`,
+      withdrawalId: withdrawal._id,
+      method,
+      amount: withdrawAmount,
+      newWithdrawableBalance: withdrawnUser.withdrawableNaira
     });
   } catch (err) {
     console.error('withdraw error:', err);

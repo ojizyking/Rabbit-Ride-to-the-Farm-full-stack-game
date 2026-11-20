@@ -37,4 +37,7 @@ router.post('/ads', adminController.createAd);
 router.put('/ads/:id', adminController.updateAd);
 router.delete('/ads/:id', adminController.deleteAd);
 
+// Economy Dashboard
+router.get('/economy', adminController.economyStats);
+
 module.exports = router;

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import '../styles/dashboard.css';
 import RabbitRunningLoader from '../components/common/RabbitRunningLoader';
+import { DailyHUD } from '../components/DailyHUD';
 
 export const Dashboard: React.FC = () => {
   const { user, refreshUser, customizeReferralCode } = useAuth();
@@ -153,6 +154,11 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
       </section>
+
+      {/* Daily Earnings HUD */}
+      <div style={{ padding: '0 1rem' }}>
+        <DailyHUD />
+      </div>
 
       {/* ─────────────────────────────────────────────────────────── */}
       {/* SECTION 2: CORE METRICS GRID                                */}

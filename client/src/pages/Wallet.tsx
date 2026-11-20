@@ -48,12 +48,18 @@ export const Wallet: React.FC = () => {
   } | null>(null);
 
   // Withdraw form state
+  const [withdrawMethod, setWithdrawMethod] = useState<'bank' | 'airtime'>('bank');
   const [withdrawAmount, setWithdrawAmount] = useState('1000');
   const [accountNumber, setAccountNumber] = useState('');
   const [bankCode, setBankCode] = useState('058');
+  const [withdrawPhone, setWithdrawPhone] = useState('');
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [withdrawSuccess, setWithdrawSuccess] = useState<string | null>(null);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
+
+  // Withdrawable balance from server
+  const [withdrawableNaira, setWithdrawableNaira] = useState<number>(0);
+  const [packCooldownHours, setPackCooldownHours] = useState<number>(0);
 
   // Subscribe state
   const [selectedTier, setSelectedTier] = useState<number>(() => {
@@ -130,6 +136,18 @@ export const Wallet: React.FC = () => {
     if (token) {
       refreshUser();
       fetchTransactions();
+      // Fetch extended balance info (withdrawable, pack cooldown)
+      api.get('/wallet/balance')
+        .then(res => {
+          if (res.data.success) {
+            setWithdrawableNaira(res.data.withdrawableNaira || 0);
+            if (res.data.lastPackPurchasedAt) {
+              const hrs = (Date.now() - new Date(res.data.lastPackPurchasedAt).getTime()) / 3600000;
+              setPackCooldownHours(hrs < 24 ? Math.ceil(24 - hrs) : 0);
+            }
+          }
+        })
+        .catch(() => {});
     } else {
       loadOfflineTransactions();
     }
@@ -214,64 +232,37 @@ export const Wallet: React.FC = () => {
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) {
-      openAuthModal('login');
-      return;
-    }
+    if (!token) { openAuthModal('login'); return; }
 
     setWithdrawSuccess(null);
     setWithdrawError(null);
     setWithdrawLoading(true);
 
     try {
-      const selectedBank = NIGERIAN_BANKS.find((b) => b.code === bankCode);
-      const res = await api.post('/wallet/withdraw', {
-        amount: Number(withdrawAmount),
-        accountNumber,
-        bankCode,
-        bankName: selectedBank ? selectedBank.name : 'Commercial Bank'
-      });
+      const payload: Record<string, any> = {
+        method: withdrawMethod,
+        amount: Number(withdrawAmount)
+      };
+      if (withdrawMethod === 'bank') {
+        const selectedBank = bankList.find(b => b.code === bankCode);
+        payload.accountNumber = accountNumber;
+        payload.bankCode = bankCode;
+        payload.bankName = selectedBank?.name || 'Commercial Bank';
+      } else {
+        payload.phoneNumber = withdrawPhone;
+      }
 
+      const res = await api.post('/wallet/withdraw', payload);
       if (res.data.success) {
         setWithdrawSuccess(res.data.message);
-        if (res.data.newBalance !== undefined) {
-          updateBalance(res.data.newBalance);
-        }
+        setWithdrawableNaira(res.data.newWithdrawableBalance || 0);
         await fetchTransactions();
         setAccountNumber('');
+        setWithdrawPhone('');
       }
     } catch (err: unknown) {
-      const errorResponse = err as { response?: { data?: { message?: string } } };
-      // Fallback if offline/network failure but user has sufficient balance
-      if (!errorResponse.response && user && user.balanceNaira >= Number(withdrawAmount)) {
-        const amt = Number(withdrawAmount);
-        const newBal = Math.max(0, user.balanceNaira - amt);
-        updateBalance(newBal);
-
-        const mockTx: Transaction = {
-          _id: 'tx_off_' + Date.now(),
-          type: 'withdrawal',
-          amount: -amt,
-          description: `Withdrawal to ${accountNumber} (${NIGERIAN_BANKS.find(b => b.code === bankCode)?.name || 'Bank'})`,
-          status: 'pending',
-          createdAt: new Date().toISOString()
-        };
-
-        try {
-          const stored = localStorage.getItem('rabbit_offline_transactions');
-          const list = stored ? JSON.parse(stored) : [];
-          list.unshift(mockTx);
-          localStorage.setItem('rabbit_offline_transactions', JSON.stringify(list));
-          setTransactions(list);
-        } catch (e) {
-          console.warn('Could not save offline transaction', e);
-        }
-
-        setWithdrawSuccess(`Offline Simulation: Withdrawal request of ₦${amt.toLocaleString()} received (test mode).`);
-        setAccountNumber('');
-      } else {
-        setWithdrawError(errorResponse.response?.data?.message || 'Withdrawal failed. Please check inputs.');
-      }
+      const e = err as { response?: { data?: { message?: string } } };
+      setWithdrawError(e.response?.data?.message || 'Withdrawal failed. Please check inputs.');
     } finally {
       setWithdrawLoading(false);
     }
@@ -371,11 +362,43 @@ export const Wallet: React.FC = () => {
             </button>
           </div>
           <div style={{ fontSize: '0.95rem', color: '#FFE082', fontWeight: 600, marginBottom: '0.25rem' }}>
-            💰 {((user?.balanceNaira || 0) * 100).toLocaleString()} Coins (Rate: 10,000 Coins = ₦100)
+            💰 {((user?.balanceNaira || 0) * 1000).toLocaleString()} Coins (Rate: 1,000 Coins = ₦1)
           </div>
           <span style={{ fontSize: '0.85rem', opacity: 0.9 }}>
             Equipped: {user?.currentRabbit?.name || 'Starter White Rabbit'} + {user?.currentBike?.name || 'Classic Bike'}
           </span>
+
+          {/* Withdrawable balance badge */}
+          {withdrawableNaira > 0 && (
+            <div style={{
+              marginTop: '0.75rem',
+              background: 'rgba(102,187,106,0.25)',
+              border: '1px solid #66BB6A',
+              borderRadius: 10,
+              padding: '8px 14px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: '0.9rem',
+              fontWeight: 700,
+              color: '#C8E6C9'
+            }}>
+              💸 Withdrawable: ₦{withdrawableNaira.toFixed(2)}
+            </div>
+          )}
+          {packCooldownHours > 0 && (
+            <div style={{
+              marginTop: '0.5rem',
+              background: 'rgba(255,152,0,0.2)',
+              border: '1px solid #FF9800',
+              borderRadius: 10,
+              padding: '6px 12px',
+              fontSize: '0.82rem',
+              color: '#FFE082'
+            }}>
+              ⏳ Withdrawals unlock in {packCooldownHours}h (24h cooldown after pack purchase)
+            </div>
+          )}
           <div style={{ marginTop: '0.85rem' }}>
             <button
               onClick={() => setShowDepositModal(true)}
@@ -429,8 +452,10 @@ export const Wallet: React.FC = () => {
               <ArrowDownCircle size={26} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.35rem', color: '#174D2A', fontWeight: 700 }}>Withdraw Eligible Rewards</h3>
-              <p style={{ fontSize: '0.85rem', color: '#78909C' }}>Direct bank transfer via Squad (Minimum: ₦1,000)</p>
+              <h3 style={{ fontSize: '1.35rem', color: '#174D2A', fontWeight: 700 }}>Withdraw Earned Rewards</h3>
+              <p style={{ fontSize: '0.85rem', color: '#78909C' }}>
+                Withdrawable: <strong style={{ color: '#2E7D32' }}>₦{withdrawableNaira.toFixed(2)}</strong> · Airtime min ₦100 · Bank min ₦1,000
+              </p>
             </div>
           </div>
 
@@ -447,14 +472,56 @@ export const Wallet: React.FC = () => {
           )}
 
           <form onSubmit={handleWithdraw} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+            {/* Withdrawable balance info */}
+            <div style={{ background: withdrawableNaira > 0 ? '#E8F5E9' : '#FFF3E0', border: `1px solid ${withdrawableNaira > 0 ? '#A5D6A7' : '#FFCC80'}`, borderRadius: 10, padding: '10px 14px', fontSize: '0.88rem' }}>
+              {withdrawableNaira > 0 ? (
+                <span style={{ color: '#2E7D32', fontWeight: 700 }}>
+                  💸 You can withdraw up to <strong>₦{withdrawableNaira.toFixed(2)}</strong> (earned from Farm Packs)
+                </span>
+              ) : (
+                <span style={{ color: '#E65100' }}>
+                  ⚠️ No withdrawable balance yet. Buy a Farm Pack and play to earn real Naira.
+                </span>
+              )}
+            </div>
+
+            {/* Method selector */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.5rem' }}>
+                Withdrawal Method
+              </label>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {(['bank', 'airtime'] as const).map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => { setWithdrawMethod(m); setWithdrawAmount(m === 'airtime' ? '100' : '1000'); }}
+                    style={{
+                      flex: 1, padding: '10px 0', borderRadius: 10, border: `2px solid ${withdrawMethod === m ? '#174D2A' : '#CFD8DC'}`,
+                      background: withdrawMethod === m ? '#174D2A' : '#fff',
+                      color: withdrawMethod === m ? '#fff' : '#37474F', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem'
+                    }}
+                  >
+                    {m === 'bank' ? '🏦 Bank Transfer' : '📱 Airtime/Recharge'}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: '0.78rem', color: '#78909C', marginTop: 6 }}>
+                {withdrawMethod === 'bank' ? 'Min ₦1,000 · Processed within 24 hours' : 'Min ₦100 · Instant to your phone number'}
+              </p>
+            </div>
+
+            {/* Amount */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>
                 Withdrawal Amount (₦)
               </label>
               <input
                 type="number"
-                min="1000"
-                step="100"
+                min={withdrawMethod === 'airtime' ? '100' : '1000'}
+                max={withdrawableNaira}
+                step="50"
                 required
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
@@ -462,55 +529,84 @@ export const Wallet: React.FC = () => {
               />
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>
-                Select Destination Bank
-              </label>
-              <select
-                value={bankCode}
-                onChange={(e) => setBankCode(e.target.value)}
-                style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '2px solid #CFD8DC', fontSize: '0.95rem' }}
-              >
-                {bankList.map((bank) => (
-                  <option key={bank.code} value={bank.code}>
-                    {bank.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Bank fields */}
+            {withdrawMethod === 'bank' && (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>
+                    Select Destination Bank
+                  </label>
+                  <select
+                    value={bankCode}
+                    onChange={(e) => setBankCode(e.target.value)}
+                    style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '2px solid #CFD8DC', fontSize: '0.95rem' }}
+                  >
+                    {bankList.map((bank) => (
+                      <option key={bank.code} value={bank.code}>{bank.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>
+                    10-Digit NUBAN Account Number
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={10}
+                    required
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
+                    placeholder="0123456789"
+                    style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '2px solid #CFD8DC', fontSize: '1.05rem', letterSpacing: '1px' }}
+                  />
+                  {verifyingAccount && (
+                    <div style={{ fontSize: '0.8rem', color: '#0288D1', marginTop: '0.35rem', fontWeight: 600 }}>
+                      Verifying account name via Squad NUBAN...
+                    </div>
+                  )}
+                  {verifiedAccountName && (
+                    <div style={{ fontSize: '0.85rem', color: '#2E7D32', background: '#E8F5E9', padding: '0.4rem 0.75rem', borderRadius: '8px', marginTop: '0.45rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <CheckCircle2 size={15} /> Verified: {verifiedAccountName}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>
-                10-Digit NUBAN Account Number
-              </label>
-              <input
-                type="text"
-                maxLength={10}
-                required
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
-                placeholder="0123456789"
-                style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '2px solid #CFD8DC', fontSize: '1.05rem', letterSpacing: '1px' }}
-              />
-              {verifyingAccount && (
-                <div style={{ fontSize: '0.8rem', color: '#0288D1', marginTop: '0.35rem', fontWeight: 600 }}>
-                  Verifying account name via Squad NUBAN...
-                </div>
-              )}
-              {verifiedAccountName && (
-                <div style={{ fontSize: '0.85rem', color: '#2E7D32', background: '#E8F5E9', padding: '0.4rem 0.75rem', borderRadius: '8px', marginTop: '0.45rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <CheckCircle2 size={15} /> Verified Recipient: {verifiedAccountName}
-                </div>
-              )}
-            </div>
+            {/* Airtime field */}
+            {withdrawMethod === 'airtime' && (
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#37474F', marginBottom: '0.35rem' }}>
+                  Nigerian Phone Number (airtime destination)
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={withdrawPhone}
+                  onChange={(e) => setWithdrawPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  placeholder="08012345678"
+                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: '2px solid #CFD8DC', fontSize: '1.05rem', letterSpacing: '1px' }}
+                />
+              </div>
+            )}
+
+            {packCooldownHours > 0 && (
+              <div style={{ background: '#FFF3E0', border: '1px solid #FFCC80', borderRadius: 10, padding: '8px 12px', fontSize: '0.82rem', color: '#E65100' }}>
+                ⏳ Withdrawals unlock in {packCooldownHours}h (24-hour cooldown after pack purchase)
+              </div>
+            )}
 
             <button
               type="submit"
-              disabled={withdrawLoading || (user?.balanceNaira || 0) < Number(withdrawAmount)}
+              disabled={withdrawLoading || withdrawableNaira < Number(withdrawAmount) || packCooldownHours > 0}
               className="btn-primary"
               style={{ justifyContent: 'center', padding: '0.85rem', marginTop: '0.5rem' }}
             >
-              {withdrawLoading ? 'Processing Squad Transfer...' : 'Request Bank Transfer'}
+              {withdrawLoading
+                ? 'Processing…'
+                : withdrawMethod === 'airtime'
+                ? `Send ₦${Number(withdrawAmount).toLocaleString()} Airtime`
+                : `Request ₦${Number(withdrawAmount).toLocaleString()} Bank Transfer`}
             </button>
           </form>
         </div>

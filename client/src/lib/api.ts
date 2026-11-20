@@ -86,4 +86,70 @@ api.interceptors.response.use(
   }
 );
 
+// ─── Typed API helpers ────────────────────────────────────────────────────────
+
+export interface FarmPack {
+  packId: string;
+  name: string;
+  priceNaira: number;
+  playCoinsGranted: number;
+  boostPct: number;
+  durationDays: number;
+  dailyCapNaira: number;
+  lifetimeMaxNaira: number;
+}
+
+export interface ActivePack extends FarmPack {
+  packName: string;
+  purchasedAt: string;
+  expiresAt: string;
+  lifetimeEarnedNaira: number;
+  daysLeft: number;
+  canEarnMore: boolean;
+  status: 'active' | 'expired';
+}
+
+export interface DailyStatus {
+  dailyCoinsEarned: number;
+  dailyAdCoinsEarned: number;
+  dailyAdsWatched: number;
+  adsRemainingToday: number;
+  gameCapCoins: number;
+  adCapCoins: number;
+  totalDailyCoins: number;
+  boostPct: number;
+  packDailyCapNaira: number;
+  activePacks: ActivePack[];
+  balanceNaira: number;
+  withdrawableNaira: number;
+  coinExpiresAt: string | null;
+}
+
+/** GET /api/shop/packs */
+export const fetchPacks = () => api.get<{ success: boolean; packs: FarmPack[] }>('/shop/packs');
+
+/** GET /api/shop/my-packs */
+export const fetchMyPacks = () => api.get<{ success: boolean; activePacks: ActivePack[] }>('/shop/my-packs');
+
+/** POST /api/shop/buy-pack */
+export const initPackPurchase = (packId: string) =>
+  api.post<{ success: boolean; authorization_url: string; checkout_url: string; reference: string }>('/shop/buy-pack', { packId });
+
+/** POST /api/shop/verify-pack */
+export const verifyPackPurchase = (reference: string) =>
+  api.post<{ success: boolean; message: string; activePacks: ActivePack[] }>('/shop/verify-pack', { reference });
+
+/** GET /api/game/daily-status */
+export const fetchDailyStatus = () => api.get<DailyStatus>('/game/daily-status');
+
+/** POST /api/wallet/withdraw */
+export const submitWithdrawal = (payload: {
+  method: 'bank' | 'airtime';
+  amount: number;
+  accountNumber?: string;
+  bankCode?: string;
+  bankName?: string;
+  phoneNumber?: string;
+}) => api.post('/wallet/withdraw', payload);
+
 export default api;

@@ -13,7 +13,7 @@ const transactionSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['earn', 'shop', 'subscription', 'withdrawal', 'referral', 'deposit', 'coin_purchase'],
+    enum: ['earn', 'earn_ad', 'pack_purchase', 'pack_earn', 'shop', 'subscription', 'withdrawal', 'referral', 'deposit', 'coin_purchase', 'coin_expire', 'pack_expire'],
     required: true
   },
   amount: {
@@ -34,6 +34,9 @@ const transactionSchema = new mongoose.Schema({
     enum: ['completed', 'pending', 'failed'],
     default: 'completed'
   },
+  packId:     { type: String, default: null },
+  coins:      { type: Number, default: 0 },
+  capApplied: { type: Boolean, default: false },
   createdAt: {
     type: Date,
     default: Date.now

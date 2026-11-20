@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, RabbitItem, BicycleItem } from '../context/AuthContext';
-import api from '../lib/api';
-import { ArrowLeft, Zap, Shield, Rocket, Package, Star, Gift } from 'lucide-react';
+import api, { fetchPacks, fetchMyPacks, initPackPurchase, verifyPackPurchase, FarmPack, ActivePack } from '../lib/api';
+import { ArrowLeft, Zap, Shield, Rocket, Package, Star, Gift, CheckCircle, Clock } from 'lucide-react';
 import '../styles/shop.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ interface MysteryResult {
   newBalance?: number;
 }
 
-type ShopTab = 'all' | 'rabbits' | 'bicycles' | 'gadgets' | 'mystery';
+type ShopTab = 'all' | 'rabbits' | 'bicycles' | 'gadgets' | 'mystery' | 'packs';
 
 // ─── Fallback data (matches server seed) ─────────────────────────────────────
 
@@ -85,6 +85,11 @@ export const Shop: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
+  // Farm Pack state
+  const [farmPacks, setFarmPacks] = useState<FarmPack[]>([]);
+  const [myPacks, setMyPacks] = useState<ActivePack[]>([]);
+  const [packBuying, setPackBuying] = useState<string | null>(null);
+
   // Mystery box state
   const [boxOpening, setBoxOpening] = useState<'wood' | 'gold' | null>(null);
   const [prizeResult, setPrizeResult] = useState<MysteryPrize | null>(null);
@@ -96,10 +101,12 @@ export const Shop: React.FC = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [rabbitsRes, bikesRes, gadgetsRes] = await Promise.allSettled([
+      const [rabbitsRes, bikesRes, gadgetsRes, packsRes, myPacksRes] = await Promise.allSettled([
         api.get('/shop/rabbits'),
         api.get('/shop/bicycles'),
         api.get('/shop/gadgets'),
+        api.get('/shop/packs'),
+        api.get('/shop/my-packs'),
       ]);
 
       setRabbits(
@@ -117,6 +124,8 @@ export const Shop: React.FC = () => {
           ? gadgetsRes.value.data.gadgets
           : FALLBACK_GADGETS
       );
+      if (packsRes.status === 'fulfilled') setFarmPacks(packsRes.value.data?.packs || []);
+      if (myPacksRes.status === 'fulfilled') setMyPacks(myPacksRes.value.data?.activePacks || []);
     } catch {
       setRabbits(FALLBACK_RABBITS);
       setBicycles(FALLBACK_BIKES);
@@ -160,6 +169,53 @@ export const Shop: React.FC = () => {
 
   const coinEquiv = (naira: number) =>
     (naira * 100).toLocaleString();
+
+  // ── Farm Pack buy ─────────────────────────────────────────────────────────
+
+  const handleBuyPack = async (pack: FarmPack) => {
+    if (!user) { openAuthModal('login'); return; }
+    if (myPacks.length >= 3) {
+      showToast('You already have 3 active packs. Wait for one to expire.', 'error');
+      return;
+    }
+    setPackBuying(pack.packId);
+    try {
+      const res = await api.post('/shop/buy-pack', { packId: pack.packId });
+      if (res.data?.checkout_url) {
+        window.location.href = res.data.checkout_url;
+      } else if (res.data?.authorization_url) {
+        window.location.href = res.data.authorization_url;
+      } else {
+        showToast(res.data?.message || 'Failed to start payment.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Error initiating pack purchase.', 'error');
+    } finally {
+      setPackBuying(null);
+    }
+  };
+
+  // Check URL for pack verify callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    const ref    = params.get('reference') || params.get('trxref');
+    if (status === 'pack_success' && ref) {
+      api.post('/shop/verify-pack', { reference: ref })
+        .then(res => {
+          if (res.data?.success) {
+            showToast(`✅ ${res.data.message || 'Pack activated!'}`, 'success');
+            setMyPacks(res.data.activePacks || []);
+            refreshUser();
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          // Clean URL
+          window.history.replaceState({}, '', window.location.pathname);
+        });
+    }
+  }, []);
 
   // ── Buy / Equip ────────────────────────────────────────────────────────────
 
@@ -422,6 +478,7 @@ export const Shop: React.FC = () => {
       {/* Tabs */}
       <div className="shop-tabs">
         <TabButton tab="all"      label="ALL"      emoji="🌟" />
+        <TabButton tab="packs"    label="PACKS"    emoji="🌾" />
         <TabButton tab="rabbits"  label="RABBITS"  emoji="🐰" />
         <TabButton tab="bicycles" label="VEHICLES"  emoji="🚜" />
         <TabButton tab="gadgets"  label="GADGETS"  emoji="⚡" />
@@ -436,6 +493,119 @@ export const Shop: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* ── Farm Shop Packs ──────────────────────────────────────── */}
+          {(activeTab === 'all' || activeTab === 'packs') && (
+            <div style={{ marginBottom: 24 }}>
+              <h2 style={{ color: '#FFD700', margin: '0 0 4px 0', fontSize: '1.2rem' }}>🌾 Farm Shop Packs</h2>
+              <p style={{ color: 'rgba(255,255,255,0.6)', margin: '0 0 16px 0', fontSize: 13 }}>
+                Buy a pack to earn real Naira from playing. Up to 3 active packs at a time.
+              </p>
+
+              {/* Active packs summary */}
+              {myPacks.length > 0 && (
+                <div style={{
+                  background: 'rgba(102,187,106,0.12)',
+                  border: '1px solid #66BB6A',
+                  borderRadius: 12,
+                  padding: '12px 16px',
+                  marginBottom: 16
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#66BB6A', marginBottom: 8 }}>
+                    ✅ Your Active Packs ({myPacks.length}/3)
+                  </div>
+                  {myPacks.map(p => (
+                    <div key={p.packId} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.08)',
+                      fontSize: 13
+                    }}>
+                      <span style={{ color: '#fff' }}>
+                        {p.packName} <span style={{ color: '#FFD700' }}>+{p.boostPct}%</span>
+                      </span>
+                      <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+                        {p.daysLeft}d left · ₦{(p.lifetimeEarnedNaira || 0).toFixed(2)}/₦{p.lifetimeMaxNaira} earned
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pack cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+                {farmPacks.map(pack => {
+                  const isOwned = myPacks.some(p => p.packId === pack.packId);
+                  const isFull  = myPacks.length >= 3;
+                  const isBuying = packBuying === pack.packId;
+                  return (
+                    <div key={pack.packId} style={{
+                      background: 'linear-gradient(135deg, #1a1a2e, #0f3460)',
+                      border: `1px solid ${isOwned ? '#66BB6A' : 'rgba(255,215,0,0.3)'}`,
+                      borderRadius: 16,
+                      padding: 18,
+                      position: 'relative',
+                      opacity: isFull && !isOwned ? 0.6 : 1
+                    }}>
+                      {isOwned && (
+                        <div style={{
+                          position: 'absolute', top: 10, right: 10,
+                          background: '#66BB6A', color: '#fff',
+                          borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700
+                        }}>ACTIVE</div>
+                      )}
+                      <div style={{ fontSize: '1.6rem', marginBottom: 6 }}>
+                        {pack.packId === 'small_feed' ? '🌿' :
+                         pack.packId === 'rabbit_shoe' ? '👟' :
+                         pack.packId === 'rabbit_jacket' ? '🧥' :
+                         pack.packId === 'golden_carrot' ? '🥕' : '👑'}
+                      </div>
+                      <h3 style={{ margin: '0 0 4px 0', fontSize: '1rem', color: '#FFD700' }}>{pack.name}</h3>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
+                        ₦{pack.priceNaira.toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.7, marginBottom: 12 }}>
+                        🪙 {pack.playCoinsGranted.toLocaleString()} play coins<br/>
+                        ⚡ +{pack.boostPct}% speed boost<br/>
+                        📅 {pack.durationDays} day{pack.durationDays > 1 ? 's' : ''} duration<br/>
+                        💰 Earn up to ₦{pack.dailyCapNaira}/day<br/>
+                        🏆 Total max ₦{pack.lifetimeMaxNaira}
+                      </div>
+                      <button
+                        style={{
+                          width: '100%',
+                          padding: '10px 0',
+                          borderRadius: 10,
+                          border: 'none',
+                          cursor: isFull && !isOwned ? 'not-allowed' : 'pointer',
+                          fontWeight: 700,
+                          fontSize: 14,
+                          background: isOwned
+                            ? 'rgba(102,187,106,0.3)'
+                            : isFull
+                            ? 'rgba(255,255,255,0.1)'
+                            : 'linear-gradient(90deg, #FF8C00, #FFD700)',
+                          color: isOwned ? '#66BB6A' : isFull ? 'rgba(255,255,255,0.4)' : '#1a1a2e'
+                        }}
+                        onClick={() => !isOwned && !isFull && handleBuyPack(pack)}
+                        disabled={isBuying || isOwned || isFull}
+                      >
+                        {isBuying ? '⏳ Opening checkout…' :
+                         isOwned ? '✅ Already Active' :
+                         isFull ? '🔒 Max 3 packs' :
+                         `Buy for ₦${pack.priceNaira.toLocaleString()}`}
+                      </button>
+                      <div style={{
+                        marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.4)',
+                        textAlign: 'center'
+                      }}>
+                        "Earn up to ₦{pack.dailyCapNaira}/day" — results may vary
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* ── Mystery Box ───────────────────────────────────────────── */}
           {(activeTab === 'all' || activeTab === 'mystery') && (
             <div className="mystery-section">

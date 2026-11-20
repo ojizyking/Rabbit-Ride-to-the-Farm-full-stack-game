@@ -136,7 +136,41 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
-  }
+  },
+
+  // Daily earning tracker (reset lazily at 00:00 WAT)
+  dailyCoinsEarned:    { type: Number, default: 0 },
+  dailyAdCoinsEarned:  { type: Number, default: 0 },
+  dailyAdsWatched:     { type: Number, default: 0 },
+  dailyEarningDate:    { type: String, default: '' },  // 'YYYY-MM-DD' WAT
+
+  // Phone / device binding
+  phoneNumber:         { type: String, sparse: true, index: true, default: null },
+  deviceFingerprint:   { type: String, sparse: true, index: true, default: null },
+
+  // Active Farm Shop packs (max 3)
+  activePacks: [{
+    packId:               { type: String },
+    packName:             { type: String },
+    purchasedAt:          { type: Date },
+    expiresAt:            { type: Date },
+    dailyCapNaira:        { type: Number },
+    lifetimeMaxNaira:     { type: Number },
+    lifetimeEarnedNaira:  { type: Number, default: 0 },
+    boostPct:             { type: Number },
+    playCoinsGranted:     { type: Number },
+    squadRef:             { type: String },
+    status:               { type: String, enum: ['active','expired'], default: 'active' }
+  }],
+
+  // Coin expiry
+  coinsLastEarnedAt:    { type: Date, default: null },
+
+  // 24-hour withdrawal cooldown after any pack purchase
+  lastPackPurchasedAt:  { type: Date, default: null },
+
+  // Withdrawable real-money balance (separate from play balance)
+  withdrawableNaira:    { type: Number, default: 0 },
 });
 
 let MongooseUser;

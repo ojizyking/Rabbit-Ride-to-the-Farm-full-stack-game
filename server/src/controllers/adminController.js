@@ -642,3 +642,104 @@ exports.deleteAd = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Error deleting ad.' });
   }
 };
+
+
+/**
+ * GET /api/admin/economy — Economy dashboard stats
+ * Shows revenue from packs & ads, total payout, profit, DAU, top earners.
+ */
+exports.economyStats = async (req, res) => {
+  try {
+    const now   = new Date();
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // ── Revenue from Farm Packs ───────────────────────────────────────────────
+    const packTxAll   = await Transaction.find({ type: 'pack_purchase', status: 'completed' });
+    const packTxToday = packTxAll.filter(t => new Date(t.createdAt) >= todayStart);
+    const packTxMonth = packTxAll.filter(t => new Date(t.createdAt) >= monthStart);
+
+    const totalPackRevenue = packTxAll.reduce((s, t) => s + Math.abs(t.amount), 0);
+    const todayPackRevenue = packTxToday.reduce((s, t) => s + Math.abs(t.amount), 0);
+    const monthPackRevenue = packTxMonth.reduce((s, t) => s + Math.abs(t.amount), 0);
+
+    // ── Revenue from Ad views ─────────────────────────────────────────────────
+    const adTxAll   = await Transaction.find({ type: 'earn_ad', status: 'completed' });
+    const adTxToday = adTxAll.filter(t => new Date(t.createdAt) >= todayStart);
+
+    // Each ad earns 3,500 coins = ₦3.50 — revenue tracked as a fraction of ad spend
+    const totalAdViews   = adTxAll.length;
+    const todayAdViews   = adTxToday.length;
+    // Estimated ad revenue at ₦2 CPM (₦0.002 per view) — adjust to your AdMob rate
+    const totalAdRevenue = Math.round(totalAdViews * 0.5 * 100) / 100; // ₦0.50/view estimate
+    const todayAdRevenue = Math.round(todayAdViews * 0.5 * 100) / 100;
+
+    // ── Withdrawals / Payouts ─────────────────────────────────────────────────
+    const allWithdrawals = await Withdrawal.find();
+    const paidOut        = allWithdrawals.filter(w => w.status === 'paid').reduce((s, w) => s + w.amount, 0);
+    const pendingPayout  = allWithdrawals.filter(w => w.status === 'pending').reduce((s, w) => s + w.amount, 0);
+    const pendingCount   = allWithdrawals.filter(w => w.status === 'pending').length;
+    const todayPaidOut   = allWithdrawals
+      .filter(w => w.status === 'paid' && new Date(w.createdAt) >= todayStart)
+      .reduce((s, w) => s + w.amount, 0);
+
+    // ── Pack earnings credited to users (cost side) ───────────────────────────
+    const packEarnTx    = await Transaction.find({ type: 'pack_earn', status: 'completed' });
+    const totalPackPaid = packEarnTx.reduce((s, t) => s + Math.abs(t.amount), 0);
+
+    // ── Profit ────────────────────────────────────────────────────────────────
+    const totalRevenue = totalPackRevenue + totalAdRevenue;
+    const totalPayout  = paidOut + totalPackPaid;
+    const profit       = Math.round((totalRevenue - totalPayout) * 100) / 100;
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    const totalUsers  = await User.countDocuments();
+    const dau         = await User.countDocuments({ lastSeenAt: { $gte: todayStart } });
+    const withPacks   = await User.countDocuments({ 'activePacks.status': 'active' });
+
+    // ── Top earners (by withdrawableNaira) ────────────────────────────────────
+    const topEarners = await User.find({ withdrawableNaira: { $gt: 0 } })
+      .sort({ withdrawableNaira: -1 })
+      .limit(10)
+      .select('email firstName withdrawableNaira balanceNaira totalRides activePacks');
+
+    return res.json({
+      success: true,
+      revenue: {
+        packTotal: totalPackRevenue,
+        packToday: todayPackRevenue,
+        packThisMonth: monthPackRevenue,
+        adTotal: totalAdRevenue,
+        adToday: todayAdRevenue,
+        adViewsTotal: totalAdViews,
+        adViewsToday: todayAdViews,
+        total: Math.round(totalRevenue * 100) / 100
+      },
+      payouts: {
+        paidOut: Math.round(paidOut * 100) / 100,
+        todayPaidOut: Math.round(todayPaidOut * 100) / 100,
+        pendingPayout: Math.round(pendingPayout * 100) / 100,
+        pendingCount,
+        packEarningsTotal: Math.round(totalPackPaid * 100) / 100
+      },
+      profit,
+      users: {
+        total: totalUsers,
+        dau,
+        withActivePacks: withPacks
+      },
+      topEarners: topEarners.map(u => ({
+        email: u.email,
+        name: u.firstName || '—',
+        withdrawableNaira: u.withdrawableNaira || 0,
+        balanceNaira: u.balanceNaira || 0,
+        totalRides: u.totalRides || 0,
+        activePacks: (u.activePacks || []).filter(p => p.status === 'active').length
+      })),
+      generatedAt: now.toISOString()
+    });
+  } catch (err) {
+    console.error('economyStats error:', err);
+    return res.status(500).json({ success: false, message: 'Server error fetching economy stats.' });
+  }
+};
