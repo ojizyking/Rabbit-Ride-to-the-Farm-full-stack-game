@@ -151,9 +151,12 @@ export function queueOfflineRide(rideData: {
 }) {
   try {
     const queue = JSON.parse(localStorage.getItem('rabbit_offline_rides') || '[]');
+    // syncKey: unique per ride — prevents double-credit if sync-offline is retried
+    const syncKey = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     queue.push({
       ...rideData,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      syncKey
     });
     // Cap at 50 queued rides to prevent localStorage bloat
     localStorage.setItem('rabbit_offline_rides', JSON.stringify(queue.slice(-50)));

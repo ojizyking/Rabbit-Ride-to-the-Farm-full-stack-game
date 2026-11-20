@@ -11,6 +11,13 @@ const rideSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  // syncKey: client-generated unique ID for offline rides — prevents double-credit on retry
+  syncKey: {
+    type: String,
+    default: null,
+    index: true,
+    sparse: true   // only index docs where syncKey is set (online rides have null)
+  },
   coins: {
     type: Number,
     default: 0
@@ -46,6 +53,8 @@ const rideSchema = new mongoose.Schema({
 });
 
 rideSchema.index({ userId: 1, createdAt: -1 });
+// Unique sparse index: only one document per syncKey — ensures idempotent offline sync
+rideSchema.index({ syncKey: 1 }, { unique: true, sparse: true });
 
 let MongooseRide;
 try {

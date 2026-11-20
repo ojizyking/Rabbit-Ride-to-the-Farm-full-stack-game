@@ -246,6 +246,17 @@ exports.syncOffline = async (req, res) => {
         continue;
       }
 
+      // Idempotency: if this syncKey was already processed, skip it silently
+      // (handles network retries / double-submit without double-crediting)
+      const syncKey = ride.syncKey ? String(ride.syncKey).slice(0, 64) : null;
+      if (syncKey) {
+        const existing = await Ride.findOne({ syncKey });
+        if (existing) {
+          rideResults.push({ skipped: true, reason: 'Already synced', syncKey });
+          continue;
+        }
+      }
+
       // Apply free-user cap (₦50 per ride run = 5,000 coins) during offline sync too
       const cappedCoins = isNonPurchasingUser(user) ? Math.min(totalCoins, FREE_USER_MAX_COINS_PER_RIDE) : totalCoins;
       const baseNaira = cappedCoins / COINS_PER_NAIRA;
@@ -254,7 +265,7 @@ exports.syncOffline = async (req, res) => {
         : Math.round(baseNaira * multiplier * 100) / 100;
       const distanceKm = Number((Number(ride.distance || 0) / 1000).toFixed(2)) || 0.5;
 
-      // Create Ride record
+      // Create Ride record (syncKey stored for idempotency — unique sparse index enforces once-only)
       const rideRecord = new Ride({
         userId: user._id,
         coins: cappedCoins,
@@ -263,7 +274,8 @@ exports.syncOffline = async (req, res) => {
         boxes: Number(ride.boxes) || 0,
         adViews: Number(ride.adViews) || 0,
         nairaEarned,
-        distanceKm
+        distanceKm,
+        ...(syncKey ? { syncKey } : {})
       });
       await rideRecord.save();
 
@@ -355,8 +367,8 @@ function extractVideoRenderers(obj, results, max = 10) {
 /**
  * GET /api/game/yt-search?q=query
  * GET /api/game/music-search?q=query
- * Live YouTube song / video search without requiring external API keys.
- * Includes resilient fallbacks and recursive renderer parsing.
+ * Live YouTube song / video search.
+ * Priority: YouTube Data API v3 (if YOUTUBE_API_KEY set) → HTML scraping → curated fallback.
  */
 exports.searchYouTube = async (req, res) => {
   const query = String(req.query.q || '').trim();
@@ -367,6 +379,30 @@ exports.searchYouTube = async (req, res) => {
     return res.json({ success: true, results: CURATED_FALLBACK_TRACKS.slice(0, 8) });
   }
 
+  // ── Strategy 1: YouTube Data API v3 (quota-free for small traffic, reliable) ──
+  const ytApiKey = process.env.YOUTUBE_API_KEY;
+  if (ytApiKey) {
+    try {
+      const ytUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(query)}&key=${ytApiKey}`;
+      const ytResp = await fetch(ytUrl, { signal: AbortSignal.timeout(6000) });
+      if (ytResp.ok) {
+        const ytData = await ytResp.json();
+        const results = (ytData.items || []).map(item => ({
+          videoId: item.id.videoId,
+          title: item.snippet.title,
+          channel: item.snippet.channelTitle,
+          thumbnail: item.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${item.id.videoId}/hqdefault.jpg`
+        })).filter(r => r.videoId);
+        if (results.length > 0) {
+          return res.json({ success: true, results, source: 'yt-api-v3' });
+        }
+      }
+    } catch (err) {
+      console.warn('YouTube Data API v3 failed, falling back to scraping:', err.message);
+    }
+  }
+
+  // ── Strategy 2: HTML scraping (no key required, may break if YT changes HTML) ──
   try {
     const response = await fetch('https://www.youtube.com/results?search_query=' + encodeURIComponent(query), {
       headers: {
@@ -395,29 +431,20 @@ exports.searchYouTube = async (req, res) => {
 
     // If live search returned results, send them
     if (results.length > 0) {
-      return res.json({ success: true, results });
+      return res.json({ success: true, results, source: 'yt-scrape' });
     }
-
-    // Fallback: match curated tracks by artist / title keywords
-    const fallbackMatches = CURATED_FALLBACK_TRACKS.filter(t =>
-      t.title.toLowerCase().includes(lowerQuery) ||
-      t.channel.toLowerCase().includes(lowerQuery)
-    );
-
-    return res.json({
-      success: true,
-      results: fallbackMatches.length > 0 ? fallbackMatches : CURATED_FALLBACK_TRACKS.slice(0, 6)
-    });
   } catch (err) {
-    console.error('searchYouTube error:', err.message);
-    // Even on network error, return curated fallback matches so UI never fails
-    const fallbackMatches = CURATED_FALLBACK_TRACKS.filter(t =>
-      t.title.toLowerCase().includes(lowerQuery) ||
-      t.channel.toLowerCase().includes(lowerQuery)
-    );
-    return res.json({
-      success: true,
-      results: fallbackMatches.length > 0 ? fallbackMatches : CURATED_FALLBACK_TRACKS.slice(0, 6)
-    });
+    console.error('YouTube scrape failed:', err.message);
   }
+
+  // ── Strategy 3: Curated fallback — always works ──
+  const fallbackMatches = CURATED_FALLBACK_TRACKS.filter(t =>
+    t.title.toLowerCase().includes(lowerQuery) ||
+    t.channel.toLowerCase().includes(lowerQuery)
+  );
+  return res.json({
+    success: true,
+    results: fallbackMatches.length > 0 ? fallbackMatches : CURATED_FALLBACK_TRACKS.slice(0, 6),
+    source: 'curated'
+  });
 };
