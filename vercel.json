@@ -4,19 +4,19 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api/:path*"
+      "destination": "https://rabbit-ride-backend.onrender.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api/auth/:path*"
+      "destination": "https://rabbit-ride-backend.onrender.com/api/auth/:path*"
     },
     {
       "source": "/register",
-      "destination": "https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api/auth/register"
+      "destination": "https://rabbit-ride-backend.onrender.com/api/auth/register"
     },
     {
       "source": "/login",
-      "destination": "https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api/auth/login"
+      "destination": "https://rabbit-ride-backend.onrender.com/api/auth/login"
     },
     {
       "source": "/(.*)",
