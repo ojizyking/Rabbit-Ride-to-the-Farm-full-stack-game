@@ -3,7 +3,7 @@
  * Provides offline caching, lightning-fast boot, and seamless PWA capabilities.
  */
 
-const CACHE_NAME = 'rabbit-farm-pwa-v15';
+const CACHE_NAME = 'rabbit-farm-pwa-v16';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -49,8 +49,15 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 1. Bypass non-GET requests or backend API / telemetry calls
-  if (req.method !== 'GET' || url.pathname.startsWith('/api') || url.hostname.includes('clerk')) {
+  // 1. Bypass ALL non-GET requests (POST, PUT, PATCH, DELETE) — never cache mutations
+  if (req.method !== 'GET') return;
+
+  // 2. Bypass all cross-origin requests (Render backend, Clerk, analytics, CDNs)
+  //    Only handle same-origin requests (Vercel/Railway served assets)
+  if (url.origin !== self.location.origin) return;
+
+  // 3. Bypass API paths and Clerk
+  if (url.pathname.startsWith('/api') || url.hostname.includes('clerk')) {
     return;
   }
 

@@ -7,6 +7,7 @@ function getApiBaseUrl(): string {
     if (
       window.location.hostname.endsWith('railway.app') ||
       window.location.hostname.endsWith('onrender.com') ||
+      window.location.hostname.endsWith('vercel.app') ||
       window.location.hostname === 'localhost' ||
       window.location.hostname === '127.0.0.1'
     ) {
