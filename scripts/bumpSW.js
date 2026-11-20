@@ -9,9 +9,9 @@ const targets = [
 targets.forEach(p => {
   if (fs.existsSync(p)) {
     let content = fs.readFileSync(p, 'utf8');
-    content = content.replace(/rabbit-farm-pwa-v\d+/, 'rabbit-farm-pwa-v14');
+    content = content.replace(/rabbit-farm-pwa-v\d+/, 'rabbit-farm-pwa-v15');
     fs.writeFileSync(p, content, 'utf8');
   }
 });
 
-console.log('✅ Bumped service worker cache to v14 across client and server');
+console.log('✅ Bumped service worker cache to v15 across client and server');
