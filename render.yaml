@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: rabbit-ride-backend
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node src/server.js
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        value: mongodb+srv://etizzer_db_user:M7LuMt0aTu5vtQkE@cluster0.mx0rtrg.mongodb.net/rabbit_farm
+      - key: JWT_SECRET
+        value: rabbit_super_secret_jwt_key_2026_farm_ride
+      - key: SQUAD_SECRET_KEY
+        value: sandbox_sk_demo_key
+      - key: ADMIN_EMAILS
+        value: etizzer@gmail.com,admin@rabbitride.farm
+    healthCheckPath: /api/health
+    autoDeploy: true

@@ -2,9 +2,14 @@ import axios from 'axios';
 
 function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
-    // When running on Railway (same-origin), always use relative '/api'
-    // This avoids cross-origin preflights, protocol redirects, and CORS latency
-    if (window.location.hostname.endsWith('railway.app') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    // When running on same-origin (Railway or Render serving both frontend+backend),
+    // use relative '/api' to avoid cross-origin preflights and CORS latency
+    if (
+      window.location.hostname.endsWith('railway.app') ||
+      window.location.hostname.endsWith('onrender.com') ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1'
+    ) {
       return '/api';
     }
   }
@@ -12,7 +17,7 @@ function getApiBaseUrl(): string {
     import.meta.env.VITE_API_URL ||
     (import.meta.env.DEV
       ? 'http://localhost:5000/api'
-      : 'https://rabbit-ride-to-the-farm-full-stack-game-production.up.railway.app/api')
+      : 'https://rabbit-ride-backend.onrender.com/api')
   );
 }
 
